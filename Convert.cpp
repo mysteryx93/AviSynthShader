@@ -90,7 +90,7 @@ GenericVideoFilter(_child) {
 	// Convert from float-precision RGB to YV12
 	viYV = vi;
 	viYV.pixel_type = VideoInfo::CS_YV12;
-	viYV.width >>= 3; // Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
+	//viYV.width >>= 3; // Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
 }
 
 ConvertFromShader::~ConvertFromShader() {

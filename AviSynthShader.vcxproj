@@ -93,12 +93,10 @@
     <ClInclude Include="avisynth.h" />
     <ClInclude Include="Convert.h" />
     <ClInclude Include="internal.h" />
-    <ClInclude Include="Shader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Convert.cpp" />
     <ClCompile Include="Init.cpp" />
-    <ClCompile Include="Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="gpl.txt" />
