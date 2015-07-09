@@ -8,6 +8,9 @@
 
 ConvertToShader::ConvertToShader(PClip _child, IScriptEnvironment* env) :
 GenericVideoFilter(_child) {
+	if (!vi.IsPlanar() || !vi.IsYV12())
+		env->ThrowError("Source must be YV12");
+
 	// Convert from YV12 to float-precision RGB
 	viRGB = vi;
 	viRGB.pixel_type = VideoInfo::CS_BGR32;
@@ -60,9 +63,9 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 	//r = y + (1.370705f * (v - 128));
 	//g = y - (0.698001f * (v - 128)) - (0.337633f * (u - 128));
 	//b = y + (1.732446f * (u - 128));
-	r = y + 1.403 * u;
-	g = y - 0.344 * u - 0.714 * v;
-	b = y + 1.770 * u;
+	r = y + 1.403f * u;
+	g = y - 0.344f * u - 0.714f * v;
+	b = y + 1.770f * u;
 
 	if (r > 255) r = 255;
 	if (g > 255) g = 255;
@@ -87,10 +90,13 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 
 ConvertFromShader::ConvertFromShader(PClip _child, IScriptEnvironment* env) :
 GenericVideoFilter(_child) {
+	if (vi.IsPlanar() || !vi.IsRGB32())
+		env->ThrowError("Source must be float-precision RGB");
+
 	// Convert from float-precision RGB to YV12
 	viYV = vi;
 	viYV.pixel_type = VideoInfo::CS_YV12;
-	//viYV.width >>= 3; // Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
+	viYV.width >>= 2; // Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
 }
 
 ConvertFromShader::~ConvertFromShader() {
@@ -111,14 +117,15 @@ void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, un
 {
 	width >>= 1;
 	height >>= 1;
-	int Y1, Y2, Y3, Y4, U, V;
-	float R, G, B;
+	unsigned char U[4], V[4];
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			convFloat(&src[(x << 3)], &py[x << 1], &pu[x], &pv[x]);
-			convFloat(&src[(x << 3) + bytesPerPixel], &py[(x << 1) + 1], &pu[x], &pv[x]);
-			convFloat(&src[(x << 3) + pitch1], &py[(x << 1) + 1], &pu[x], &pv[x]);
-			convFloat(&src[(x << 3) + pitch1 + bytesPerPixel], &py[(x << 1) + pitch2Y + 1], &pu[x], &pv[x]);
+			convFloat(&src[(x << 3)], &py[x << 1], &U[0], &V[0]);
+			convFloat(&src[(x << 3) + bytesPerPixel], &py[(x << 1) + 1], &U[1], &V[1]);
+			convFloat(&src[(x << 3) + pitch1], &py[(x << 1) + 1], &U[2], &V[2]);
+			convFloat(&src[(x << 3) + pitch1 + bytesPerPixel], &py[(x << 1) + pitch2Y + 1], &U[3], &V[3]);
+			pu[x] = (U[0] + U[1] + U[2] + U[3]) / 4;
+			pv[x] = (V[0] + V[1] + V[2] + V[3]) / 4;
 		}
 		src += pitch1;
 		py += pitch2Y;
@@ -142,7 +149,7 @@ void ConvertFromShader::convFloat(const byte* src, byte* outY, unsigned char* ou
 	float y, u, v;
 	y = 0.299f * r + 0.587f * g + 0.114f * b;
 	u = (b - y) * 0.565f;
-	v = (r - y) * 0.713;
+	v = (r - y) * 0.713f;
 
 	if (y > 255) y = 255;
 	if (u > 255) u = 255;
