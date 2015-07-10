@@ -7,8 +7,8 @@
 // the same formula will cancel most of the distortion. There might be color distortion on the effect of the shader.
 
 ConvertToShader::ConvertToShader(PClip _child, IScriptEnvironment* env) :
-GenericVideoFilter(_child) {
-	if (!vi.IsPlanar() || !vi.IsYV12())
+GenericVideoFilter(_child), bytesPerPixel(16) {
+	if (!vi.IsYV12())
 		env->ThrowError("Source must be YV12");
 
 	// Convert from YV12 to float-precision RGB
@@ -45,15 +45,15 @@ void ConvertToShader::conv420toFloatRGB(const byte *py, const byte *pu, const by
 			Y3 = py[(x << 1) + pitch1Y];
 			Y4 = py[(x << 1) + pitch1Y + 1];
 
-			convFloat(Y1, U, V, &dst[(x << 3)]);
-			convFloat(Y2, U, V, &dst[(x << 3) + bytesPerPixel]);
-			convFloat(Y3, U, V, &dst[(x << 3)] + pitch2);
-			convFloat(Y4, U, V, &dst[(x << 3)] + pitch2 + bytesPerPixel);
+			convFloat(Y1, U, V, &dst[(x << (1+4))]);
+			convFloat(Y2, U, V, &dst[(x << (1+4)) + bytesPerPixel]);
+			convFloat(Y3, U, V, &dst[(x << (1+4))] + pitch2);
+			convFloat(Y4, U, V, &dst[(x << (1+4))] + pitch2 + bytesPerPixel);
 		}
-		py += pitch1Y;
+		py += pitch1Y*2;
 		pu += pitch1UV;
 		pv += pitch1UV;
-		dst += pitch2;
+		dst += pitch2*2;
 	}
 }
 
@@ -79,18 +79,18 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 	g = g / 255 * 1;
 	b = b / 255 * 1;
 
+	// Store BGRA
+	memcpy(out + 0, &b, sizeof(float));
+	memcpy(out + 4, &g, sizeof(float));
+	memcpy(out + 8, &r, sizeof(float));
 	// Empty alpha channel
-	out[0] = out[1] = out[2] = out[3] = 0;
-	// Store RGB
-	memcpy(out + 4, &b, sizeof(float));
-	memcpy(out + 8, &g, sizeof(float));
-	memcpy(out + 12, &r, sizeof(float));
+	out[12] = out[13] = out[14] = out[15] = 0;
 }
 
 
 ConvertFromShader::ConvertFromShader(PClip _child, IScriptEnvironment* env) :
-GenericVideoFilter(_child) {
-	if (vi.IsPlanar() || !vi.IsRGB32())
+GenericVideoFilter(_child), bytesPerPixel(16) {
+	if (!vi.IsRGB32())
 		env->ThrowError("Source must be float-precision RGB");
 
 	// Convert from float-precision RGB to YV12
@@ -108,7 +108,9 @@ PVideoFrame __stdcall ConvertFromShader::GetFrame(int n, IScriptEnvironment* env
 
 	// Convert from float-precision RGB to YV12
 	PVideoFrame dst = env->NewVideoFrame(viYV);
-	convFloatRGBto420(src->GetReadPtr(PLANAR_Y), src->GetWritePtr(PLANAR_U), src->GetWritePtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), viYV.width, viYV.height);
+	convFloatRGBto420(src->GetReadPtr(), 
+		dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), 
+		src->GetPitch(), dst->GetPitch(PLANAR_Y), dst->GetPitch(PLANAR_U), viYV.width, viYV.height);
 	return dst;
 }
 
