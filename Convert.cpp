@@ -6,6 +6,12 @@
 // There may be color matrix distortion (interpreting Rec709 data in Rec601), but converting back with
 // the same formula will cancel most of the distortion. There might be color distortion on the effect of the shader.
 
+// Precision can be 
+// 0 = YUV, 1 byte per channel (to convert in a shader)
+// 1 = RGB, 1 byte per channel (valid for display)
+// 2 = Half-Float, 2 byte per channel (better performance)
+// 4 = Float, 4 byte per channel (better quality)
+
 ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
 GenericVideoFilter(_child), precision(_precision) {
 	if (!vi.IsYV12())
@@ -43,31 +49,25 @@ void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *p
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			Y1 = py[x << 1];
-			U = pu[x];
 			Y2 = py[(x << 1) + 1];
-			V = pv[x];
-			// pixels on 2nd row
-			Y3 = py[(x << 1) + pitch1Y];
+			Y3 = py[(x << 1) + pitch1Y]; // 2nd row
 			Y4 = py[(x << 1) + pitch1Y + 1];
+			U = pu[x];
+			V = pv[x];
 
-			convFloat(Y1, U, V, &dst[(x << (1+precision))]);
-			convFloat(Y2, U, V, &dst[(x << (1+precision)) + precision * 4]);
-			convFloat(Y3, U, V, &dst[(x << (1+precision))] + pitch2);
-			convFloat(Y4, U, V, &dst[(x << (1+precision))] + pitch2 + precision * 4);
+			convFloat(Y1, U, V, &dst[(x << precision)]);
+			convFloat(Y2, U, V, &dst[(x << precision) + precision * 4]);
+			convFloat(Y3, U, V, &dst[(x << precision) + pitch2]);
+			convFloat(Y4, U, V, &dst[(x << precision) + pitch2 + precision * 4]);
 		}
-		py += pitch1Y*2;
+		py += pitch1Y * 2;
 		pu += pitch1UV;
 		pv += pitch1UV;
-		dst += pitch2*2;
+		dst += pitch2 * 2;
 	}
 }
 
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-// Precision can be 
-// 0 = YUV, 1 byte per channel (to convert in a shader)
-// 1 = RGB, 1 byte per channel (valid for display)
-// 2 = Half-Float, 2 byte per channel (better performance)
-// 4 = Float, 4 byte per channel (better quality)
 void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 	float r, g, b;
 	if (precision > 0) {
@@ -83,9 +83,11 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 		if (b < 0) b = 0;
 
 		// Texture shaders expect data between 0 and 1
-		r = r / 255 * 1;
-		g = g / 255 * 1;
-		b = b / 255 * 1;
+		if (precision > 1) {
+			r = r / 255 * 1;
+			g = g / 255 * 1;
+			b = b / 255 * 1;
+		}
 	}
 	else {
 		// Pass YUV values to be converted by a shader
@@ -97,18 +99,28 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 	// Convert the data at the position of RGB into specified specifion
 	if (precision == 0 || precision == 1) {
 		unsigned char r2 = unsigned char(r);
-		memcpy(&r, &r2, precision);
+		unsigned char g2 = unsigned char(g);
+		unsigned char b2 = unsigned char(b);
+		memcpy(out + 0, &b2, precision);
+		memcpy(out + precision, &g2, precision);
+		memcpy(out + precision * 2, &r2, precision);
 	}
 	else if (precision == 2) {
 		// Convert to half float
+		//memcpy(out + 0, &b2, precision);
+		//memcpy(out + precision, &g2, precision);
+		//memcpy(out + precision * 2, &r2, precision);
+	}
+	else {
+		// Store float
+		memcpy(out + 0, &b, precision);
+		memcpy(out + precision, &g, precision);
+		memcpy(out + precision * 2, &r, precision);
 	}
 
 	// Store BGRA
-	memcpy(out + 0, &b, precision);
-	memcpy(out + precision, &g, precision);
-	memcpy(out + precision, &r, precision);
 	// Empty alpha channel
-	ZeroMemory(&out[precision*3], precision);
+	ZeroMemory(&out[precision * 3], precision);
 }
 
 
@@ -132,8 +144,8 @@ PVideoFrame __stdcall ConvertFromShader::GetFrame(int n, IScriptEnvironment* env
 
 	// Convert from float-precision RGB to YV12
 	PVideoFrame dst = env->NewVideoFrame(viYV);
-	convFloatRGBto420(src->GetReadPtr(), 
-		dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), 
+	convFloatRGBto420(src->GetReadPtr(),
+		dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V),
 		src->GetPitch(), dst->GetPitch(PLANAR_Y), dst->GetPitch(PLANAR_U), viYV.width, viYV.height);
 	return dst;
 }
@@ -147,9 +159,9 @@ void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, un
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			convFloat(&src[(x << 3)], &py[x << 1], &U[0], &V[0]);
-			convFloat(&src[(x << 3) + precision*4], &py[(x << 1) + 1], &U[1], &V[1]);
+			convFloat(&src[(x << 3) + precision * 4], &py[(x << 1) + 1], &U[1], &V[1]);
 			convFloat(&src[(x << 3) + pitch1], &py[(x << 1) + 1], &U[2], &V[2]);
-			convFloat(&src[(x << 3) + pitch1 + precision*4], &py[(x << 1) + pitch2Y + 1], &U[3], &V[3]);
+			convFloat(&src[(x << 3) + pitch1 + precision * 4], &py[(x << 1) + pitch2Y + 1], &U[3], &V[3]);
 			pu[x] = (U[0] + U[1] + U[2] + U[3]) / 4;
 			pv[x] = (V[0] + V[1] + V[2] + V[3]) / 4;
 		}
