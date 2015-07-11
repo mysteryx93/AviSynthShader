@@ -3,8 +3,8 @@ LoadPlugin(PluginPath+"masktools2.dll")
 LoadPlugin("C:\GitHub\AviSynthShader\Debug\Shader.dll")
 AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 
-ConvertToShader()
-ConvertFromShader()
+ConvertToShader(1)
+# ConvertFromShader()
 
 #TestQuality()
 
