@@ -14,7 +14,9 @@ private:
 	void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *pv, unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 	void ConvertToShader::convFloat(int y, int u, int v, unsigned char *out);
 	VideoInfo viRGB;
-	const int precision;
+	int precision;
+	int precisionShift;
+	bool copyYUV;
 };
 
 
@@ -29,5 +31,7 @@ private:
 	void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv, int pitch1, int pitch2Y, int pitch2UV, int width, int height);
 	void ConvertFromShader::convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	VideoInfo viYV;
-	const int precision;
+	int precision;
+	int precisionShift;
+	bool copyYUV;
 };

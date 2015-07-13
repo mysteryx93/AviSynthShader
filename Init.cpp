@@ -12,14 +12,14 @@
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	return new ConvertToShader(
 		args[0].AsClip(),			// source clip
-		args[1].AsInt(),			// precision
+		args[1].AsInt(4),			// precision
 		env);						// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	return new ConvertFromShader(
 		args[0].AsClip(),			// source clip
-		args[1].AsInt(),			// precision
+		args[1].AsInt(4),			// precision
 		env);						// env is the link to essential informations, always provide it
 }
 

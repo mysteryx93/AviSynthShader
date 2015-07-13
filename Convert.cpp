@@ -13,19 +13,38 @@
 // 4 = Float, 4 byte per channel (better quality)
 
 ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
-GenericVideoFilter(_child), precision(_precision) {
+GenericVideoFilter(_child) {
 	if (!vi.IsYV12())
 		env->ThrowError("Source must be YV12");
+	if (_precision != 1 && _precision != 2 && _precision != 4)
+		env->ThrowError("Precision must be 0, 1, 2 or 4");
 
 	// Convert from YV12 to float-precision RGB
 	viRGB = vi;
 	viRGB.pixel_type = VideoInfo::CS_BGR32;
 
+	// Initialize variables.
+	if (_precision == 0) {
+		precision = 1;
+		copyYUV = true;
+	}
+	else {
+		precision = _precision;
+		copyYUV = false;
+	}
+
+	// Avoid having to convert this for every pixel.
 	// RGBA is 4-byte per pixel, float-precision RGB is 16-byte per pixel (4 float). We need to increase width to store all the data.
-	if (precision == 2)
+	if (precision == 1)
+		precisionShift = 3;
+	else if (precision == 2) {
 		viRGB.width <<= 1;
-	else if (precision == 4)
+		precisionShift = 4;
+	}
+	else if (precision == 4) {
 		viRGB.width <<= 2;
+		precisionShift = 5;
+	}
 }
 
 ConvertToShader::~ConvertToShader() {
@@ -55,10 +74,10 @@ void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *p
 			U = pu[x];
 			V = pv[x];
 
-			convFloat(Y1, U, V, &dst[(x << precision)]);
-			convFloat(Y2, U, V, &dst[(x << precision) + precision * 4]);
-			convFloat(Y3, U, V, &dst[(x << precision) + pitch2]);
-			convFloat(Y4, U, V, &dst[(x << precision) + pitch2 + precision * 4]);
+			convFloat(Y1, U, V, dst + (x << precisionShift));
+			convFloat(Y2, U, V, dst + (x << precisionShift) + precision * 4);
+			convFloat(Y3, U, V, dst + (x << precisionShift) + pitch2);
+			convFloat(Y4, U, V, dst + (x << precisionShift) + pitch2 + precision * 4);
 		}
 		py += pitch1Y * 2;
 		pu += pitch1UV;
@@ -70,10 +89,19 @@ void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *p
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
 void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 	float r, g, b;
-	if (precision > 0) {
-		r = y + 1.403f * u;
-		g = y - 0.344f * u - 0.714f * v;
-		b = y + 1.770f * u;
+	if (copyYUV) {
+		// Pass YUV values to be converted by a shader
+		r = float(y);
+		g = float(u);
+		b = float(v);
+	}
+	else {
+		b = 1.164f * (y - 16) + 2.018f * (u - 128);
+		g = 1.164f * (y - 16) - 0.813f * (v - 128) - 0.391f * (u - 128);
+		r = 1.164f * (y - 16) + 1.596f * (v - 128);
+		//r = y + 1.403f * v; // This doesn't work
+		//g = y - 0.344f * u - 0.714f * v;
+		//b = y + 1.770f * u;
 
 		if (r > 255) r = 255;
 		if (g > 255) g = 255;
@@ -89,12 +117,6 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 			b = b / 255 * 1;
 		}
 	}
-	else {
-		// Pass YUV values to be converted by a shader
-		r = float(y);
-		g = float(u);
-		b = float(v);
-	}
 
 	// Convert the data at the position of RGB into specified specifion
 	if (precision == 0 || precision == 1) {
@@ -104,6 +126,7 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 		memcpy(out + 0, &b2, precision);
 		memcpy(out + precision, &g2, precision);
 		memcpy(out + precision * 2, &r2, precision);
+		out[precision * 3] = 0;
 	}
 	else if (precision == 2) {
 		// Convert to half float
@@ -112,27 +135,48 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 		//memcpy(out + precision * 2, &r2, precision);
 	}
 	else {
+		ZeroMemory(out, precision); // Clear alpha channel
 		// Store float
-		memcpy(out + 0, &b, precision);
-		memcpy(out + precision, &g, precision);
-		memcpy(out + precision * 2, &r, precision);
+		memcpy(out + precision, &b, precision);
+		memcpy(out + precision * 2, &g, precision);
+		memcpy(out + precision * 3, &r, precision);
 	}
-
-	// Store BGRA
-	// Empty alpha channel
-	ZeroMemory(&out[precision * 3], precision);
 }
 
 
 ConvertFromShader::ConvertFromShader(PClip _child, int _precision, IScriptEnvironment* env) :
-GenericVideoFilter(_child), precision(_precision) {
+GenericVideoFilter(_child) {
 	if (!vi.IsRGB32())
 		env->ThrowError("Source must be float-precision RGB");
+	if (_precision != 0 && _precision != 1 && _precision != 2 && _precision != 4)
+		env->ThrowError("Precision must be 0, 1, 2 or 4");
 
 	// Convert from float-precision RGB to YV12
 	viYV = vi;
 	viYV.pixel_type = VideoInfo::CS_YV12;
-	viYV.width >>= 2; // Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
+
+	// Initialize variables.
+	if (_precision == 0) {
+		precision = 1;
+		copyYUV = true;
+	}
+	else {
+		precision = _precision;
+		copyYUV = false;
+	}
+
+	// Avoid having to convert this for every pixel.
+	// Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
+	if (precision == 1)
+		precisionShift = 3;
+	else if (precision == 2) {
+		viYV.width >>= 1;
+		precisionShift = 4;
+	}
+	else if (precision == 4) {
+		viYV.width >>= 2;
+		precisionShift = 5;
+	}
 }
 
 ConvertFromShader::~ConvertFromShader() {
@@ -158,15 +202,16 @@ void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, un
 	unsigned char U[4], V[4];
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			convFloat(&src[(x << 3)], &py[x << 1], &U[0], &V[0]);
-			convFloat(&src[(x << 3) + precision * 4], &py[(x << 1) + 1], &U[1], &V[1]);
-			convFloat(&src[(x << 3) + pitch1], &py[(x << 1) + 1], &U[2], &V[2]);
-			convFloat(&src[(x << 3) + pitch1 + precision * 4], &py[(x << 1) + pitch2Y + 1], &U[3], &V[3]);
+			convFloat(src + (x << precisionShift), &py[x << 1], &U[0], &V[0]);
+			convFloat(src + (x << precisionShift) + precision * 4, &py[(x << 1) + 1], &U[1], &V[1]);
+			convFloat(src + (x << precisionShift) + pitch1, &py[(x << 1) + pitch2Y], &U[2], &V[2]);
+			convFloat(src + (x << precisionShift) + pitch1 + precision * 4, &py[(x << 1) + pitch2Y + 1], &U[3], &V[3]);
+
 			pu[x] = (U[0] + U[1] + U[2] + U[3]) / 4;
 			pv[x] = (V[0] + V[1] + V[2] + V[3]) / 4;
 		}
-		src += pitch1;
-		py += pitch2Y;
+		src += pitch1 * 2;
+		py += pitch2Y * 2;
 		pu += pitch2UV;
 		pv += pitch2UV;
 	}
@@ -175,26 +220,51 @@ void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, un
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
 void ConvertFromShader::convFloat(const byte* src, byte* outY, unsigned char* outU, unsigned char* outV) {
 	float r, g, b;
-	memcpy(&b, &src[4], sizeof(float));
-	memcpy(&g, &src[8], sizeof(float));
-	memcpy(&r, &src[12], sizeof(float));
+	// Convert the data at the position of RGB into specified specifion
+	if (precision == 0 || precision == 1) {
+		unsigned char b2, g2, r2;
+		memcpy(&b2, src, precision);
+		memcpy(&g2, src + precision, precision);
+		memcpy(&r2, src + precision * 2, precision);
+		b = float(b2);
+		g = float(g2);
+		r = float(r2);
+	}
+	else if (precision == 2) {
+		// Convert to half float
+	}
+	else {
+		// Read float
+		memcpy(&b, src + precision, precision);
+		memcpy(&g, src + precision * 2, precision);
+		memcpy(&r, src + precision * 3, precision);
+	}
 
 	// rgb are in the 0 to 1 range
-	r = r / 1 * 255;
-	b = b / 1 * 255;
-	g = g / 1 * 255;
+	if (precision > 1) {
+		r = r / 1 * 255;
+		b = b / 1 * 255;
+		g = g / 1 * 255;
+	}
 
 	float y, u, v;
-	y = 0.299f * r + 0.587f * g + 0.114f * b;
-	u = (b - y) * 0.565f;
-	v = (r - y) * 0.713f;
+	if (copyYUV) {
+		y = r;
+		u = g;
+		v = b;
+	}
+	else {
+		y = (0.257f * r) + (0.504f * g) + (0.098f * b) + 16;
+		v = (0.439f * r) - (0.368f * g) - (0.071f * b) + 128;
+		u = -(0.148f * r) - (0.291f * g) + (0.439f * b) + 128;
 
-	if (y > 255) y = 255;
-	if (u > 255) u = 255;
-	if (v > 255) v = 255;
-	if (y < 0) y = 0;
-	if (u < 0) u = 0;
-	if (v < 0) v = 0;
+		if (y > 255) y = 255;
+		if (u > 255) u = 255;
+		if (v > 255) v = 255;
+		if (y < 0) y = 0;
+		if (u < 0) u = 0;
+		if (v < 0) v = 0;
+	}
 
 	// Store YUV
 	outY[0] = unsigned char(y);
