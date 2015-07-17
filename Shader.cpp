@@ -1,82 +1,43 @@
 #include "Shader.h"
 
-Shader::Shader(PClip _child, IScriptEnvironment* env) :
-GenericVideoFilter(_child) {
+
+// http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
+
+Shader::Shader(PClip _child, const char* _path, int _precision, IScriptEnvironment* env) :
+GenericVideoFilter(_child), path(_path), precision(_precision) {
 	if (vi.IsPlanar() || !vi.IsRGB32())
-		env->ThrowError("Source must be float-precision RGB");
+		env->ThrowError("Shader: Source must be float-precision RGB");
+	if (_precision != 1 && _precision != 2 && _precision != 4)
+		env->ThrowError("Shader: Precision must be 1, 2 or 4");
+	if (path && path[0] == '\0')
+		env->ThrowError("Shader: path to a compiled shader must be specified");
 
-	InitDirectX();
-}
+	FILE* ShaderFile = fopen(_path, "r");
+	if (ShaderFile == NULL)
+		env->ThrowError("Shader: Cannot open shader specified by path");
 
-void Shader::InitDirectX() {
-	dx = Direct3DCreate9(D3D_SDK_VERSION);
-
-	D3DDISPLAYMODE dxMode;
-	dx->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &dxMode);
-	D3DPRESENT_PARAMETERS dxSettings;
-	ZeroMemory(&dxSettings, sizeof(dxSettings));
-	dxSettings.Windowed = TRUE;
-	dxSettings.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	dxSettings.BackBufferFormat = dxMode.Format;
-	dxSettings.EnableAutoDepthStencil = TRUE;
-	dxSettings.AutoDepthStencilFormat = D3DFMT_D16;
-	dxSettings.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-
-	dx->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_NULLREF, NULL, NULL, &dxSettings, &dxDevice);
+	dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+	if (FAILED(render.Initialize(dummyHWND)))
+		env->ThrowError("Shader: Initialize failed.");
+	if (FAILED(render.CreateVideoSurface(vi.width, vi.height, 4)))
+		env->ThrowError("Shader: CreateVideoSurface failed.");
+	
+	// render.SetPixelShader((DWORD*)ShaderFile);
+	// LPSTR errorMsg = NULL;
+	// render.SetPixelShader("Shaders\SampleShader.hlsl", "main", "ps_2_0", &errorMsg);
+	fclose(ShaderFile);
 }
 
 Shader::~Shader() {
-	if (dxDevice != NULL) {
-		dxDevice->Release();
-		dxDevice = NULL;
-	}
-	if (dx != NULL) {
-		dx->Release();
-		dx = NULL;
-	}
+	DestroyWindow(dummyHWND);
 }
-
 
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame src = child->GetFrame(n, env);
 
-	// Copy data to texture buffer
-	unsigned char* textureBuffer = (unsigned char*)malloc(vi.width * vi.height * 16);
-	CopyToTexture(src->GetReadPtr(), src->GetPitch(), textureBuffer);
+	PVideoFrame dst = env->NewVideoFrame(vi);
+	if FAILED(render.ProcessFrame(src->GetReadPtr(), src->GetPitch(), dst->GetWritePtr(), dst->GetPitch()))
+		env->ThrowError("Shader: ProcessFrame failed.");
 
-	// Create texture
-	LPDIRECT3DTEXTURE9 dxTexture = NULL;
-	HANDLE* dxTextureHandle = (HANDLE*)textureBuffer;
-	dxDevice->CreateTexture(vi.width, vi.height, 1, 0, D3DFMT_A32B32G32R32F, D3DPOOL_SYSTEMMEM, &dxTexture, dxTextureHandle);
-
-	// Create shader
-	const DWORD* data = NULL; // loadFile("precompiledShader.ext");
-	IDirect3DPixelShader9 *ps = NULL;
-	dxDevice->CreatePixelShader(data, &ps);
-
-
-	// Copy data back to frame
-	CopyFromTexture(textureBuffer, src->GetWritePtr(), src->GetPitch());
-
-	// Release texture
-	dxTexture->Release();
-	dxTexture = NULL;
-	free(textureBuffer);
-	return src;
-}
-
-void Shader::CopyToTexture(const byte* src, int srcPitch, unsigned char* dst) {
-	for (int i = 0; i < vi.height; i++) {
-		memcpy(dst, src, vi.width * pixelSize);
-		src += srcPitch;
-		dst += vi.width * pixelSize;
-	}
-}
-
-void Shader::CopyFromTexture(const byte* src, unsigned char* dst, int dstPitch) {
-	for (int i = 0; i < vi.height; i++) {
-		memcpy(dst, src, vi.width * pixelSize);
-		src += vi.width * pixelSize;
-		dst += dstPitch;
-	}
+	return dst;
 }

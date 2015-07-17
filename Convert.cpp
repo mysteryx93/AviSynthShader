@@ -14,7 +14,7 @@
 
 ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
 GenericVideoFilter(_child) {
-	if (!vi.IsYV12())
+	if (!vi.IsYV12() && !vi.IsYV24())
 		env->ThrowError("Source must be YV12");
 	if (_precision != 1 && _precision != 2 && _precision != 4)
 		env->ThrowError("Precision must be 0, 1, 2 or 4");
@@ -36,14 +36,14 @@ GenericVideoFilter(_child) {
 	// Avoid having to convert this for every pixel.
 	// RGBA is 4-byte per pixel, float-precision RGB is 16-byte per pixel (4 float). We need to increase width to store all the data.
 	if (precision == 1)
-		precisionShift = 3;
+		precisionShift = 2;
 	else if (precision == 2) {
 		viRGB.width <<= 1;
-		precisionShift = 4;
+		precisionShift = 3;
 	}
 	else if (precision == 4) {
 		viRGB.width <<= 2;
-		precisionShift = 5;
+		precisionShift = 4;
 	}
 }
 
@@ -55,8 +55,29 @@ PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) 
 
 	// Convert from YV12 to float-precision RGB
 	PVideoFrame dst = env->NewVideoFrame(viRGB);
-	conv420toRGB(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height);
+	convYV24toRGB(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height);
 	return dst;
+}
+
+void ConvertToShader::convYV24toRGB(const byte *py, const byte *pu, const byte *pv,
+	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height)
+{
+	width;
+	height;
+	int Y, U, V;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			Y = py[x];
+			U = pu[x];
+			V = pv[x];
+
+			convFloat(Y, U, V, dst + (x << precisionShift));
+		}
+		py += pitch1Y;
+		pu += pitch1UV;
+		pv += pitch1UV;
+		dst += pitch2;
+	}
 }
 
 void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *pv,
@@ -99,16 +120,16 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 		b = 1.164f * (y - 16) + 2.018f * (u - 128);
 		g = 1.164f * (y - 16) - 0.813f * (v - 128) - 0.391f * (u - 128);
 		r = 1.164f * (y - 16) + 1.596f * (v - 128);
-		//r = y + 1.403f * v; // This doesn't work
-		//g = y - 0.344f * u - 0.714f * v;
-		//b = y + 1.770f * u;
 
-		if (r > 255) r = 255;
-		if (g > 255) g = 255;
-		if (b > 255) b = 255;
-		if (r < 0) r = 0;
-		if (g < 0) g = 0;
-		if (b < 0) b = 0;
+		// Don't crop float values, this would cause loss of data.
+		if (precision == 1) {
+			if (r > 255) r = 255;
+			if (g > 255) g = 255;
+			if (b > 255) b = 255;
+			if (r < 0) r = 0;
+			if (g < 0) g = 0;
+			if (b < 0) b = 0;
+		}
 
 		// Texture shaders expect data between 0 and 1
 		if (precision > 1) {
@@ -153,7 +174,7 @@ GenericVideoFilter(_child) {
 
 	// Convert from float-precision RGB to YV12
 	viYV = vi;
-	viYV.pixel_type = VideoInfo::CS_YV12;
+	viYV.pixel_type = VideoInfo::CS_YV24;
 
 	// Initialize variables.
 	if (_precision == 0) {
@@ -168,14 +189,14 @@ GenericVideoFilter(_child) {
 	// Avoid having to convert this for every pixel.
 	// Float-precision RGB is 16-byte per pixel (4 float), YV12 is 2-byte per pixel
 	if (precision == 1)
-		precisionShift = 3;
+		precisionShift = 2;
 	else if (precision == 2) {
 		viYV.width >>= 1;
-		precisionShift = 4;
+		precisionShift = 3;
 	}
 	else if (precision == 4) {
 		viYV.width >>= 2;
-		precisionShift = 5;
+		precisionShift = 4;
 	}
 }
 
@@ -188,13 +209,28 @@ PVideoFrame __stdcall ConvertFromShader::GetFrame(int n, IScriptEnvironment* env
 
 	// Convert from float-precision RGB to YV12
 	PVideoFrame dst = env->NewVideoFrame(viYV);
-	convFloatRGBto420(src->GetReadPtr(),
+	convRGBtoYV24(src->GetReadPtr(),
 		dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V),
 		src->GetPitch(), dst->GetPitch(PLANAR_Y), dst->GetPitch(PLANAR_U), viYV.width, viYV.height);
 	return dst;
 }
 
-void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+void ConvertFromShader::convRGBtoYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+	int pitch1, int pitch2Y, int pitch2UV, int width, int height)
+{
+	unsigned char U, V;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			convFloat(src + (x << precisionShift), &py[x], &pu[x], &pv[x]);
+		}
+		src += pitch1;
+		py += pitch2Y;
+		pu += pitch2UV;
+		pv += pitch2UV;
+	}
+}
+
+void ConvertFromShader::convRGBto420(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 	int pitch1, int pitch2Y, int pitch2UV, int width, int height)
 {
 	width >>= 1;

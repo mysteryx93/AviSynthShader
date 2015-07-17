@@ -68,7 +68,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
-      <AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxerr.lib;d3dx9.lib;d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -95,13 +95,23 @@
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
     <ClInclude Include="Convert.h" />
-    <ClInclude Include="internal.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="VideoPresenter\D3D9RenderImpl.h" />
+    <ClInclude Include="VideoPresenter\Macros.h" />
+    <ClInclude Include="VideoPresenter\Overlay.h" />
+    <ClInclude Include="VideoPresenter\Vertex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Convert.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="VideoPresenter\D3D9RenderImpl.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Shaders\SampleShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TestScript.avs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

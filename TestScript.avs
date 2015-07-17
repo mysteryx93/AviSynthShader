@@ -3,16 +3,20 @@ LoadPlugin(PluginPath+"masktools2.dll")
 LoadPlugin("C:\GitHub\AviSynthShader\Debug\Shader.dll")
 AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 
-#ConvertToShader(4)
-#ConvertFromShader(4)
-
-TestQuality(4)
+ConvertToYV24()
+#TestQuality(4)
+ConvertToShader(1)
+Shader(path="Shaders\SampleShader.hlsl", precision=4)
+ConvertFromShader(1)
+ConvertToYV12()
 
 function TestQuality(clip input, int precision)
 {
 original = input
+input = input.ConvertToYV24()
 input = input.ConvertToShader(precision)
 input = input.ConvertFromShader(precision)
+input = input.ConvertToYV12()
 return mt_makediff(input, original, chroma="process")
 }
 

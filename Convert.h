@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <cstdio>		//needed by OutputDebugString()
-#include "avisynth.h"	//version 5, AviSynth 2.6 +
-#include "internal.h"
+#include <math.h>
+#include "avisynth.h"
 
 // Converts YV12 data into RGB data with float precision, 12-byte per pixel.
 class ConvertToShader : public GenericVideoFilter {
@@ -12,6 +12,8 @@ public:
 	const VideoInfo& __stdcall GetVideoInfo() { return viRGB; }
 private:
 	void ConvertToShader::conv420toRGB(const byte *py, const byte *pu, const byte *pv, unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height);
+	void ConvertToShader::convYV24toRGB(const byte *py, const byte *pu, const byte *pv,
+		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 	void ConvertToShader::convFloat(int y, int u, int v, unsigned char *out);
 	VideoInfo viRGB;
 	int precision;
@@ -28,7 +30,9 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	const VideoInfo& __stdcall GetVideoInfo() { return viYV; }
 private:
-	void ConvertFromShader::convFloatRGBto420(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv, int pitch1, int pitch2Y, int pitch2UV, int width, int height);
+	void ConvertFromShader::convRGBto420(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv, int pitch1, int pitch2Y, int pitch2UV, int width, int height);
+	void ConvertFromShader::convRGBtoYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+		int pitch1, int pitch2Y, int pitch2UV, int width, int height);
 	void ConvertFromShader::convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	VideoInfo viYV;
 	int precision;
