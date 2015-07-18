@@ -14,9 +14,9 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl(void);
 
-	HRESULT Initialize(HWND hDisplayWindow);
+	HRESULT Initialize(HWND hDisplayWindow, int width, int height, int precision);
 	HRESULT CheckFormatConversion(D3DFORMAT format);
-	HRESULT CreateVideoSurface(int width, int height, int precision);
+	HRESULT CreateVideoSurface();
 	HRESULT ProcessFrame(const byte* src, int srcPitch, byte* dst, int dstPitch);
 	HRESULT Display(BYTE* pYplane, BYTE* pVplane, BYTE* pUplane);
 	void SetDisplayMode(FillMode mode);
@@ -39,8 +39,8 @@ public:
 	HRESULT ClearPixelShader();
 	HRESULT ClearVertexShader();
 
-	HRESULT CaptureDisplayFrame(BYTE* pBuffer, INT* width, INT* height, INT* stride);
-	HRESULT CaptureVideoFrame(BYTE* pBuffer, INT* width, INT* height, INT* stride);
+	//HRESULT CaptureDisplayFrame(BYTE* pBuffer);
+	//HRESULT CaptureVideoFrame(BYTE* pBuffer, INT* width, INT* height, INT* stride);
 
 private:
 	CComPtr<IDirect3D9>             m_pD3D9;
@@ -61,7 +61,6 @@ private:
 	int m_precision;
 	D3DFORMAT m_format;
 	OverlayStore m_overlays;
-	FillMode m_fillMode;
 	D3DPRESENT_PARAMETERS m_presentParams;
 
 private:
@@ -70,8 +69,7 @@ private:
 	HRESULT CheckDevice(void);
 	HRESULT CopyToBuffer(const byte* src, int srcPitch);
 	HRESULT CopyFromBuffer(byte* dst, int dstPitch);
-	HRESULT FillBuffer(const BYTE* pY, BYTE* pV, BYTE* pU);
-	HRESULT CreateRenderTarget(int width, int height);
+	HRESULT CreateRenderTarget();
 	HRESULT Present(void);	
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed);
 

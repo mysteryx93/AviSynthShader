@@ -12,10 +12,13 @@ public:
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
-	HWND dummyHWND;
-	D3D9RenderImpl render;
+	unsigned char* Shader::ReadBinaryFile(const char* filePath);
+	long Shader::GetFileSize(FILE *file);
 	void Shader::CopyToTexture(const byte*, int srcPitch, unsigned char* dst);
 	void Shader::CopyFromTexture(const byte* src, unsigned char* dst, int dstPitch);
 	const char* path;
 	const int precision;
+	HWND dummyHWND;
+	D3D9RenderImpl render;
+	const int BUFFERSIZE;
 };
