@@ -68,7 +68,7 @@ private:
 	HRESULT CreateScene(void);
 	HRESULT CheckDevice(void);
 	HRESULT CopyToBuffer(const byte* src, int srcPitch);
-	HRESULT CopyFromBuffer(byte* dst, int dstPitch);
+	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch);
 	HRESULT CreateRenderTarget();
 	HRESULT Present(void);	
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed);

@@ -24,7 +24,7 @@ GenericVideoFilter(_child), path(_path), precision(_precision), BUFFERSIZE(4096)
 	//if (FAILED(render.SetPixelShader((DWORD*)ShaderBuf)))
 	//	env->ThrowError("Shader: Failed to load pixel shader");
 	LPSTR errorMsg = NULL;
-	HRESULT hr = render.SetPixelShader("C:\\GitHub\\AviSynthShader\\Shaders\\SampleShader.hlsl", "main", "ps_2_0", &errorMsg);
+	HRESULT hr = render.SetPixelShader("Shaders\\SampleShader.hlsl", "main", "ps_2_0", &errorMsg);
 	free(ShaderBuf);
 }
 

@@ -2,7 +2,6 @@
 // http://www.codeproject.com/Articles/207642/Video-Shadering-with-Direct-D
 
 #include "D3D9RenderImpl.h"
-#include "dxerr.h"
 
 
 D3D9RenderImpl::D3D9RenderImpl()
@@ -98,7 +97,7 @@ HRESULT D3D9RenderImpl::ProcessFrame(const byte* src, int srcPitch, byte* dst, i
 	HR(CopyToBuffer(src, srcPitch));
 	HR(CreateScene());
 	HR(Present());
-	return CopyFromBuffer(dst, dstPitch);
+	return CopyFromRenderTarget(dst, dstPitch);
 }
 
 HRESULT D3D9RenderImpl::SetupMatrices(int width, int height)
@@ -431,7 +430,7 @@ HRESULT D3D9RenderImpl::RemoveAllOverlays()
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CopyFromBuffer(byte* dst, int dstPitch)
+HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 {
 	CComPtr<IDirect3DSurface9> pTargetSurface;
 	CComPtr<IDirect3DSurface9> pTempSurface;
