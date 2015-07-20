@@ -13,18 +13,18 @@ GenericVideoFilter(_child), path(_path), precision(_precision), BUFFERSIZE(4096)
 	if (path && path[0] == '\0')
 		env->ThrowError("Shader: path to a compiled shader must be specified");
 
-	dummyHWND = CreateWindowA("STATIC", "dummy", NULL, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-	if (FAILED(render.Initialize(dummyHWND, vi.width, vi.height, 4)))
+	dummyHWND = CreateWindowA("STATIC", "dummy", WS_VISIBLE, 0, 0, 352 + 6, 288 + 28, NULL, NULL, NULL, NULL);
+	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
 		env->ThrowError("Shader: Initialize failed.");
 	
 	unsigned char* ShaderBuf = ReadBinaryFile(_path);
 	if (ShaderBuf == NULL)
 		env->ThrowError("Shader: Cannot open shader specified by path");
 
-	//if (FAILED(render.SetPixelShader((DWORD*)ShaderBuf)))
-	//	env->ThrowError("Shader: Failed to load pixel shader");
-	LPSTR errorMsg = NULL;
-	HRESULT hr = render.SetPixelShader("Shaders\\SampleShader.hlsl", "main", "ps_2_0", &errorMsg);
+	if (FAILED(render.SetPixelShader((DWORD*)ShaderBuf)))
+		env->ThrowError("Shader: Failed to load pixel shader");
+	//LPSTR errorMsg = NULL;
+	//HRESULT hr = render.SetPixelShader("Shaders\\SampleShader.hlsl", "main", "ps_2_0", &errorMsg);
 	free(ShaderBuf);
 }
 

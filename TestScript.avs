@@ -5,9 +5,9 @@ AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 
 ConvertToYV24()
 #TestQuality(4)
-ConvertToShader(4)
-Shader(path="Shaders\SuperResDiff.cso", precision=4)
-ConvertFromShader(4)
+ConvertToShader(1)
+Shader(path="Shaders\SampleShader.cso", precision=1)
+ConvertFromShader(1)
 ConvertToYV12()
 
 function TestQuality(clip input, int precision)

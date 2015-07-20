@@ -15,8 +15,12 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	m_videoWidth = width;
 	m_videoHeight = height;
 	m_precision = precision;
-	// if (precision == 4)
-	m_format = D3DFMT_A32B32G32R32F;
+	if (precision == 4)
+		m_format = D3DFMT_A32B32G32R32F;
+	else if (precision == 1)
+		m_format = D3DFMT_X8R8G8B8;
+	else
+		return E_FAIL;
 
 	m_pD3D9 = Direct3DCreate9(D3D_SDK_VERSION);
 	if (!m_pD3D9) {
@@ -36,11 +40,11 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 		dwBehaviorFlags |= D3DCREATE_SOFTWARE_VERTEXPROCESSING;
 
 	HR(GetPresentParams(&m_presentParams, TRUE));
-	m_format = m_presentParams.BackBufferFormat;
 
 	HR(m_pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hDisplayWindow, dwBehaviorFlags, &m_presentParams, &m_pDevice));
 
 	HR(CreateResources());
+	return 0;
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void)
@@ -68,7 +72,6 @@ HRESULT D3D9RenderImpl::CheckFormatConversion(D3DFORMAT format)
 
 HRESULT D3D9RenderImpl::CreateRenderTarget()
 {
-	// HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_displayMode.Format, D3DPOOL_DEFAULT, &m_pTexture, NULL));
 	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &m_pTexture, NULL));
 	HR(m_pTexture->GetSurfaceLevel(0, &m_pTextureSurface));
 	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &m_pVertexBuffer, NULL));
@@ -76,9 +79,9 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 	VERTEX vertexArray[] =
 	{
 		{ D3DXVECTOR3(0, 0, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
-		{ D3DXVECTOR3(m_videoWidth, 0, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
-		{ D3DXVECTOR3(m_videoWidth, m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
-		{ D3DXVECTOR3(0, m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
+		{ D3DXVECTOR3((float)m_videoWidth, 0, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
+		{ D3DXVECTOR3((float)m_videoWidth, (float)m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
+		{ D3DXVECTOR3(0, (float)m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
 	};
 
 	VERTEX *vertices;
@@ -88,7 +91,8 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	HR(m_pVertexBuffer->Unlock());
 
-	return m_pDevice->SetRenderTarget(0, m_pTextureSurface);
+	//return m_pDevice->SetRenderTarget(0, m_pTextureSurface);
+	return 0;
 }
 
 HRESULT D3D9RenderImpl::ProcessFrame(const byte* src, int srcPitch, byte* dst, int dstPitch)
@@ -105,7 +109,7 @@ HRESULT D3D9RenderImpl::SetupMatrices(int width, int height)
 	D3DXMATRIX matOrtho;
 	D3DXMATRIX matIdentity;
 
-	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, width, height, 0, 0.0f, 1.0f);
+	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)width, (float)height, 0, 0.0f, 1.0f);
 	D3DXMatrixIdentity(&matIdentity);
 
 	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
@@ -155,8 +159,6 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 		return hr;
 	}
 
-	m_overlays.Draw();
-
 	return m_pDevice->EndScene();
 }
 
@@ -176,8 +178,6 @@ HRESULT D3D9RenderImpl::DiscardResources()
 	SafeRelease(m_pVertexConstantTable);
 	SafeRelease(m_pPixelConstantTable);
 	SafeRelease(m_pPixelShader);
-
-	m_overlays.RemoveAll();
 
 	return S_OK;
 }
@@ -202,9 +202,10 @@ HRESULT D3D9RenderImpl::CreateResources()
 	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
 	HR(CreateRenderTarget());
-	HR(CreateVideoSurface());
 
-	return SetupMatrices(m_presentParams.BackBufferWidth, m_presentParams.BackBufferHeight);
+	HR(SetupMatrices(m_presentParams.BackBufferWidth, m_presentParams.BackBufferHeight));
+
+	return (CreateVideoSurface());
 }
 
 HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch) {
@@ -213,7 +214,7 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch) {
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
 	for (int y = 0; y < m_videoHeight; y++) {
-		memcpy(pict, src, m_videoWidth * m_precision);
+		memcpy(pict, src, m_videoWidth * m_precision * 4);
 		pict += d3drect.Pitch;
 		src += srcPitch;
 	}
@@ -221,33 +222,11 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch) {
 	return  m_pOffsceenSurface->UnlockRect();
 }
 
-//
-//HRESULT D3D9RenderImpl::CopyFromBuffer(byte* dst, int dstPitch) {
-//	// Copy the texture from default pool to system memory to read it.
-//	IDirect3DTexture9* textureSysMem;
-//	IDirect3DSurface9* textureSurface;
-//	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, 0, m_format, D3DPOOL_SYSTEMMEM, &textureSysMem, NULL));
-//	HR(textureSysMem->GetSurfaceLevel(0, &textureSurface));
-//	m_pDevice->GetRenderTargetData(m_pTextureSurface, textureSurface);
-//
-//	D3DLOCKED_RECT d3drect;
-//	HR(textureSurface->LockRect(&d3drect, NULL, 0));
-//	BYTE* pict = (BYTE*)d3drect.pBits;
-//
-//	for (int y = 0; y < m_videoHeight; y++) {
-//		memcpy(dst, pict, m_videoWidth * m_precision);
-//		pict += d3drect.Pitch;
-//		dst += dstPitch;
-//	}
-//
-//	return textureSurface->UnlockRect();
-//}
-
 
 HRESULT D3D9RenderImpl::Present(void)
 {
 	HR(m_pDevice->ColorFill(m_pTextureSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	return(m_pDevice->StretchRect(m_pOffsceenSurface, NULL, m_pTextureSurface, NULL, D3DTEXF_LINEAR));
+	HR(m_pDevice->StretchRect(m_pOffsceenSurface, NULL, m_pTextureSurface, NULL, D3DTEXF_LINEAR));
 	return m_pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
@@ -381,55 +360,6 @@ HRESULT D3D9RenderImpl::SetPixelShaderVector(D3DXVECTOR4* vector, LPCSTR name)
 	return m_pPixelConstantTable->SetVector(m_pDevice, name, vector);
 }
 
-HRESULT D3D9RenderImpl::DrawLine(SHORT key, POINT p1, POINT p2, FLOAT width, D3DCOLOR color, BYTE opacity)
-{
-	m_overlays.AddOverlay(new LineOverlay(m_pDevice, p1, p2, width, color, opacity), key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::DrawRectangle(SHORT key, RECT rectangle, FLOAT width, D3DCOLOR color, BYTE opacity)
-{
-	m_overlays.AddOverlay(new RectangleOverlay(m_pDevice, rectangle, width, color, opacity), key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::DrawPolygon(SHORT key, POINT* points, INT pointsLen, FLOAT width, D3DCOLOR color, BYTE opacity)
-{
-	m_overlays.AddOverlay(new PolygonOverlay(m_pDevice, points, pointsLen, width, color, opacity), key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::DrawText(SHORT key, LPCSTR text, RECT pos, INT size, D3DCOLOR color, LPCSTR font, BYTE opacity)
-{
-	m_overlays.AddOverlay(new TextOverlay(m_pDevice, text, pos, size, color, font, opacity), key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::DrawBitmap(SHORT key, POINT position, INT width, INT height, BYTE* pPixelData, BYTE opacity)
-{
-	m_overlays.AddOverlay(new BitmapOverlay(m_pDevice, position, width, height, pPixelData, opacity), key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::RemoveOverlay(SHORT key)
-{
-	m_overlays.RemoveOverlay(key);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::RemoveAllOverlays()
-{
-	m_overlays.RemoveAll();
-
-	return S_OK;
-}
-
 HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 {
 	CComPtr<IDirect3DSurface9> pTargetSurface;
@@ -444,7 +374,7 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
 	for (int y = 0; y < m_videoHeight; y++) {
-		memcpy(dst, pict, m_videoWidth * m_precision);
+		memcpy(dst, pict, m_videoWidth * m_precision * 4);
 		pict += d3drect.Pitch;
 		dst += dstPitch;
 	}

@@ -98,7 +98,6 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="VideoPresenter\D3D9RenderImpl.h" />
     <ClInclude Include="VideoPresenter\Macros.h" />
-    <ClInclude Include="VideoPresenter\Overlay.h" />
     <ClInclude Include="VideoPresenter\Vertex.h" />
   </ItemGroup>
   <ItemGroup>

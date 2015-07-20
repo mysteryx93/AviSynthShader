@@ -109,15 +109,15 @@ public:
 		m_vectors = new D3DXVECTOR2[pointsLen + 1];
 		for(int i = 0 ; i < pointsLen; i++)
 		{
-			m_vectors[i].x = points[i].x;
-			m_vectors[i].y = points[i].y;
+			m_vectors[i].x = (float)points[i].x;
+			m_vectors[i].y = (float)points[i].y;
 		}
 
-		m_vectors[pointsLen].x = points[0].x;
-		m_vectors[pointsLen].y = points[0].y;
+		m_vectors[pointsLen].x = (float)points[0].x;
+		m_vectors[pointsLen].y = (float)points[0].y;
 
 		m_numOfVectors = pointsLen + 1;
-		m_line->SetWidth(width);
+		m_line->SetWidth((float)width);
 	}
 
 	virtual ~PolygonOverlay()
@@ -169,10 +169,10 @@ public:
 	{
 		VERTEX vertexArray[] =
 		{
-			{ D3DXVECTOR3(position.x, position.y, 0),                  D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
-			{ D3DXVECTOR3(position.x + width, position.y, 0),          D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
-			{ D3DXVECTOR3(position.x + width, position.y + height, 0), D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
-			{ D3DXVECTOR3(position.x, position.y + height, 0),         D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
+			{ D3DXVECTOR3((float)position.x, (float)position.y, 0),                  D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
+			{ D3DXVECTOR3((float)position.x + width, (float)position.y, 0),          D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
+			{ D3DXVECTOR3((float)position.x + width, (float)position.y + height, 0), D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
+			{ D3DXVECTOR3((float)position.x, (float)position.y + height, 0),         D3DCOLOR_ARGB(opacity, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
 		};
 
 		HRESULT hr = m_device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &m_pTexture, NULL);

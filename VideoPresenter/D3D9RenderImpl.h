@@ -6,7 +6,6 @@
 #include "atlbase.h"
 #include "Macros.h"
 #include <windows.h>
-#include "Overlay.h"
 
 class D3D9RenderImpl // : public IRenderable
 {
@@ -60,7 +59,6 @@ private:
 	int m_videoHeight;
 	int m_precision;
 	D3DFORMAT m_format;
-	OverlayStore m_overlays;
 	D3DPRESENT_PARAMETERS m_presentParams;
 
 private:
