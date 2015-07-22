@@ -44,21 +44,21 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	HR(m_pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hDisplayWindow, dwBehaviorFlags, &m_presentParams, &m_pDevice));
 
 	HR(CreateResources());
-	return 0;
+	return S_OK;
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void)
 {
-	SafeRelease(m_pD3D9);
-	SafeRelease(m_pDevice);
-	SafeRelease(m_pOffsceenSurface);
-	SafeRelease(m_pTextureSurface);
-	SafeRelease(m_pTexture);
-	SafeRelease(m_pVertexBuffer);
-	SafeRelease(m_pVertexShader);
-	SafeRelease(m_pVertexConstantTable);
-	SafeRelease(m_pPixelConstantTable);
-	SafeRelease(m_pPixelShader);
+	DiscardResources();
+}
+
+
+HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch)
+{
+	HR(CheckDevice());
+	HR(CreateScene());
+	HR(Present());
+	return CopyFromRenderTarget(dst, dstPitch);
 }
 
 
@@ -72,8 +72,8 @@ HRESULT D3D9RenderImpl::CheckFormatConversion(D3DFORMAT format)
 
 HRESULT D3D9RenderImpl::CreateRenderTarget()
 {
-	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &m_pTexture, NULL));
-	HR(m_pTexture->GetSurfaceLevel(0, &m_pTextureSurface));
+	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &m_pRenderTarget, NULL));
+	HR(m_pRenderTarget->GetSurfaceLevel(0, &m_pRenderTargetSurface));
 	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &m_pVertexBuffer, NULL));
 
 	VERTEX vertexArray[] =
@@ -91,18 +91,23 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	HR(m_pVertexBuffer->Unlock());
 
-	//return m_pDevice->SetRenderTarget(0, m_pTextureSurface);
-	return 0;
+	//return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
+	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::ProcessFrame(const byte* src, int srcPitch, byte* dst, int dstPitch)
-{
-	HR(CheckDevice());
-	HR(CopyToBuffer(src, srcPitch));
-	HR(CreateScene());
-	HR(Present());
-	return CopyFromRenderTarget(dst, dstPitch);
+HRESULT D3D9RenderImpl::CreateInputTexture(int index) {
+	if (index < 0 || index >= maxTextures)
+		return E_FAIL;
+
+	HR(m_pDevice->CreateOffscreenPlainSurface(m_videoWidth, m_videoHeight, m_format, D3DPOOL_DEFAULT, &m_InputTextures[index].Memory, NULL));
+	HR(m_pDevice->ColorFill(m_InputTextures[index].Memory, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+
+	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, 0, m_format, D3DPOOL_DEFAULT, &m_InputTextures[index].Texture, NULL));
+	HR(m_InputTextures[index].Texture->GetSurfaceLevel(0, &m_InputTextures[index].Surface));
+
+	return S_OK;
 }
+
 
 HRESULT D3D9RenderImpl::SetupMatrices(int width, int height)
 {
@@ -120,45 +125,18 @@ HRESULT D3D9RenderImpl::SetupMatrices(int width, int height)
 HRESULT D3D9RenderImpl::CreateScene(void)
 {
 	HRESULT hr = m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
-
 	HR(m_pDevice->BeginScene());
+	SCENE_HR(m_pDevice->SetFVF(D3DFVF_CUSTOMVERTEX), m_pDevice);
+	SCENE_HR(m_pDevice->SetVertexShader(m_pVertexShader), m_pDevice);
+	SCENE_HR(m_pDevice->SetPixelShader(m_pPixelShader), m_pDevice);
+	SCENE_HR(m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
-	hr = m_pDevice->SetFVF(D3DFVF_CUSTOMVERTEX);
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
+	for (int i = 0; i < maxTextures; i++) {
+		if (m_InputTextures[i].Texture != NULL)
+			SCENE_HR(m_pDevice->SetTexture(1, m_InputTextures[i].Texture), m_pDevice);
 	}
 
-	hr = m_pDevice->SetVertexShader(m_pVertexShader);
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
-	}
-
-	hr = m_pDevice->SetPixelShader(m_pPixelShader);
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
-	}
-
-	hr = m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX));
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
-	}
-
-	hr = m_pDevice->SetTexture(0, m_pTexture);
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
-	}
-
-	hr = m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2);
-	if (FAILED(hr)) {
-		m_pDevice->EndScene();
-		return hr;
-	}
-
+	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
 	return m_pDevice->EndScene();
 }
 
@@ -170,9 +148,14 @@ HRESULT D3D9RenderImpl::CheckDevice(void)
 
 HRESULT D3D9RenderImpl::DiscardResources()
 {
-	SafeRelease(m_pOffsceenSurface);
-	SafeRelease(m_pTextureSurface);
-	SafeRelease(m_pTexture);
+	for (int i = 0; i < maxTextures; i++) {
+		SafeRelease(m_InputTextures[0].Surface);
+		SafeRelease(m_InputTextures[0].Texture);
+		SafeRelease(m_InputTextures[0].Memory);
+	}
+
+	SafeRelease(m_pRenderTargetSurface);
+	SafeRelease(m_pRenderTarget);
 	SafeRelease(m_pVertexBuffer);
 	SafeRelease(m_pVertexShader);
 	SafeRelease(m_pVertexConstantTable);
@@ -203,14 +186,17 @@ HRESULT D3D9RenderImpl::CreateResources()
 
 	HR(CreateRenderTarget());
 
-	HR(SetupMatrices(m_presentParams.BackBufferWidth, m_presentParams.BackBufferHeight));
-
-	return (CreateVideoSurface());
+	return(SetupMatrices(m_presentParams.BackBufferWidth, m_presentParams.BackBufferHeight));
 }
 
-HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch) {
+HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index) {
+	// Copies source frame into main surface buffer, or into additional input textures
+	CComPtr<IDirect3DSurface9> destSurface = m_InputTextures[index].Memory;
+	if (index < 0 || index >= maxTextures)
+		return E_FAIL;
+
 	D3DLOCKED_RECT d3drect;
-	HR(m_pOffsceenSurface->LockRect(&d3drect, NULL, 0));
+	HR(destSurface->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
 	for (int y = 0; y < m_videoHeight; y++) {
@@ -219,22 +205,15 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch) {
 		src += srcPitch;
 	}
 
-	return  m_pOffsceenSurface->UnlockRect();
+	return  destSurface->UnlockRect();
 }
 
 
 HRESULT D3D9RenderImpl::Present(void)
 {
-	HR(m_pDevice->ColorFill(m_pTextureSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	HR(m_pDevice->StretchRect(m_pOffsceenSurface, NULL, m_pTextureSurface, NULL, D3DTEXF_LINEAR));
+	HR(m_pDevice->ColorFill(m_pRenderTargetSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	HR(m_pDevice->StretchRect(m_InputTextures[0].Memory, NULL, m_pRenderTargetSurface, NULL, D3DTEXF_POINT));
 	return m_pDevice->Present(NULL, NULL, NULL, NULL);
-}
-
-
-HRESULT D3D9RenderImpl::CreateVideoSurface()
-{
-	HR(m_pDevice->CreateOffscreenPlainSurface(m_videoWidth, m_videoHeight, m_format, D3DPOOL_DEFAULT, &m_pOffsceenSurface, NULL));
-	return m_pDevice->ColorFill(m_pOffsceenSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0));
 }
 
 
@@ -335,6 +314,21 @@ HRESULT D3D9RenderImpl::SetPixelShader(DWORD* buffer)
 	return m_pDevice->CreatePixelShader(buffer, &m_pPixelShader);
 }
 
+HRESULT D3D9RenderImpl::SetPixelShaderIntConstant(LPCSTR name, int value)
+{
+	return m_pPixelConstantTable->SetInt(m_pDevice, name, value);
+}
+
+HRESULT D3D9RenderImpl::SetPixelShaderFloatConstant(LPCSTR name, float value)
+{
+	return m_pPixelConstantTable->SetFloat(m_pDevice, name, value);
+}
+
+HRESULT D3D9RenderImpl::SetPixelShaderBoolConstant(LPCSTR name, bool value)
+{
+	return m_pPixelConstantTable->SetBool(m_pDevice, name, value);
+}
+
 HRESULT D3D9RenderImpl::SetPixelShaderConstant(LPCSTR name, LPVOID value, UINT size)
 {
 	return m_pPixelConstantTable->SetValue(m_pDevice, name, value, size);
@@ -355,7 +349,7 @@ HRESULT D3D9RenderImpl::SetVertexShaderVector(D3DXVECTOR4* vector, LPCSTR name)
 	return m_pVertexConstantTable->SetVector(m_pDevice, name, vector);
 }
 
-HRESULT D3D9RenderImpl::SetPixelShaderVector(D3DXVECTOR4* vector, LPCSTR name)
+HRESULT D3D9RenderImpl::SetPixelShaderVector(LPCSTR name, D3DXVECTOR4* vector)
 {
 	return m_pPixelConstantTable->SetVector(m_pDevice, name, vector);
 }

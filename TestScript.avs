@@ -6,7 +6,7 @@ AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 ConvertToYV24()
 #TestQuality(4)
 ConvertToShader(1)
-Shader(path="Shaders\SampleShader.cso", precision=1)
+Shader(path="Shaders\Sharpen.hlsl", shaderModel="ps_2_0", precision=1, param1="Amount=2f", param2="InputSize=352,288f")
 ConvertFromShader(1)
 ConvertToYV12()
 

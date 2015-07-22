@@ -15,11 +15,11 @@
 ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
 GenericVideoFilter(_child) {
 	if (!vi.IsYV12() && !vi.IsYV24())
-		env->ThrowError("Source must be YV12");
+		env->ThrowError("Source must be YV12 or YV24");
 	if (_precision != 1 && _precision != 2 && _precision != 4)
 		env->ThrowError("Precision must be 0, 1, 2 or 4");
 
-	// Convert from YV12 to float-precision RGB
+	// Convert from YV24 to float-precision RGB
 	viRGB = vi;
 	viRGB.pixel_type = VideoInfo::CS_BGR32;
 
