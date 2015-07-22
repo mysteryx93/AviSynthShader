@@ -17,7 +17,7 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 		env->ThrowError("Shader: path to a compiled shader must be specified");
 
 	// Initialize
-	dummyHWND = CreateWindowA("STATIC", "dummy", WS_VISIBLE, 0, 0, vi.width + 6, vi.height + 28, NULL, NULL, NULL, NULL);
+	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
 	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
 		env->ThrowError("Shader: Initialize failed.");
 
@@ -63,6 +63,49 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 Shader::~Shader() {
 	DestroyWindow(dummyHWND);
 }
+
+
+PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
+	// PVideoFrame src = child->GetFrame(n, env);
+
+	PVideoFrame dst = env->NewVideoFrame(vi);
+	CopyInputClip(0, n, env);
+	if (clip1 != NULL)
+		CopyInputClip(1, n, env);
+	else if (clip2 != NULL)
+		CopyInputClip(2, n, env);
+	else if (clip3 != NULL)
+		CopyInputClip(3, n, env);
+	else if (clip4 != NULL)
+		CopyInputClip(4, n, env);
+
+	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch()))
+		env->ThrowError("Shader: ProcessFrame failed.");
+
+	return dst;
+}
+
+
+void Shader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
+	PClip input;
+	if (index == 0)
+		input = child;
+	else if (index == 1)
+		input = clip1;
+	else if (index == 2)
+		input = clip2;
+	else if (index == 3)
+		input = clip3;
+	else if (index == 4)
+		input = clip4;
+	else
+		env->ThrowError("Shader: CopyInputClip invalid index");
+
+	PVideoFrame frame = input->GetFrame(n, env);
+	if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index)))
+		env->ThrowError("Shader: CopyInputClip failed");
+}
+
 
 unsigned char* Shader::ReadBinaryFile(const char* filePath) {
 	FILE *fl = fopen(filePath, "rb");
@@ -151,44 +194,4 @@ bool Shader::SetParam(char* param) {
 
 	// Success
 	return true;
-}
-
-PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
-	// PVideoFrame src = child->GetFrame(n, env);
-
-	PVideoFrame dst = env->NewVideoFrame(vi);
-	CopyInputClip(0, n, env);
-	if (clip1 != NULL)
-		CopyInputClip(1, n, env);
-	else if (clip2 != NULL)
-		CopyInputClip(2, n, env);
-	else if (clip3 != NULL)
-		CopyInputClip(3, n, env);
-	else if (clip4 != NULL)
-		CopyInputClip(4, n, env);
-
-	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch()))
-		env->ThrowError("Shader: ProcessFrame failed.");
-
-	return dst;
-}
-
-void Shader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
-	PClip input;
-	if (index == 0)
-		input = child;
-	else if (index == 1)
-		input = clip1;
-	else if (index == 2)
-		input = clip2;
-	else if (index == 3)
-		input = clip3;
-	else if (index == 4)
-		input = clip4;
-	else
-		env->ThrowError("Shader: CopyInputClip invalid index");
-		
-	PVideoFrame frame = input->GetFrame(n, env);
-	if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index)))
-		env->ThrowError("Shader: CopyInputClip failed");
 }

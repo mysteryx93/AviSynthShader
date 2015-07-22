@@ -91,7 +91,7 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	HR(m_pVertexBuffer->Unlock());
 
-	//return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
+	return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
 	return S_OK;
 }
 
