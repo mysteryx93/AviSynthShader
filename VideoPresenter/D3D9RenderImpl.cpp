@@ -133,7 +133,7 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 
 	for (int i = 0; i < maxTextures; i++) {
 		if (m_InputTextures[i].Texture != NULL)
-			SCENE_HR(m_pDevice->SetTexture(1, m_InputTextures[i].Texture), m_pDevice);
+			SCENE_HR(m_pDevice->SetTexture(i, m_InputTextures[i].Texture), m_pDevice);
 	}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
