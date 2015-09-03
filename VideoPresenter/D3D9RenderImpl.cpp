@@ -74,7 +74,7 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 {
 	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &m_pRenderTarget, NULL));
 	HR(m_pRenderTarget->GetSurfaceLevel(0, &m_pRenderTargetSurface));
-	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &m_pVertexBuffer, NULL));
+	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &m_pVertexBuffer, NULL));
 
 	VERTEX vertexArray[] =
 	{
@@ -91,7 +91,7 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	HR(m_pVertexBuffer->Unlock());
 
-	return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
+	// return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
 	return S_OK;
 }
 
@@ -109,12 +109,12 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index) {
 }
 
 
-HRESULT D3D9RenderImpl::SetupMatrices(int width, int height)
+HRESULT D3D9RenderImpl::SetupMatrices()
 {
 	D3DXMATRIX matOrtho;
 	D3DXMATRIX matIdentity;
 
-	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)width, (float)height, 0, 0.0f, 1.0f);
+	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)m_videoWidth, (float)m_videoHeight, 0, 0.0f, 1.0f);
 	D3DXMatrixIdentity(&matIdentity);
 
 	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
@@ -131,10 +131,11 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 	SCENE_HR(m_pDevice->SetPixelShader(m_pPixelShader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
-	for (int i = 0; i < maxTextures; i++) {
-		if (m_InputTextures[i].Texture != NULL)
-			SCENE_HR(m_pDevice->SetTexture(i, m_InputTextures[i].Texture), m_pDevice);
-	}
+	HR(m_pDevice->SetTexture(0, m_pRenderTarget));
+	//for (int i = 0; i < maxTextures; i++) {
+	//	if (m_InputTextures[i].Texture != NULL)
+	//		SCENE_HR(m_pDevice->SetTexture(i, m_InputTextures[i].Texture), m_pDevice);
+	//}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
 	return m_pDevice->EndScene();
@@ -186,7 +187,7 @@ HRESULT D3D9RenderImpl::CreateResources()
 
 	HR(CreateRenderTarget());
 
-	return(SetupMatrices(m_presentParams.BackBufferWidth, m_presentParams.BackBufferHeight));
+	return(SetupMatrices());
 }
 
 HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index) {
@@ -252,44 +253,6 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWi
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::SetVertexShader(LPCSTR pVertexShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)
-{
-	CComPtr<ID3DXBuffer> code;
-	CComPtr<ID3DXBuffer> errMsg;
-
-	HRESULT hr = D3DXCompileShaderFromFile(pVertexShaderName, NULL, NULL, entryPoint, shaderModel, 0, &code, &errMsg, &m_pVertexConstantTable);
-	if (FAILED(hr)) {
-		if (errMsg != NULL) {
-			size_t len = errMsg->GetBufferSize() + 1;
-			*ppError = new CHAR[len];
-			memcpy(*ppError, errMsg->GetBufferPointer(), len);
-		}
-		return hr;
-	}
-
-	return m_pDevice->CreateVertexShader((DWORD*)code->GetBufferPointer(), &m_pVertexShader);
-}
-
-HRESULT D3D9RenderImpl::ApplyWorldViewProj(LPCSTR matrixName)
-{
-	D3DXMATRIX matOrtho;
-	HR(m_pDevice->GetTransform(D3DTS_PROJECTION, &matOrtho));
-
-	return m_pVertexConstantTable->SetMatrix(m_pDevice, matrixName, &matOrtho);
-}
-
-HRESULT D3D9RenderImpl::SetVertexShader(DWORD* buffer)
-{
-	HR(D3DXGetShaderConstantTable(buffer, &m_pVertexConstantTable));
-
-	return m_pDevice->CreateVertexShader(buffer, &m_pVertexShader);
-}
-
-HRESULT D3D9RenderImpl::SetVertexShaderConstant(LPCSTR name, LPVOID value, UINT size)
-{
-	return m_pVertexConstantTable->SetValue(m_pDevice, name, value, size);
-}
-
 HRESULT D3D9RenderImpl::SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)
 {
 	CComPtr<ID3DXBuffer> code;
@@ -334,19 +297,9 @@ HRESULT D3D9RenderImpl::SetPixelShaderConstant(LPCSTR name, LPVOID value, UINT s
 	return m_pPixelConstantTable->SetValue(m_pDevice, name, value, size);
 }
 
-HRESULT D3D9RenderImpl::SetVertexShaderMatrix(D3DXMATRIX* matrix, LPCSTR name)
-{
-	return m_pVertexConstantTable->SetMatrix(m_pDevice, name, matrix);
-}
-
 HRESULT D3D9RenderImpl::SetPixelShaderMatrix(D3DXMATRIX* matrix, LPCSTR name)
 {
 	return m_pPixelConstantTable->SetMatrix(m_pDevice, name, matrix);
-}
-
-HRESULT D3D9RenderImpl::SetVertexShaderVector(D3DXVECTOR4* vector, LPCSTR name)
-{
-	return m_pVertexConstantTable->SetVector(m_pDevice, name, vector);
 }
 
 HRESULT D3D9RenderImpl::SetPixelShaderVector(LPCSTR name, D3DXVECTOR4* vector)
@@ -374,20 +327,4 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 	}
 
 	return pTempSurface->UnlockRect();
-}
-
-HRESULT D3D9RenderImpl::ClearPixelShader()
-{
-	SafeRelease(m_pPixelConstantTable);
-	SafeRelease(m_pPixelShader);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::ClearVertexShader()
-{
-	SafeRelease(m_pVertexConstantTable);
-	SafeRelease(m_pVertexShader);
-
-	return S_OK;
 }

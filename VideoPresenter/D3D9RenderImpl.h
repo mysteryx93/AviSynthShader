@@ -31,23 +31,11 @@ public:
 	HRESULT SetPixelShaderFloatConstant(LPCSTR name, float value);
 	HRESULT SetPixelShaderBoolConstant(LPCSTR name, bool value);
 	HRESULT SetPixelShaderConstant(LPCSTR name, LPVOID value, UINT size);
-
-	HRESULT SetVertexShader(LPCSTR pVertexShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError);
-	HRESULT SetVertexShader(DWORD* buffer);
-	HRESULT SetVertexShaderConstant(LPCSTR name, LPVOID value, UINT size);
-	HRESULT ApplyWorldViewProj(LPCSTR matrixName);
-
-	HRESULT SetVertexShaderMatrix(D3DXMATRIX* matrix, LPCSTR name);
 	HRESULT SetPixelShaderMatrix(D3DXMATRIX* matrix, LPCSTR name);
-	HRESULT SetVertexShaderVector(D3DXVECTOR4* vector, LPCSTR name);
 	HRESULT SetPixelShaderVector(LPCSTR name, D3DXVECTOR4* vector);
 
-	HRESULT ClearPixelShader();
-	HRESULT ClearVertexShader();
-
-
 private:
-	HRESULT SetupMatrices(int width, int height);
+	HRESULT SetupMatrices();
 	HRESULT CreateScene(void);
 	HRESULT CheckDevice(void);
 	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch);

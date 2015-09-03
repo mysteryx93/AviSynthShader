@@ -1,4 +1,4 @@
-LoadPlugin("C:\GitHub\AviSynthShader\Debug\Shader.dll")
+LoadPlugin("C:\GitHub\AviSynthShader - DX9\Debug\Shader.dll")
 DirectShowSource("F:\AVSMeter\Preview.avi")
 
 ConvertToYV24()
