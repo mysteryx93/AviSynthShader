@@ -1,4 +1,5 @@
-// Code taken from Taygeta Video Presender available here under LGPL3 license.The code has been slightly edited for our needs.
+// Code originally taken from Taygeta Video Presender available here.
+// The code has been mostly rewritten for our needs.
 // http://www.codeproject.com/Articles/207642/Video-Shadering-with-Direct-D
 
 #include "D3D9RenderImpl.h"
@@ -155,7 +156,7 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	HR(m_pVertexBuffer->Unlock());
 
-	// return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
+	return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
 	return S_OK;
 }
 
@@ -166,7 +167,7 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index) {
 	HR(m_pDevice->CreateOffscreenPlainSurface(m_videoWidth, m_videoHeight, m_format, D3DPOOL_DEFAULT, &m_InputTextures[index].Memory, NULL));
 	HR(m_pDevice->ColorFill(m_InputTextures[index].Memory, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
 
-	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, 0, m_format, D3DPOOL_DEFAULT, &m_InputTextures[index].Texture, NULL));
+	HR(m_pDevice->CreateTexture(m_videoWidth, m_videoHeight, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &m_InputTextures[index].Texture, NULL));
 	HR(m_InputTextures[index].Texture->GetSurfaceLevel(0, &m_InputTextures[index].Surface));
 
 	return S_OK;
@@ -187,11 +188,10 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 	SCENE_HR(m_pDevice->SetPixelShader(m_pPixelShader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
-	HR(m_pDevice->SetTexture(0, m_pRenderTarget));
-	//for (int i = 0; i < maxTextures; i++) {
-	//	if (m_InputTextures[i].Texture != NULL)
-	//		SCENE_HR(m_pDevice->SetTexture(i, m_InputTextures[i].Texture), m_pDevice);
-	//}
+	for (int i = 0; i < maxTextures; i++) {
+		if (m_InputTextures[i].Texture != NULL)
+			SCENE_HR(m_pDevice->SetTexture(i, m_InputTextures[i].Texture), m_pDevice);
+	}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
 	return m_pDevice->EndScene();
@@ -199,8 +199,12 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 
 HRESULT D3D9RenderImpl::Present(void)
 {
-	HR(m_pDevice->ColorFill(m_pRenderTargetSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	HR(m_pDevice->StretchRect(m_InputTextures[0].Memory, NULL, m_pRenderTargetSurface, NULL, D3DTEXF_POINT));
+	for (int i = 0; i < maxTextures; i++) {
+		if (m_InputTextures[i].Texture != NULL) {
+			HR(m_pDevice->ColorFill(m_InputTextures[i].Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+			HR(m_pDevice->StretchRect(m_InputTextures[i].Memory, NULL, m_InputTextures[i].Surface, NULL, D3DTEXF_POINT));
+		}
+	}
 	return m_pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
