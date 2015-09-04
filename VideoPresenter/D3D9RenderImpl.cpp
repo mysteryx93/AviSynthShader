@@ -5,8 +5,23 @@
 
 
 D3D9RenderImpl::D3D9RenderImpl()
-	: m_pVertexShader(0), m_pPixelShader(0), m_pD3D9(0), m_format(D3DFMT_UNKNOWN), m_pVertexConstantTable(0), m_pPixelConstantTable(0)
+	: m_pPixelShader(0), m_pD3D9(0), m_format(D3DFMT_UNKNOWN), m_pPixelConstantTable(0)
 {
+}
+
+D3D9RenderImpl::~D3D9RenderImpl(void)
+{
+	for (int i = 0; i < maxTextures; i++) {
+		SafeRelease(m_InputTextures[0].Surface);
+		SafeRelease(m_InputTextures[0].Texture);
+		SafeRelease(m_InputTextures[0].Memory);
+	}
+
+	SafeRelease(m_pRenderTargetSurface);
+	SafeRelease(m_pRenderTarget);
+	SafeRelease(m_pVertexBuffer);
+	SafeRelease(m_pPixelConstantTable);
+	SafeRelease(m_pPixelShader);
 }
 
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, int precision)
@@ -47,28 +62,77 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	return S_OK;
 }
 
-D3D9RenderImpl::~D3D9RenderImpl(void)
+HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed)
 {
-	DiscardResources();
+	UINT height, width;
+
+	if (bWindowed) // windowed mode
+	{
+		RECT rect;
+		::GetClientRect(m_hDisplayWindow, &rect);
+		height = rect.bottom - rect.top;
+		width = rect.right - rect.left;
+	}
+	else   // fullscreen mode
+	{
+		width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+		height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	}
+
+	D3DPRESENT_PARAMETERS presentParams = { 0 };
+	presentParams.Flags = D3DPRESENTFLAG_VIDEO;
+	presentParams.Windowed = bWindowed;
+	presentParams.hDeviceWindow = m_hDisplayWindow;
+	presentParams.BackBufferWidth = width;
+	presentParams.BackBufferHeight = height;
+	presentParams.SwapEffect = D3DSWAPEFFECT_COPY;
+	presentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
+	presentParams.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+	presentParams.BackBufferFormat = m_displayMode.Format;
+	presentParams.BackBufferCount = 1;
+	presentParams.EnableAutoDepthStencil = FALSE;
+
+	memcpy(params, &presentParams, sizeof(D3DPRESENT_PARAMETERS));
+
+	return S_OK;
 }
 
-
-HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch)
+HRESULT D3D9RenderImpl::CreateResources()
 {
-	HR(CheckDevice());
-	HR(CreateScene());
-	HR(Present());
-	return CopyFromRenderTarget(dst, dstPitch);
+	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	m_pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
+
+	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_SPECULAR);
+
+	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	HR(CreateRenderTarget());
+
+	return(SetupMatrices());
 }
 
-
-HRESULT D3D9RenderImpl::CheckFormatConversion(D3DFORMAT format)
+HRESULT D3D9RenderImpl::SetupMatrices()
 {
-	HR(m_pD3D9->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_displayMode.Format, 0, D3DRTYPE_SURFACE, format));
+	D3DXMATRIX matOrtho;
+	D3DXMATRIX matIdentity;
 
-	return m_pD3D9->CheckDeviceFormatConversion(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, format, m_displayMode.Format);
+	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)m_videoWidth, (float)m_videoHeight, 0, 0.0f, 1.0f);
+	D3DXMatrixIdentity(&matIdentity);
+
+	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
+	HR(m_pDevice->SetTransform(D3DTS_WORLD, &matIdentity));
+	return m_pDevice->SetTransform(D3DTS_VIEW, &matIdentity);
 }
-
 
 HRESULT D3D9RenderImpl::CreateRenderTarget()
 {
@@ -108,18 +172,11 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index) {
 	return S_OK;
 }
 
-
-HRESULT D3D9RenderImpl::SetupMatrices()
+HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch)
 {
-	D3DXMATRIX matOrtho;
-	D3DXMATRIX matIdentity;
-
-	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)m_videoWidth, (float)m_videoHeight, 0, 0.0f, 1.0f);
-	D3DXMatrixIdentity(&matIdentity);
-
-	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
-	HR(m_pDevice->SetTransform(D3DTS_WORLD, &matIdentity));
-	return m_pDevice->SetTransform(D3DTS_VIEW, &matIdentity);
+	HR(CreateScene());
+	HR(Present());
+	return CopyFromRenderTarget(dst, dstPitch);
 }
 
 HRESULT D3D9RenderImpl::CreateScene(void)
@@ -127,7 +184,6 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 	HRESULT hr = m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
 	HR(m_pDevice->BeginScene());
 	SCENE_HR(m_pDevice->SetFVF(D3DFVF_CUSTOMVERTEX), m_pDevice);
-	SCENE_HR(m_pDevice->SetVertexShader(m_pVertexShader), m_pDevice);
 	SCENE_HR(m_pDevice->SetPixelShader(m_pPixelShader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
@@ -141,53 +197,11 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 	return m_pDevice->EndScene();
 }
 
-
-HRESULT D3D9RenderImpl::CheckDevice(void)
+HRESULT D3D9RenderImpl::Present(void)
 {
-	return m_pDevice->TestCooperativeLevel();
-}
-
-HRESULT D3D9RenderImpl::DiscardResources()
-{
-	for (int i = 0; i < maxTextures; i++) {
-		SafeRelease(m_InputTextures[0].Surface);
-		SafeRelease(m_InputTextures[0].Texture);
-		SafeRelease(m_InputTextures[0].Memory);
-	}
-
-	SafeRelease(m_pRenderTargetSurface);
-	SafeRelease(m_pRenderTarget);
-	SafeRelease(m_pVertexBuffer);
-	SafeRelease(m_pVertexShader);
-	SafeRelease(m_pVertexConstantTable);
-	SafeRelease(m_pPixelConstantTable);
-	SafeRelease(m_pPixelShader);
-
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::CreateResources()
-{
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	m_pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
-
-	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_SPECULAR);
-
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-
-	HR(CreateRenderTarget());
-
-	return(SetupMatrices());
+	HR(m_pDevice->ColorFill(m_pRenderTargetSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	HR(m_pDevice->StretchRect(m_InputTextures[0].Memory, NULL, m_pRenderTargetSurface, NULL, D3DTEXF_POINT));
+	return m_pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
 HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index) {
@@ -209,48 +223,26 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index) {
 	return  destSurface->UnlockRect();
 }
 
-
-HRESULT D3D9RenderImpl::Present(void)
+HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 {
-	HR(m_pDevice->ColorFill(m_pRenderTargetSurface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	HR(m_pDevice->StretchRect(m_InputTextures[0].Memory, NULL, m_pRenderTargetSurface, NULL, D3DTEXF_POINT));
-	return m_pDevice->Present(NULL, NULL, NULL, NULL);
-}
+	CComPtr<IDirect3DSurface9> pTargetSurface;
+	CComPtr<IDirect3DSurface9> pTempSurface;
 
+	HR(m_pDevice->GetRenderTarget(0, &pTargetSurface));
+	HR(m_pDevice->CreateOffscreenPlainSurface(m_videoWidth, m_videoHeight, m_format, D3DPOOL_SYSTEMMEM, &pTempSurface, NULL));
+	HR(m_pDevice->GetRenderTargetData(pTargetSurface, pTempSurface));
 
-HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed)
-{
-	UINT height, width;
+	D3DLOCKED_RECT d3drect;
+	HR(pTempSurface->LockRect(&d3drect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
+	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	if (bWindowed) // windowed mode
-	{
-		RECT rect;
-		::GetClientRect(m_hDisplayWindow, &rect);
-		height = rect.bottom - rect.top;
-		width = rect.right - rect.left;
-	}
-	else   // fullscreen mode
-	{
-		width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-		height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	for (int y = 0; y < m_videoHeight; y++) {
+		memcpy(dst, pict, m_videoWidth * m_precision * 4);
+		pict += d3drect.Pitch;
+		dst += dstPitch;
 	}
 
-	D3DPRESENT_PARAMETERS presentParams = { 0 };
-	presentParams.Flags = D3DPRESENTFLAG_VIDEO;
-	presentParams.Windowed = bWindowed;
-	presentParams.hDeviceWindow = m_hDisplayWindow;
-	presentParams.BackBufferWidth = width;
-	presentParams.BackBufferHeight = height;
-	presentParams.SwapEffect = D3DSWAPEFFECT_COPY;
-	presentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
-	presentParams.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
-	presentParams.BackBufferFormat = m_displayMode.Format;
-	presentParams.BackBufferCount = 1;
-	presentParams.EnableAutoDepthStencil = FALSE;
-
-	memcpy(params, &presentParams, sizeof(D3DPRESENT_PARAMETERS));
-
-	return S_OK;
+	return pTempSurface->UnlockRect();
 }
 
 HRESULT D3D9RenderImpl::SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)
@@ -305,26 +297,4 @@ HRESULT D3D9RenderImpl::SetPixelShaderMatrix(D3DXMATRIX* matrix, LPCSTR name)
 HRESULT D3D9RenderImpl::SetPixelShaderVector(LPCSTR name, D3DXVECTOR4* vector)
 {
 	return m_pPixelConstantTable->SetVector(m_pDevice, name, vector);
-}
-
-HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
-{
-	CComPtr<IDirect3DSurface9> pTargetSurface;
-	CComPtr<IDirect3DSurface9> pTempSurface;
-
-	HR(m_pDevice->GetRenderTarget(0, &pTargetSurface));
-	HR(m_pDevice->CreateOffscreenPlainSurface(m_videoWidth, m_videoHeight, m_format, D3DPOOL_SYSTEMMEM, &pTempSurface, NULL));
-	HR(m_pDevice->GetRenderTargetData(pTargetSurface, pTempSurface));
-
-	D3DLOCKED_RECT d3drect;
-	HR(pTempSurface->LockRect(&d3drect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
-	BYTE* pict = (BYTE*)d3drect.pBits;
-
-	for (int y = 0; y < m_videoHeight; y++) {
-		memcpy(dst, pict, m_videoWidth * m_precision * 4);
-		pict += d3drect.Pitch;
-		dst += dstPitch;
-	}
-
-	return pTempSurface->UnlockRect();
 }
