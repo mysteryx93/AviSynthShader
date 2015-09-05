@@ -1,7 +1,14 @@
 #include <windows.h>
 #include <cstdio>		//needed by OutputDebugString()
 #include <math.h>
+#include <limits.h>
 #include "avisynth.h"
+#include "d3dx9.h"
+
+
+//#include "half.hpp"
+//using half_float::half;
+
 
 // Converts YV12 data into RGB data with float precision, 12-byte per pixel.
 class ConvertToShader : public GenericVideoFilter {

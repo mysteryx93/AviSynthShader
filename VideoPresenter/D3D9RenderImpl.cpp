@@ -17,7 +17,6 @@ D3D9RenderImpl::~D3D9RenderImpl(void)
 		SafeRelease(m_InputTextures[0].Texture);
 		SafeRelease(m_InputTextures[0].Memory);
 	}
-
 	SafeRelease(m_pRenderTargetSurface);
 	SafeRelease(m_pRenderTarget);
 	SafeRelease(m_pVertexBuffer);
@@ -33,6 +32,8 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	m_precision = precision;
 	if (precision == 4)
 		m_format = D3DFMT_A32B32G32R32F;
+	else if (precision == 2)
+		m_format = D3DFMT_A16B16G16R16F;
 	else if (precision == 1)
 		m_format = D3DFMT_X8R8G8B8;
 	else

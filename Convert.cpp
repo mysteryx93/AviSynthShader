@@ -144,23 +144,33 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 		unsigned char r2 = unsigned char(r);
 		unsigned char g2 = unsigned char(g);
 		unsigned char b2 = unsigned char(b);
-		memcpy(out + 0, &b2, precision);
+		memcpy(out, &b2, precision);
 		memcpy(out + precision, &g2, precision);
 		memcpy(out + precision * 2, &r2, precision);
 		out[precision * 3] = 0;
 	}
 	else if (precision == 2) {
+		// Convert to unsigned short
+		//unsigned short r2 = unsigned short(r * USHRT_MAX);
+		//unsigned short g2 = unsigned short(g * USHRT_MAX);
+		//unsigned short b2 = unsigned short(b * USHRT_MAX);
+
 		// Convert to half float
-		//memcpy(out + 0, &b2, precision);
-		//memcpy(out + precision, &g2, precision);
-		//memcpy(out + precision * 2, &r2, precision);
+		D3DXFLOAT16 r2 = D3DXFLOAT16(r);
+		D3DXFLOAT16 g2 = D3DXFLOAT16(g);
+		D3DXFLOAT16 b2 = D3DXFLOAT16(b);
+		memcpy(out + precision * 0, &r2, precision);
+		memcpy(out + precision * 1, &g2, precision);
+		memcpy(out + precision * 2, &b2, precision);
+		D3DXFLOAT16 a = D3DXFLOAT16(1);
+		memcpy(out + precision * 3, &a, precision);
 	}
 	else {
-		ZeroMemory(out, precision); // Clear alpha channel
 		// Store float
-		memcpy(out + precision, &b, precision);
-		memcpy(out + precision * 2, &g, precision);
-		memcpy(out + precision * 3, &r, precision);
+		memcpy(out + precision * 0, &b, precision);
+		memcpy(out + precision * 1, &g, precision);
+		memcpy(out + precision * 2, &r, precision);
+		ZeroMemory(out + precision * 3, precision); // Clear alpha channel
 	}
 }
 
@@ -267,13 +277,29 @@ void ConvertFromShader::convFloat(const byte* src, byte* outY, unsigned char* ou
 		r = float(r2);
 	}
 	else if (precision == 2) {
-		// Convert to half float
+		// Read unsigned short
+		// unsigned short b2, g2, r2;
+		
+		// Read half-float
+		//half b2, g2, r2;
+		//b = float(b2) / USHRT_MAX;
+		//g = float(g2) / USHRT_MAX;
+		//r = float(r2) / USHRT_MAX;
+
+		D3DXFLOAT16 r2, g2, b2;
+		memcpy(&r2, src + precision * 0, precision);
+		memcpy(&g2, src + precision * 1, precision);
+		memcpy(&b2, src + precision * 2, precision);
+		// D3DXFloat16To32Array(rgb, (D3DXFLOAT16*)src, 3);
+		b = (float)b2;
+		g = (float)g2;
+		r = (float)r2;
 	}
 	else {
 		// Read float
-		memcpy(&b, src + precision, precision);
-		memcpy(&g, src + precision * 2, precision);
-		memcpy(&r, src + precision * 3, precision);
+		memcpy(&b, src + precision * 0, precision);
+		memcpy(&g, src + precision * 1, precision);
+		memcpy(&r, src + precision * 2, precision);
 	}
 
 	// rgb are in the 0 to 1 range
