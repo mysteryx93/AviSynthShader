@@ -8,7 +8,7 @@
 
 class Shader : public GenericVideoFilter {
 public:
-	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
+	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel,
 		const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9, 
 		PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, IScriptEnvironment* env);
 	~Shader();

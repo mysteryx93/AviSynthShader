@@ -110,6 +110,7 @@
     <ClCompile Include="VideoPresenter\D3D9RenderImpl.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="TestQuality.avs" />
     <None Include="TestScript.avs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

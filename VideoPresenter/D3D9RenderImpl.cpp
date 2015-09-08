@@ -101,22 +101,22 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWi
 
 HRESULT D3D9RenderImpl::CreateResources()
 {
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	m_pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
+	//m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	//m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	//m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	//m_pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
 
-	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	//m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	//m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	//m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_SPECULAR);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_SPECULAR);
 
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
 	HR(CreateRenderTarget());
 
@@ -126,14 +126,15 @@ HRESULT D3D9RenderImpl::CreateResources()
 HRESULT D3D9RenderImpl::SetupMatrices()
 {
 	D3DXMATRIX matOrtho;
-	D3DXMATRIX matIdentity;
-
 	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)m_videoWidth, (float)m_videoHeight, 0, 0.0f, 1.0f);
-	D3DXMatrixIdentity(&matIdentity);
-
 	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
-	HR(m_pDevice->SetTransform(D3DTS_WORLD, &matIdentity));
-	return m_pDevice->SetTransform(D3DTS_VIEW, &matIdentity);
+
+	//D3DXMATRIX matIdentity;
+	//D3DXMatrixIdentity(&matIdentity);
+	//HR(m_pDevice->SetTransform(D3DTS_WORLD, &matIdentity));
+	//HR(m_pDevice->SetTransform(D3DTS_VIEW, &matIdentity));
+
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CreateRenderTarget()
@@ -144,10 +145,14 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 
 	VERTEX vertexArray[] =
 	{
-		{ D3DXVECTOR3(0, 0, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
-		{ D3DXVECTOR3((float)m_videoWidth, 0, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
-		{ D3DXVECTOR3((float)m_videoWidth, (float)m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
-		{ D3DXVECTOR3(0, (float)m_videoHeight, 0), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
+		{ 0, 0, 1, 1, 0, 0 },
+		{ (float)m_videoWidth, 0, 1, 1, 1, 0 },
+		{ (float)m_videoWidth, (float)m_videoHeight, 1, 1, 1, 1 },
+		{ 0, (float)m_videoHeight, 1, 1, 0, 1 }
+		//{ D3DXVECTOR3(0, 0, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
+		//{ D3DXVECTOR3((float)m_videoWidth, 0, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
+		//{ D3DXVECTOR3((float)m_videoWidth, (float)m_videoHeight, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
+		//{ D3DXVECTOR3(0, (float)m_videoHeight, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
 	};
 
 	VERTEX *vertices;
@@ -185,7 +190,7 @@ HRESULT D3D9RenderImpl::CreateScene(void)
 {
 	HRESULT hr = m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
 	HR(m_pDevice->BeginScene());
-	SCENE_HR(m_pDevice->SetFVF(D3DFVF_CUSTOMVERTEX), m_pDevice);
+	SCENE_HR(m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1), m_pDevice);
 	SCENE_HR(m_pDevice->SetPixelShader(m_pPixelShader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
