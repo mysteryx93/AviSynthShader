@@ -1,4 +1,5 @@
 #pragma once
+#include "d3dx9.h"
 
 template <typename T>
 inline void SafeRelease(T& p)
@@ -21,4 +22,10 @@ enum FillMode
 {
 	KeepAspectRatio = 0,
 	Fill = 1
+};
+
+struct VERTEX
+{
+	float x, y, z, rhw; // the transformed(screen space) position for the vertex
+	float tu, tv; // texture coordinates
 };

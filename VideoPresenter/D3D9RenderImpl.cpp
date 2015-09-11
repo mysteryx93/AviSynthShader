@@ -6,7 +6,7 @@
 
 
 D3D9RenderImpl::D3D9RenderImpl()
-	: m_pPixelShader(0), m_pD3D9(0), m_format(D3DFMT_UNKNOWN), m_pPixelConstantTable(0)
+	: m_pPixelShader(0), m_pD3D9(0), m_pPixelConstantTable(0), m_precision(2), m_format(D3DFMT_A16B16G16R16F)
 {
 }
 
@@ -24,20 +24,11 @@ D3D9RenderImpl::~D3D9RenderImpl(void)
 	SafeRelease(m_pPixelShader);
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, int precision)
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height)
 {
 	m_hDisplayWindow = hDisplayWindow;
 	m_videoWidth = width;
 	m_videoHeight = height;
-	m_precision = precision;
-	if (precision == 4)
-		m_format = D3DFMT_A32B32G32R32F;
-	else if (precision == 2)
-		m_format = D3DFMT_A16B16G16R16F;
-	else if (precision == 1)
-		m_format = D3DFMT_X8R8G8B8;
-	else
-		return E_FAIL;
 
 	m_pD3D9 = Direct3DCreate9(D3D_SDK_VERSION);
 	if (!m_pD3D9) {
@@ -56,34 +47,26 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	else
 		dwBehaviorFlags |= D3DCREATE_SOFTWARE_VERTEXPROCESSING;
 
-	HR(GetPresentParams(&m_presentParams, TRUE));
+	HR(GetPresentParams(&m_presentParams));
 
 	HR(m_pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hDisplayWindow, dwBehaviorFlags, &m_presentParams, &m_pDevice));
 
-	HR(CreateResources());
-	return S_OK;
+	HR(CheckFormatConversion(m_format));
+	HR(CreateRenderTarget());
+	return(SetupMatrices());
 }
 
-HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed)
+HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params)
 {
-	UINT height, width;
-
-	if (bWindowed) // windowed mode
-	{
-		RECT rect;
-		::GetClientRect(m_hDisplayWindow, &rect);
-		height = rect.bottom - rect.top;
-		width = rect.right - rect.left;
-	}
-	else   // fullscreen mode
-	{
-		width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-		height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-	}
+	// windowed mode
+	RECT rect;
+	::GetClientRect(m_hDisplayWindow, &rect);
+	UINT height = rect.bottom - rect.top;
+	UINT width = rect.right - rect.left;
 
 	D3DPRESENT_PARAMETERS presentParams = { 0 };
 	presentParams.Flags = D3DPRESENTFLAG_VIDEO;
-	presentParams.Windowed = bWindowed;
+	presentParams.Windowed = true;
 	presentParams.hDeviceWindow = m_hDisplayWindow;
 	presentParams.BackBufferWidth = width;
 	presentParams.BackBufferHeight = height;
@@ -99,42 +82,17 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWi
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CreateResources()
+HRESULT D3D9RenderImpl::CheckFormatConversion(D3DFORMAT format)
 {
-	//m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	//m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	//m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	//m_pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
-
-	//m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	//m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	//m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-	//m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	//m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	//m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_SPECULAR);
-
-	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-
-	HR(CreateRenderTarget());
-
-	return(SetupMatrices());
+	HR(m_pD3D9->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_displayMode.Format, 0, D3DRTYPE_SURFACE, format));
+	return m_pD3D9->CheckDeviceFormatConversion(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, format, m_displayMode.Format);
 }
 
 HRESULT D3D9RenderImpl::SetupMatrices()
 {
 	D3DXMATRIX matOrtho;
 	D3DXMatrixOrthoOffCenterLH(&matOrtho, 0, (float)m_videoWidth, (float)m_videoHeight, 0, 0.0f, 1.0f);
-	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
-
-	//D3DXMATRIX matIdentity;
-	//D3DXMatrixIdentity(&matIdentity);
-	//HR(m_pDevice->SetTransform(D3DTS_WORLD, &matIdentity));
-	//HR(m_pDevice->SetTransform(D3DTS_VIEW, &matIdentity));
-
-	return S_OK;
+	return(m_pDevice->SetTransform(D3DTS_PROJECTION, &matOrtho));
 }
 
 HRESULT D3D9RenderImpl::CreateRenderTarget()
@@ -143,17 +101,19 @@ HRESULT D3D9RenderImpl::CreateRenderTarget()
 	HR(m_pRenderTarget->GetSurfaceLevel(0, &m_pRenderTargetSurface));
 	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &m_pVertexBuffer, NULL));
 
+	// Create vertexes for FVF (Fixed Vector Function) set to pre-processed vertex coordinates.
 	VERTEX vertexArray[] =
 	{
-		{ 0, 0, 1, 1, 0, 0 },
-		{ (float)m_videoWidth, 0, 1, 1, 1, 0 },
-		{ (float)m_videoWidth, (float)m_videoHeight, 1, 1, 1, 1 },
-		{ 0, (float)m_videoHeight, 1, 1, 0, 1 }
-		//{ D3DXVECTOR3(0, 0, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 0) },  // top left
-		//{ D3DXVECTOR3((float)m_videoWidth, 0, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 0) },  // top right
-		//{ D3DXVECTOR3((float)m_videoWidth, (float)m_videoHeight, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(1, 1) },  // bottom right
-		//{ D3DXVECTOR3(0, (float)m_videoHeight, 1), D3DCOLOR_ARGB(255, 255, 255, 255), D3DXVECTOR2(0, 1) },  // bottom left
+		{ 0, 0, 1, 1, 0, 0 }, // top left
+		{ (float)m_videoWidth, 0, 1, 1, 1, 0 }, // top right
+		{ (float)m_videoWidth, (float)m_videoHeight, 1, 1, 1, 1 }, // bottom right
+		{ 0, (float)m_videoHeight, 1, 1, 0, 1 } // bottom left
 	};
+	// Prevent texture distortion during rasterization. https://msdn.microsoft.com/en-us/library/windows/desktop/bb219690%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396
+	for (int i = 0; i < 4; i++) {
+		vertexArray[i].x -= .5f;
+		vertexArray[i].y -= .5f;
+	}
 
 	VERTEX *vertices;
 	HR(m_pVertexBuffer->Lock(0, 0, (void**)&vertices, D3DLOCK_DISCARD));
@@ -181,6 +141,7 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index) {
 
 HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch)
 {
+	HR(m_pDevice->TestCooperativeLevel());
 	HR(CreateScene());
 	HR(Present());
 	return CopyFromRenderTarget(dst, dstPitch);

@@ -15,8 +15,8 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 		env->ThrowError("Shader: path to a compiled shader must be specified");
 
 	// Initialize
-	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, vi.width + 6, vi.height + 29, NULL, NULL, NULL, NULL);
-	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
+	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height)))
 		env->ThrowError("Shader: Initialize failed.");
 
 	// Set pixel shader

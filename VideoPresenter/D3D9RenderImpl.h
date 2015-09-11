@@ -2,7 +2,6 @@
 
 #define D3D_DEBUG_INFO
 #include "d3d9.h"
-#include "Vertex.h"
 #include "atlbase.h"
 #include "Macros.h"
 #include <windows.h>
@@ -19,7 +18,7 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl(void);
 
-	HRESULT Initialize(HWND hDisplayWindow, int width, int height, int precision);
+	HRESULT Initialize(HWND hDisplayWindow, int width, int height);
 	HRESULT CreateInputTexture(int index);
 	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index);
 	HRESULT ProcessFrame(byte* dst, int dstPitch);
@@ -39,8 +38,8 @@ private:
 	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch);
 	HRESULT CreateRenderTarget();
 	HRESULT Present(void);	
-	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, BOOL bWindowed);
-	HRESULT CreateResources();
+	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params);
+	HRESULT CheckFormatConversion(D3DFORMAT format);
 
 	CComPtr<IDirect3D9>             m_pD3D9;
 	CComPtr<IDirect3DDevice9>       m_pDevice;
@@ -52,11 +51,11 @@ private:
 	static const int maxTextures = 5;
 	InputTexture					m_InputTextures[maxTextures];
 
+	const int m_precision;
+	const D3DFORMAT m_format;
 	D3DDISPLAYMODE m_displayMode;
 	HWND m_hDisplayWindow;
 	int m_videoWidth;
 	int m_videoHeight;
-	int m_precision;
-	D3DFORMAT m_format;
 	D3DPRESENT_PARAMETERS m_presentParams;
 };
