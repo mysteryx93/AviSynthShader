@@ -19,9 +19,9 @@ public:
 	~D3D9RenderImpl(void);
 
 	HRESULT Initialize(HWND hDisplayWindow, int width, int height);
-	HRESULT CreateInputTexture(int index);
-	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index);
-	HRESULT ProcessFrame(byte* dst, int dstPitch);
+	HRESULT CreateInputTexture(int index, int width, int height);
+	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height);
+	HRESULT ProcessFrame(byte* dst, int dstPitch, int width, int height);
 
 	HRESULT SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError);
 	HRESULT SetPixelShader(DWORD* buffer);
@@ -33,11 +33,11 @@ public:
 	HRESULT SetPixelShaderVector(LPCSTR name, D3DXVECTOR4* vector);
 
 private:
-	HRESULT SetupMatrices();
-	HRESULT CreateScene(void);
-	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch);
-	HRESULT CreateRenderTarget();
-	HRESULT Present(void);	
+	HRESULT SetupMatrices(int width, int height);
+	HRESULT CreateScene();
+	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height);
+	HRESULT CreateRenderTarget(int width, int height);
+	HRESULT Present();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params);
 	HRESULT CheckFormatConversion(D3DFORMAT format);
 
@@ -55,7 +55,7 @@ private:
 	const D3DFORMAT m_format;
 	D3DDISPLAYMODE m_displayMode;
 	HWND m_hDisplayWindow;
-	int m_videoWidth;
-	int m_videoHeight;
+	//int m_videoWidth;
+	//int m_videoHeight;
 	D3DPRESENT_PARAMETERS m_presentParams;
 };

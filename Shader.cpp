@@ -47,26 +47,20 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	ParseParam(_param8, env);
 	ParseParam(_param9, env);
 
-	render.CreateInputTexture(0);
-	if (clip1 != NULL)
-		render.CreateInputTexture(1);
-	if (clip2 != NULL)
-		render.CreateInputTexture(2);
-	if (clip3 != NULL)
-		render.CreateInputTexture(3);
-	if (clip4 != NULL)
-		render.CreateInputTexture(4);
+	CreateInputClip(0, _child);
+	CreateInputClip(1, clip1);
+	CreateInputClip(2, clip2);
+	CreateInputClip(3, clip3);
+	CreateInputClip(4, clip4);
 }
 
 Shader::~Shader() {
 	DestroyWindow(dummyHWND);
 }
 
-
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	// PVideoFrame src = child->GetFrame(n, env);
 
-	PVideoFrame dst = env->NewVideoFrame(vi);
 	CopyInputClip(0, n, env);
 	if (clip1 != NULL)
 		CopyInputClip(1, n, env);
@@ -76,13 +70,18 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 		CopyInputClip(3, n, env);
 	else if (clip4 != NULL)
 		CopyInputClip(4, n, env);
+	PVideoFrame dst = env->NewVideoFrame(vi);
 
-	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch()))
+	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), vi.width / precision, vi.height))
 		env->ThrowError("Shader: ProcessFrame failed.");
 
 	return dst;
 }
 
+void Shader::CreateInputClip(int index, PClip clip) {
+	if (clip != NULL)
+		render.CreateInputTexture(1, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
+}
 
 void Shader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip input;
@@ -100,20 +99,24 @@ void Shader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 		env->ThrowError("Shader: CopyInputClip invalid index");
 
 	PVideoFrame frame = input->GetFrame(n, env);
-	if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index)))
+	if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, input->GetVideoInfo().width / precision, input->GetVideoInfo().height)))
 		env->ThrowError("Shader: CopyInputClip failed");
 }
 
-
 unsigned char* Shader::ReadBinaryFile(const char* filePath) {
 	FILE *fl = fopen(filePath, "rb");
-	fseek(fl, 0, SEEK_END);
-	long len = ftell(fl);
-	unsigned char *ret = (unsigned char*)malloc(len);
-	fseek(fl, 0, SEEK_SET);
-	fread(ret, 1, len, fl);
-	fclose(fl);
-	return ret;
+	if (fl != NULL)
+	{
+		fseek(fl, 0, SEEK_END);
+		long len = ftell(fl);
+		unsigned char *ret = (unsigned char*)malloc(len);
+		fseek(fl, 0, SEEK_SET);
+		fread(ret, 1, len, fl);
+		fclose(fl);
+		return ret;
+	}
+	else
+		return NULL;
 }
 
 void Shader::ParseParam(const char* param, IScriptEnvironment* env) {

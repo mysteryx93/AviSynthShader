@@ -14,6 +14,7 @@ public:
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
+	void CreateInputClip(int index, PClip clip);
 	unsigned char* ReadBinaryFile(const char* filePath);
 	void ParseParam(const char* param, IScriptEnvironment* env);
 	bool SetParam(char* param);
