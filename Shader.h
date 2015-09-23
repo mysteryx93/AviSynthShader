@@ -18,7 +18,7 @@ private:
 	unsigned char* ReadBinaryFile(const char* filePath);
 	void ParseParam(const char* param, IScriptEnvironment* env);
 	bool SetParam(char* param);
-	void CopyInputClip(int index, int n, IScriptEnvironment* env);
+	void CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env);
 	const char* path;
 	const int precision;
 	PClip clip1, clip2, clip3, clip4;

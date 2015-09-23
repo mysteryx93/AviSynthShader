@@ -61,15 +61,11 @@ Shader::~Shader() {
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	// PVideoFrame src = child->GetFrame(n, env);
 
-	CopyInputClip(0, n, env);
-	if (clip1 != NULL)
-		CopyInputClip(1, n, env);
-	else if (clip2 != NULL)
-		CopyInputClip(2, n, env);
-	else if (clip3 != NULL)
-		CopyInputClip(3, n, env);
-	else if (clip4 != NULL)
-		CopyInputClip(4, n, env);
+	CopyInputClip(0, child, n, env);
+	CopyInputClip(1, clip1, n, env);
+	CopyInputClip(2, clip2, n, env);
+	CopyInputClip(3, clip3, n, env);
+	CopyInputClip(4, clip4, n, env);
 	PVideoFrame dst = env->NewVideoFrame(vi);
 
 	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), vi.width / precision, vi.height))
@@ -83,24 +79,12 @@ void Shader::CreateInputClip(int index, PClip clip) {
 		render.CreateInputTexture(1, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
 }
 
-void Shader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
-	PClip input;
-	if (index == 0)
-		input = child;
-	else if (index == 1)
-		input = clip1;
-	else if (index == 2)
-		input = clip2;
-	else if (index == 3)
-		input = clip3;
-	else if (index == 4)
-		input = clip4;
-	else
-		env->ThrowError("Shader: CopyInputClip invalid index");
-
-	PVideoFrame frame = input->GetFrame(n, env);
-	if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, input->GetVideoInfo().width / precision, input->GetVideoInfo().height)))
-		env->ThrowError("Shader: CopyInputClip failed");
+void Shader::CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env) {
+	if (clip != NULL) {
+		PVideoFrame frame = clip->GetFrame(n, env);
+		if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height)))
+			env->ThrowError("Shader: CopyInputClip failed");
+	}
 }
 
 unsigned char* Shader::ReadBinaryFile(const char* filePath) {
@@ -158,7 +142,7 @@ bool Shader::SetParam(char* param) {
 		}
 		else {
 			// Vector of 2, 3 or 4 values.
-			D3DXVECTOR4 vector = {0, 0, 0, 0};
+			D3DXVECTOR4 vector = { 0, 0, 0, 0 };
 			vector.x = strtof(VectorValue, NULL);
 			// Parse 2nd vector value
 			char* VectorValue = strtok(NULL, ",");
