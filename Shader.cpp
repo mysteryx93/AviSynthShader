@@ -47,7 +47,7 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	ParseParam(_param8, env);
 	ParseParam(_param9, env);
 
-	CreateInputClip(0, _child);
+	CreateInputClip(0, child);
 	CreateInputClip(1, clip1);
 	CreateInputClip(2, clip2);
 	CreateInputClip(3, clip3);
@@ -59,8 +59,6 @@ Shader::~Shader() {
 }
 
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
-	// PVideoFrame src = child->GetFrame(n, env);
-
 	CopyInputClip(0, child, n, env);
 	CopyInputClip(1, clip1, n, env);
 	CopyInputClip(2, clip2, n, env);
@@ -76,7 +74,7 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 
 void Shader::CreateInputClip(int index, PClip clip) {
 	if (clip != NULL)
-		render.CreateInputTexture(1, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
+		render.CreateInputTexture(index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
 }
 
 void Shader::CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env) {
