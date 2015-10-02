@@ -3,7 +3,7 @@
 #include <d3dx9.h>
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
-#include "VideoPresenter\D3D9RenderImpl.h"
+#include "D3D9RenderImpl.h"
 
 
 class Shader : public GenericVideoFilter {

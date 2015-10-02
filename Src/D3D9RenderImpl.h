@@ -3,7 +3,7 @@
 #define D3D_DEBUG_INFO
 #include "d3d9.h"
 #include "atlbase.h"
-#include "Macros.h"
+#include "D3D9Macros.h"
 #include <windows.h>
 
 struct InputTexture {

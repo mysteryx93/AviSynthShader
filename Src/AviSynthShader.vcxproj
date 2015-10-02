@@ -21,7 +21,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -53,6 +53,8 @@
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <IntDir>$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files %28x86%29\Microsoft DirectX SDK %28June 2010%29\Lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -91,26 +93,23 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
-    <ClInclude Include="Convert.h" />
-    <ClInclude Include="half.hpp" />
+    <ClInclude Include="ConvertFromFloat.h" />
+    <ClInclude Include="ConvertToFloat.h" />
     <ClInclude Include="Shader.h" />
-    <ClInclude Include="VideoPresenter\D3D9RenderImpl.h" />
-    <ClInclude Include="VideoPresenter\Macros.h" />
+    <ClInclude Include="D3D9RenderImpl.h" />
+    <ClInclude Include="D3D9Macros.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Convert.cpp" />
-    <ClCompile Include="FloatBits.h" />
+    <ClCompile Include="ConvertFromFloat.cpp" />
+    <ClCompile Include="ConvertToFloat.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="VideoPresenter\D3D9RenderImpl.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="TestQuality.avs" />
-    <None Include="TestScript.avs" />
+    <ClCompile Include="D3D9RenderImpl.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
