@@ -1,7 +1,7 @@
 #include "Convert.h"
 
 ConvertToShader::ConvertToShader(PClip _child, IScriptEnvironment* env) :
-GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(false) {
+GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(true) {
 	if (!vi.IsYV12() && !vi.IsYV24())
 		env->ThrowError("Source must be YV12 or YV24");
 
@@ -76,7 +76,7 @@ void ConvertToShader::convFloat(int y, int u, int v, unsigned char* out) {
 
 
 ConvertFromShader::ConvertFromShader(PClip _child, IScriptEnvironment* env) :
-GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(false) {
+GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(true) {
 	if (!vi.IsRGB32())
 		env->ThrowError("Source must be float-precision RGB");
 

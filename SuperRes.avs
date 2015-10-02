@@ -20,7 +20,7 @@ Assert(Defined(upscalecommand), chr(10) + "You must specify upscalecommand" + ch
 
 original = input.ConvertToYV24().ConvertToShader() #.Shader(path="Shaders\YuvToGamma.cso")
 Eval("input = input." + upscalecommand)
-input = input.ConvertToYV24().ConvertToShader()
+input = input.ConvertToYV24().ConvertToShader() #.Shader(path="Shaders\YuvToGamma.cso")
 input = input.Shader("Shaders\GammaToLinear.cso")
 input = SuperResPass(input, original, strength, softness, hqdownscaling, 1, passes)
 input = passes > 1 ? input.SuperResPass(original, strength, softness, hqdownscaling, 2, passes) : input
@@ -28,7 +28,6 @@ input = passes > 2 ? input.SuperResPass(original, strength, softness, hqdownscal
 input = passes > 3 ? input.SuperResPass(original, strength, softness, hqdownscaling, 4, passes) : input
 input = passes > 4 ? input.SuperResPass(original, strength, softness, hqdownscaling, 5, passes) : input
 
-input.Shader(path="Shaders\LinearToGamma.cso")
 input = input.ConvertFromShader().ConvertToYV12() #.Shader(path="Shaders\GammaToYuv.cso")
 return input
 }
