@@ -1,11 +1,13 @@
 #include "ConvertFromFloat.h"
 
-ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(2), precisionShift(3), format(_format), convertYUV(_convertYuv) {
+ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, int _precision, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), precisionShift(_precision + 1), format(_format), convertYUV(_convertYuv) {
 	if (!vi.IsRGB32())
 		env->ThrowError("Source must be float-precision RGB");
 	if (strcmp(format, "YV24") != 0 && strcmp(format, "YV12") != 0 && strcmp(format, "RGB32") != 0)
 		env->ThrowError("Destination format must be YV24, YV12 or RGB32");
+	if (precision != 1 && precision != 2)
+		env->ThrowError("Precision must be 1 or 2");
 
 	// Convert from float-precision RGB to YV24
 	viYV = vi;
@@ -14,8 +16,8 @@ ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _conv
 	else
 		viYV.pixel_type = VideoInfo::CS_YV24;
 
-	// Float-precision RGB is 8-byte per pixel (4 half-float), YV24 is 4-byte per pixel
-	viYV.width >>= 1;
+	if (precision == 2) // Half-float frame has its width twice larger than normal
+		viYV.width >>= 1;
 }
 
 ConvertFromFloat::~ConvertFromFloat() {
@@ -67,18 +69,30 @@ void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
 void ConvertFromFloat::convFloat(const byte* src, byte* outY, unsigned char* outU, unsigned char* outV) {
 	float r, g, b;
-	D3DXFLOAT16 r2, g2, b2;
-	memcpy(&r2, src + precision * 0, precision);
-	memcpy(&g2, src + precision * 1, precision);
-	memcpy(&b2, src + precision * 2, precision);
-	b = (float)b2;
-	g = (float)g2;
-	r = (float)r2;
 
-	// rgb are in the 0 to 1 range
-	r = r / 1 * 255;
-	b = b / 1 * 255;
-	g = g / 1 * 255;
+	if (precision == 1) {
+		unsigned char b2, g2, r2;
+		memcpy(&b2, src, precision);
+		memcpy(&g2, src + precision, precision);
+		memcpy(&r2, src + precision * 2, precision);
+		b = float(b2);
+		g = float(g2);
+		r = float(r2);
+	}
+	else {
+		D3DXFLOAT16 r2, g2, b2;
+		memcpy(&r2, src + precision * 0, precision);
+		memcpy(&g2, src + precision * 1, precision);
+		memcpy(&b2, src + precision * 2, precision);
+		b = (float)b2;
+		g = (float)g2;
+		r = (float)r2;
+
+		// rgb are in the 0 to 1 range
+		r = r / 1 * 255;
+		b = b / 1 * 255;
+		g = g / 1 * 255;
+	}
 
 	float y, u, v;
 	if (convertYUV) {

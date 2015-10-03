@@ -3,20 +3,22 @@
 
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel,
+Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
 	const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9,
 	PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), path(_path), precision(2), clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4), BUFFERSIZE(4096) {
+	GenericVideoFilter(_child), path(_path), precision(_precision), clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4) {
 
 	// Validate parameters
 	if (vi.IsPlanar() || !vi.IsRGB32())
 		env->ThrowError("Shader: Source must be float-precision RGB");
 	if (path == NULL || path[0] == '\0')
 		env->ThrowError("Shader: path to a compiled shader must be specified");
+	if (precision != 1 && precision != 2)
+		env->ThrowError("Precision must be 1 or 2");
 
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height)))
+	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
 		env->ThrowError("Shader: Initialize failed.");
 
 	// Set pixel shader

@@ -1,14 +1,17 @@
 #include "ConvertToFloat.h"
 
-ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(_convertYuv) {
+ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), precisionShift(_precision + 1), convertYUV(_convertYuv) {
 	if (!vi.IsYV24() && !vi.IsRGB32())
 		env->ThrowError("Source must be YV12, YV24 or RGB32");
+	if (precision != 1 && precision != 2)
+		env->ThrowError("Precision must be 1 or 2");
 
 	// Convert from YV24 to half-float RGB
 	viRGB = vi;
 	viRGB.pixel_type = VideoInfo::CS_BGR32;
-	viRGB.width <<= 1;
+	if (precision == 2) // Half-float frame has its width twice larger than normal
+		viRGB.width <<= 1;
 }
 
 ConvertToFloat::~ConvertToFloat() {
@@ -81,17 +84,38 @@ void ConvertToFloat::convFloat(int y, int u, int v, unsigned char* out) {
 		b = float(v);
 	}
 
-	// Texture shaders expect data between 0 and 1
-	r = r / 255 * 1;
-	g = g / 255 * 1;
-	b = b / 255 * 1;
 
-	// Convert the data at the position of RGB with 16-bit float values.
-	D3DXFLOAT16 r2 = D3DXFLOAT16(r);
-	D3DXFLOAT16 g2 = D3DXFLOAT16(g);
-	D3DXFLOAT16 b2 = D3DXFLOAT16(b);
-	memcpy(out + precision * 0, &r2, precision);
-	memcpy(out + precision * 1, &g2, precision);
-	memcpy(out + precision * 2, &b2, precision);
-	memcpy(out + precision * 3, &AlphaValue, precision);
+	if (precision == 1) {
+		if (convertYUV) {
+			if (r > 255) r = 255;
+			if (g > 255) g = 255;
+			if (b > 255) b = 255;
+			if (r < 0) r = 0;
+			if (g < 0) g = 0;
+			if (b < 0) b = 0;
+		}
+
+		unsigned char r2 = unsigned char(r);
+		unsigned char g2 = unsigned char(g);
+		unsigned char b2 = unsigned char(b);
+		memcpy(out + 0, &b2, precision);
+		memcpy(out + precision, &g2, precision);
+		memcpy(out + precision * 2, &r2, precision);
+		out[precision * 3] = 0;
+	}
+	else {
+		// Texture shaders expect data between 0 and 1
+		r = r / 255 * 1;
+		g = g / 255 * 1;
+		b = b / 255 * 1;
+
+		// Convert the data at the position of RGB with 16-bit float values.
+		D3DXFLOAT16 r2 = D3DXFLOAT16(r);
+		D3DXFLOAT16 g2 = D3DXFLOAT16(g);
+		D3DXFLOAT16 b2 = D3DXFLOAT16(b);
+		memcpy(out + precision * 0, &r2, precision);
+		memcpy(out + precision * 1, &g2, precision);
+		memcpy(out + precision * 2, &b2, precision);
+		memcpy(out + precision * 3, &AlphaValue, precision);
+	}
 }

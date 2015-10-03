@@ -5,13 +5,10 @@
 #include "D3D9RenderImpl.h"
 
 
-D3D9RenderImpl::D3D9RenderImpl()
-	: m_pPixelShader(0), m_pD3D9(0), m_pPixelConstantTable(0), m_precision(2), m_format(D3DFMT_A16B16G16R16F)
-{
+D3D9RenderImpl::D3D9RenderImpl() {
 }
 
-D3D9RenderImpl::~D3D9RenderImpl(void)
-{
+D3D9RenderImpl::~D3D9RenderImpl(void) {
 	for (int i = 0; i < maxTextures; i++) {
 		SafeRelease(m_InputTextures[0].Surface);
 		SafeRelease(m_InputTextures[0].Texture);
@@ -22,10 +19,19 @@ D3D9RenderImpl::~D3D9RenderImpl(void)
 	SafeRelease(m_pVertexBuffer);
 	SafeRelease(m_pPixelConstantTable);
 	SafeRelease(m_pPixelShader);
+	SafeRelease(m_pReadSurfaceGpu);
+	SafeRelease(m_pReadSurfaceCpu);
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height)
-{
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, int precision) {
+	m_precision = precision;
+	if (precision == 1)
+		m_format = D3DFMT_X8R8G8B8;
+	else if (precision == 2)
+		m_format = D3DFMT_A16B16G16R16F;
+	else
+		return E_FAIL;
+
 	m_hDisplayWindow = hDisplayWindow;
 	//m_videoWidth = width;
 	//m_videoHeight = height;

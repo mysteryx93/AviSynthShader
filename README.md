@@ -4,7 +4,7 @@ This plugin allows running HLSL pixel shaders within AviSynth. This gives access
 
 ## Syntax:
 
-#### ConvertToFloat(input, convertYuv)
+#### ConvertToFloat(input, convertYuv, precision)
 
 Converts a YV12, YV24 or RGB32 clip into a wider frame containing half-float data. Clips must be converted in such a way before running any shader.
 
@@ -14,7 +14,9 @@ Arguments:
 
 convertYuv: True to convert RGB data to YUV on the CPU. If false, YUV data will be copied as-is and can then be converted with a shader. Default=true unless source is RGB32.
 
-#### ConvertFromFloat(input, format, convertYuv)
+precision: 1 to convert into 8-bit-per-channel, 2 to convert into 16-bit-per-channel. Default=2
+
+#### ConvertFromFloat(input, format, convertYuv, precision)
 
 Convert a half-float clip into a standard YV12, YV24 or RGB32 clip.
 
@@ -24,7 +26,9 @@ format: The video format to convert to. Valid formats are YV12, YV24 and RGB32. 
 
 convertYuv: True to convert YUV data to RGB on the CPU. If false, you already ran a shader to convert to YUV and the data will be copied as-is. Default=true unless destination is RGB32.
 
-#### Shader(input, path, entryPoint, shaderModel, param1, param2, param3, param4, param5, param6, param7, param8, param9, clip1, clip2, clip3, clip4)
+precision: 1 to convert from 8-bit-per-channel, 2 to convert from 16-bit-per-channel. Default=2
+
+#### Shader(input, path, entryPoint, shaderModel, precision, param1, param2, param3, param4, param5, param6, param7, param8, param9, clip1, clip2, clip3, clip4)
 
 Runs a HLSL pixel shader on specified clip. You can either run a compiled .cso file or compile a .hlsl file.
 
@@ -37,6 +41,8 @@ path: The path to the HLSL pixel shader file to run.
 entryPoint: If compiling HLSL source code, specified the code entry point.
 
 shaderModel: If compiling HLSL source code, specified the shader model. Usually PS_2_0 or PS_3_0
+
+precision: 1 if input clip is 8-bit-per-channel, 2 if input clip is 16-bit-per-channel. Default=2
 
 param1-param9: Sets each of the shader parameters.
 Ex: "float4 p0 : register(c0);" will be set with Param1="p0=1,1,1,1f"

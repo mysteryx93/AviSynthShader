@@ -16,9 +16,9 @@ class D3D9RenderImpl // : public IRenderable
 {
 public:
 	D3D9RenderImpl();
-	~D3D9RenderImpl(void);
+	~D3D9RenderImpl();
 
-	HRESULT Initialize(HWND hDisplayWindow, int width, int height);
+	HRESULT Initialize(HWND hDisplayWindow, int width, int height, int precision);
 	HRESULT CreateInputTexture(int index, int width, int height);
 	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height);
 	HRESULT ProcessFrame(byte* dst, int dstPitch, int width, int height);
@@ -53,8 +53,8 @@ private:
 	static const int maxTextures = 5;
 	InputTexture					m_InputTextures[maxTextures];
 
-	const int m_precision;
-	const D3DFORMAT m_format;
+	int m_precision;
+	D3DFORMAT m_format;
 	D3DDISPLAYMODE m_displayMode;
 	HWND m_hDisplayWindow;
 	//int m_videoWidth;

@@ -8,7 +8,7 @@
 // Converts float-precision RGB data (12-byte per pixel) into YV12 format.
 class ConvertFromFloat : public GenericVideoFilter {
 public:
-	ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, IScriptEnvironment* env);
+	ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, int _precision, IScriptEnvironment* env);
 	~ConvertFromFloat();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	const VideoInfo& __stdcall GetVideoInfo() { return viYV; }
