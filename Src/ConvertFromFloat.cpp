@@ -54,13 +54,13 @@ void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsig
 void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
 	int pitchSrc, int pitchDst, int width, int height)
 {
-	unsigned char U, V;
+	dst += height * pitchDst;
 	for (int y = 0; y < height; ++y) {
+		dst -= pitchDst;
 		for (int x = 0; x < width; ++x) {
-			convFloat(src + (x << precisionShift), &dst[x], &dst[x+1], &dst[x+2]);
+			convFloat(src + (x << precisionShift), &dst[x*4+2], &dst[x*4+1], &dst[x*4]);
 		}
 		src += pitchSrc;
-		dst += pitchDst;
 	}
 }
 
