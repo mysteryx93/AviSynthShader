@@ -17,9 +17,9 @@ private:
 	const int precisionShift;
 	const bool convertYUV;
 	const char* format;
-	void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+	void convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 		int pitch1, int pitch2Y, int pitch2UV, int width, int height);
-	void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height);
-	void ConvertFromFloat::convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
+	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height);
+	void convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	VideoInfo viYV;
 };

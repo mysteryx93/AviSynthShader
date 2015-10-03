@@ -17,8 +17,9 @@ private:
 	const int precisionShift;
 	const bool convertYUV;
 	const D3DXFLOAT16 AlphaValue = D3DXFLOAT16(1);
-	void ConvertToFloat::convYV24toRGB(const byte *py, const byte *pu, const byte *pv,
+	void convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height);
-	void ConvertToFloat::convFloat(int y, int u, int v, unsigned char *out);
+	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height);
+	void convFloat(int y, int u, int v, unsigned char *out);
 	VideoInfo viRGB;
 };

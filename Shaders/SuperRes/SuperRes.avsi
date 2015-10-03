@@ -27,7 +27,7 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 
 function SuperResPass(clip input, clip original, float strength, float softness, bool hqdownscaling, int pass, int passes, string folder)
 {
-	downsample = input.ConvertFromFloat(format="YV12") # should be RGB32, or resize done with a shader
+	downsample = input.ConvertFromFloat(format="RGB32")
 	downsample = hqdownscaling==true ? downsample.BicubicResize(original.Width / 2, original.Height) : downsample.BilinearResize(original.Width / 2, original.Height)
 	downsample = downsample.ConvertToFloat()
 	diff = downsample.Shader(folder+"SuperResDiff.cso", clip1=original)

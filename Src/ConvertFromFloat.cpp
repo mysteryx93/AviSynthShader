@@ -27,7 +27,7 @@ PVideoFrame __stdcall ConvertFromFloat::GetFrame(int n, IScriptEnvironment* env)
 
 	// Convert from float-precision RGB to YV24
 	PVideoFrame dst = env->NewVideoFrame(viYV);
-	if (strcmp(format, "RGB32") == 0)
+	if (viYV.pixel_type == VideoInfo::CS_BGR32)
 		convFloatToRGB32(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), viYV.width, viYV.height);
 	else
 		convFloatToYV24(src->GetReadPtr(),
@@ -52,13 +52,13 @@ void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsig
 }
 
 void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
-	int pitchSrc, int pitchDst, int width, int height)
-{
+	int pitchSrc, int pitchDst, int width, int height) {
+	ZeroMemory(dst, pitchDst * height);
 	dst += height * pitchDst;
 	for (int y = 0; y < height; ++y) {
 		dst -= pitchDst;
 		for (int x = 0; x < width; ++x) {
-			convFloat(src + (x << precisionShift), &dst[x*4+2], &dst[x*4+1], &dst[x*4]);
+			convFloat(src + (x << precisionShift), &dst[x * 4 + 2], &dst[x * 4 + 1], &dst[x * 4]);
 		}
 		src += pitchSrc;
 	}
@@ -85,19 +85,19 @@ void ConvertFromFloat::convFloat(const byte* src, byte* outY, unsigned char* out
 		y = (0.257f * r) + (0.504f * g) + (0.098f * b) + 16;
 		v = (0.439f * r) - (0.368f * g) - (0.071f * b) + 128;
 		u = -(0.148f * r) - (0.291f * g) + (0.439f * b) + 128;
-
-		if (y > 255) y = 255;
-		if (u > 255) u = 255;
-		if (v > 255) v = 255;
-		if (y < 0) y = 0;
-		if (u < 0) u = 0;
-		if (v < 0) v = 0;
 	}
 	else {
 		y = r;
 		u = g;
 		v = b;
 	}
+
+	if (y > 255) y = 255;
+	if (u > 255) u = 255;
+	if (v > 255) v = 255;
+	if (y < 0) y = 0;
+	if (u < 0) u = 0;
+	if (v < 0) v = 0;
 
 	// Store YUV
 	outY[0] = unsigned char(y);

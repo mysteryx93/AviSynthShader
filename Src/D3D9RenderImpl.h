@@ -45,6 +45,8 @@ private:
 	CComPtr<IDirect3DDevice9>       m_pDevice;
 	CComPtr<IDirect3DTexture9>      m_pRenderTarget;
 	CComPtr<IDirect3DSurface9>      m_pRenderTargetSurface;
+	CComPtr<IDirect3DSurface9>		m_pReadSurfaceGpu;
+	CComPtr<IDirect3DSurface9>		m_pReadSurfaceCpu;
 	CComPtr<IDirect3DVertexBuffer9> m_pVertexBuffer;
 	CComPtr<ID3DXConstantTable>     m_pPixelConstantTable;
 	CComPtr<IDirect3DPixelShader9>  m_pPixelShader;

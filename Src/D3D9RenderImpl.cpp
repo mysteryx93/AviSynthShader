@@ -122,7 +122,11 @@ HRESULT D3D9RenderImpl::CreateRenderTarget(int width, int height)
 
 	HR(m_pVertexBuffer->Unlock());
 
-	return m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface);
+	HR(m_pDevice->SetRenderTarget(0, m_pRenderTargetSurface));
+
+	HR(m_pDevice->GetRenderTarget(0, &m_pReadSurfaceGpu));
+	HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_SYSTEMMEM, &m_pReadSurfaceCpu, NULL));
+
 	return S_OK;
 }
 
@@ -203,15 +207,10 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index, i
 
 HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height)
 {
-	CComPtr<IDirect3DSurface9> pTargetSurface;
-	CComPtr<IDirect3DSurface9> pTempSurface;
-
-	HR(m_pDevice->GetRenderTarget(0, &pTargetSurface));
-	HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_SYSTEMMEM, &pTempSurface, NULL));
-	HR(m_pDevice->GetRenderTargetData(pTargetSurface, pTempSurface));
+	HR(m_pDevice->GetRenderTargetData(m_pReadSurfaceGpu, m_pReadSurfaceCpu));
 
 	D3DLOCKED_RECT d3drect;
-	HR(pTempSurface->LockRect(&d3drect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
+	HR(m_pReadSurfaceCpu->LockRect(&d3drect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
 	for (int y = 0; y < height; y++) {
@@ -220,7 +219,7 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch, int width,
 		dst += dstPitch;
 	}
 
-	return pTempSurface->UnlockRect();
+	return m_pReadSurfaceCpu->UnlockRect();
 }
 
 HRESULT D3D9RenderImpl::SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)

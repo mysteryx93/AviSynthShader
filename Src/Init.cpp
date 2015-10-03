@@ -28,13 +28,17 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 
 AVSValue __cdecl Create_ConvertToFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
+	bool ConvertYuv = args[1].AsBool(true);
 	if (input->GetVideoInfo().IsYV12())
 		input = env->Invoke("ConvertToYV24", input).AsClip();
+	// Don't convert YUV to RGB when source format is RGB32.
+	if (input->GetVideoInfo().IsRGB32())
+		ConvertYuv = false;
 
 	return new ConvertToFloat(
 		input,			// source clip
-		args[1].AsBool(true),		// whether to convert YUV to RGB on the CPU
-		env);						// env is the link to essential informations, always provide it
+		ConvertYuv,		// whether to convert YUV to RGB on the CPU
+		env);			// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ConvertFromFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {

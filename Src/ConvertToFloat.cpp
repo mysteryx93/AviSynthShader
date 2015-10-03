@@ -1,7 +1,7 @@
 #include "ConvertToFloat.h"
 
 ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, IScriptEnvironment* env) :
-GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(_convertYuv) {
+	GenericVideoFilter(_child), precision(2), precisionShift(3), convertYUV(_convertYuv) {
 	if (!vi.IsYV24() && !vi.IsRGB32())
 		env->ThrowError("Source must be YV12, YV24 or RGB32");
 
@@ -19,11 +19,15 @@ PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
 
 	// Convert from YV24 to half-float RGB
 	PVideoFrame dst = env->NewVideoFrame(viRGB);
-	convYV24toRGB(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height);
+	if (vi.IsRGB32())
+		convRgbToFloat(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), vi.width, vi.height);
+	else
+		convYV24ToFloat(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height);
+
 	return dst;
 }
 
-void ConvertToFloat::convYV24toRGB(const byte *py, const byte *pu, const byte *pv,
+void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height)
 {
 	width;
@@ -41,6 +45,24 @@ void ConvertToFloat::convYV24toRGB(const byte *py, const byte *pu, const byte *p
 		pu += pitch1UV;
 		pv += pitch1UV;
 		dst += pitch2;
+	}
+}
+
+void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height) {
+	width;
+	height;
+	int B, G, R;
+	src += height * srcPitch;
+	for (int y = 0; y < height; ++y) {
+		src -= srcPitch;
+		for (int x = 0; x < width; ++x) {
+			B = src[x * 4];
+			G = src[x * 4 + 1];
+			R = src[x * 4 + 2];
+
+			convFloat(R, G, B, dst + (x << precisionShift));
+		}
+		dst += dstPitch;
 	}
 }
 

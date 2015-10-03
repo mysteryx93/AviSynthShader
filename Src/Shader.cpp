@@ -111,6 +111,7 @@ void Shader::ParseParam(const char* param, IScriptEnvironment* env) {
 			strcpy(FullText, ErrorText);
 			strcat(FullText, param);
 			env->ThrowError(FullText);
+			free(FullText);
 		}
 	}
 }
@@ -119,8 +120,12 @@ void Shader::ParseParam(const char* param, IScriptEnvironment* env) {
 // The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
 // Returns True if parameter was valid and set successfully, otherwise false.
 bool Shader::SetParam(char* param) {
+	// Copy string to avoid altering source parameter.
+	char* ParamCopy = (char*)malloc(strlen(param) + 1);
+	strcpy(ParamCopy, param);
+
 	// Split parameter string into its values and validate data.
-	char* Name = strtok(param, "=");
+	char* Name = strtok(ParamCopy, "=");
 	if (Name == NULL)
 		return false;
 	char* Value = strtok(NULL, "=");
