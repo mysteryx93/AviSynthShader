@@ -4,6 +4,7 @@
 #include "d3d9.h"
 #include "atlbase.h"
 #include "D3D9Macros.h"
+#include "avisynth.h"
 #include <windows.h>
 
 struct InputTexture {
@@ -20,8 +21,8 @@ public:
 
 	HRESULT Initialize(HWND hDisplayWindow, int width, int height, int precision);
 	HRESULT CreateInputTexture(int index, int width, int height);
-	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height);
-	HRESULT ProcessFrame(byte* dst, int dstPitch, int width, int height);
+	HRESULT CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
+	HRESULT ProcessFrame(byte* dst, int dstPitch, int width, int height, IScriptEnvironment* env);
 
 	HRESULT SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError);
 	HRESULT SetPixelShader(DWORD* buffer);
@@ -34,15 +35,16 @@ public:
 
 private:
 	HRESULT SetupMatrices(int width, int height);
+	HRESULT ResetDevice();
 	HRESULT CreateScene();
-	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height);
+	HRESULT CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height, IScriptEnvironment* env);
 	HRESULT CreateRenderTarget(int width, int height);
 	HRESULT Present();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params);
 	HRESULT CheckFormatConversion(D3DFORMAT format);
 
-	CComPtr<IDirect3D9>             m_pD3D9;
-	CComPtr<IDirect3DDevice9>       m_pDevice;
+	CComPtr<IDirect3D9Ex>           m_pD3D9;
+	CComPtr<IDirect3DDevice9Ex>     m_pDevice;
 	CComPtr<IDirect3DTexture9>      m_pRenderTarget;
 	CComPtr<IDirect3DSurface9>      m_pRenderTargetSurface;
 	CComPtr<IDirect3DSurface9>		m_pReadSurfaceGpu;
@@ -57,7 +59,6 @@ private:
 	D3DFORMAT m_format;
 	D3DDISPLAYMODE m_displayMode;
 	HWND m_hDisplayWindow;
-	//int m_videoWidth;
-	//int m_videoHeight;
 	D3DPRESENT_PARAMETERS m_presentParams;
+	IScriptEnvironment* m_env;
 };

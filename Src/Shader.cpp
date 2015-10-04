@@ -6,7 +6,9 @@
 Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
 	const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9,
 	PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), path(_path), precision(_precision), clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4) {
+	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel), precision(_precision), 
+	param1(_param1), param2(_param2), param3(_param3), param4(_param4), param5(_param5), param6(_param6), param7(_param7), param8(_param8), param9(_param9),
+	clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4) {
 
 	// Validate parameters
 	if (vi.IsPlanar() || !vi.IsRGB32())
@@ -18,46 +20,53 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-	if (FAILED(render.Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
+
+	InitializeDevice(env);
+}
+
+Shader::~Shader() {
+	delete render;
+	DestroyWindow(dummyHWND);
+}
+
+void Shader::InitializeDevice(IScriptEnvironment* env) {
+	render = new D3D9RenderImpl();
+	if (FAILED(render->Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
 		env->ThrowError("Shader: Initialize failed.");
 
 	// Set pixel shader
-	if (_shaderModel == NULL || _shaderModel[0] == '\0') {
+	if (shaderModel == NULL || shaderModel[0] == '\0') {
 		// Precompiled shader
-		unsigned char* ShaderBuf = ReadBinaryFile(_path);
+		unsigned char* ShaderBuf = ReadBinaryFile(path);
 		if (ShaderBuf == NULL)
 			env->ThrowError("Shader: Cannot open shader specified by path");
-		if (FAILED(render.SetPixelShader((DWORD*)ShaderBuf)))
+		if (FAILED(render->SetPixelShader((DWORD*)ShaderBuf)))
 			env->ThrowError("Shader: Failed to load pixel shader");
 		free(ShaderBuf);
 	}
 	else {
 		// Compile HLSL shader code
 		LPSTR errorMsg = NULL;
-		if (FAILED(render.SetPixelShader(_path, _entryPoint, _shaderModel, &errorMsg)))
+		if (FAILED(render->SetPixelShader(path, entryPoint, shaderModel, &errorMsg)))
 			env->ThrowError("Shader: Failed to compile pixel shader");
 	}
 
 	// Configure pixel shader
-	ParseParam(_param1, env);
-	ParseParam(_param2, env);
-	ParseParam(_param3, env);
-	ParseParam(_param4, env);
-	ParseParam(_param5, env);
-	ParseParam(_param6, env);
-	ParseParam(_param7, env);
-	ParseParam(_param8, env);
-	ParseParam(_param9, env);
+	ParseParam(param1, env);
+	ParseParam(param2, env);
+	ParseParam(param3, env);
+	ParseParam(param4, env);
+	ParseParam(param5, env);
+	ParseParam(param6, env);
+	ParseParam(param7, env);
+	ParseParam(param8, env);
+	ParseParam(param9, env);
 
 	CreateInputClip(0, child);
 	CreateInputClip(1, clip1);
 	CreateInputClip(2, clip2);
 	CreateInputClip(3, clip3);
 	CreateInputClip(4, clip4);
-}
-
-Shader::~Shader() {
-	DestroyWindow(dummyHWND);
 }
 
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
@@ -68,7 +77,7 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	CopyInputClip(4, clip4, n, env);
 	PVideoFrame dst = env->NewVideoFrame(vi);
 
-	if FAILED(render.ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), vi.width / precision, vi.height))
+	if FAILED(render->ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), vi.width / precision, vi.height, env))
 		env->ThrowError("Shader: ProcessFrame failed.");
 
 	return dst;
@@ -76,13 +85,13 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 
 void Shader::CreateInputClip(int index, PClip clip) {
 	if (clip != NULL)
-		render.CreateInputTexture(index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
+		render->CreateInputTexture(index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
 }
 
 void Shader::CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env) {
 	if (clip != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render.CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height)))
+		if (FAILED(render->CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height, env)))
 			env->ThrowError("Shader: CopyInputClip failed");
 	}
 }
@@ -142,7 +151,7 @@ bool Shader::SetParam(char* param) {
 		if (VectorValue == NULL) {
 			// Single float value
 			float FValue = strtof(Value, NULL);
-			if (FAILED(render.SetPixelShaderFloatConstant(Name, FValue)))
+			if (FAILED(render->SetPixelShaderFloatConstant(Name, FValue)))
 				return false;
 		}
 		else {
@@ -165,18 +174,18 @@ bool Shader::SetParam(char* param) {
 				}
 			}
 
-			if (FAILED(render.SetPixelShaderVector(Name, &vector)))
+			if (FAILED(render->SetPixelShaderVector(Name, &vector)))
 				return false;
 		}
 	}
 	else if (Type == 'i') {
 		int IValue = atoi(Value);
-		if (FAILED(render.SetPixelShaderIntConstant(Name, IValue)))
+		if (FAILED(render->SetPixelShaderIntConstant(Name, IValue)))
 			return false;
 	}
 	else if (Type == 'b') {
 		bool BValue = Value[0] == '0' ? false : true;
-		if (FAILED(render.SetPixelShaderBoolConstant(Name, BValue)))
+		if (FAILED(render->SetPixelShaderBoolConstant(Name, BValue)))
 			return false;
 	}
 	else // invalid type

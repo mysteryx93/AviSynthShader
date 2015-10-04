@@ -14,6 +14,7 @@ public:
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
+	void InitializeDevice(IScriptEnvironment* env);
 	void CreateInputClip(int index, PClip clip);
 	unsigned char* ReadBinaryFile(const char* filePath);
 	void ParseParam(const char* param, IScriptEnvironment* env);
@@ -21,7 +22,10 @@ private:
 	void CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env);
 	const char* path;
 	const int precision;
+	const char* entryPoint;
+	const char* shaderModel;
+	const char *param1, *param2, *param3, *param4, *param5, *param6, *param7, *param8, *param9;
 	PClip clip1, clip2, clip3, clip4;
 	HWND dummyHWND;
-	D3D9RenderImpl render;
+	D3D9RenderImpl* render;
 };

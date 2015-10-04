@@ -33,10 +33,8 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 		return E_FAIL;
 
 	m_hDisplayWindow = hDisplayWindow;
-	//m_videoWidth = width;
-	//m_videoHeight = height;
 
-	m_pD3D9 = Direct3DCreate9(D3D_SDK_VERSION);
+	HR(Direct3DCreate9Ex(D3D_SDK_VERSION, &m_pD3D9));
 	if (!m_pD3D9) {
 		return E_FAIL;
 	}
@@ -55,7 +53,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 
 	HR(GetPresentParams(&m_presentParams));
 
-	HR(m_pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hDisplayWindow, dwBehaviorFlags, &m_presentParams, &m_pDevice));
+	HR(m_pD3D9->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, m_hDisplayWindow, dwBehaviorFlags, &m_presentParams, NULL, &m_pDevice));
 
 	HR(CheckFormatConversion(m_format));
 	HR(CreateRenderTarget(width, height));
@@ -149,12 +147,32 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int width, int height) {
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch, int width, int height)
+HRESULT D3D9RenderImpl::ProcessFrame(byte* dst, int dstPitch, int width, int height, IScriptEnvironment* env)
 {
-	HR(m_pDevice->TestCooperativeLevel());
+	if (m_pDevice->TestCooperativeLevel() != S_OK)
+		return D3DERR_DEVICENOTRESET;
 	HR(CreateScene());
 	HR(Present());
-	return CopyFromRenderTarget(dst, dstPitch, width, height);
+	return CopyFromRenderTarget(dst, dstPitch, width, height, env);
+}
+
+HRESULT D3D9RenderImpl::ResetDevice() {
+	for (int i = 0; i < maxTextures; i++) {
+		SafeRelease(m_InputTextures[0].Surface);
+		SafeRelease(m_InputTextures[0].Texture);
+		SafeRelease(m_InputTextures[0].Memory);
+	}
+	SafeRelease(m_pRenderTargetSurface);
+	SafeRelease(m_pRenderTarget);
+	SafeRelease(m_pVertexBuffer);
+	SafeRelease(m_pPixelConstantTable);
+	SafeRelease(m_pPixelShader);
+	SafeRelease(m_pReadSurfaceGpu);
+	SafeRelease(m_pReadSurfaceCpu);
+
+	HR(m_pDevice->Reset(&m_presentParams));
+
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CreateScene(void)
@@ -192,7 +210,7 @@ HRESULT D3D9RenderImpl::Present(void)
 	return m_pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
-HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height) {
+HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
 	// Copies source frame into main surface buffer, or into additional input textures
 	CComPtr<IDirect3DSurface9> destSurface = m_InputTextures[index].Memory;
 	if (index < 0 || index >= maxTextures)
@@ -202,16 +220,18 @@ HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index, i
 	HR(destSurface->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	for (int y = 0; y < height; y++) {
-		memcpy(pict, src, width * m_precision * 4);
-		pict += d3drect.Pitch;
-		src += srcPitch;
-	}
+	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_precision * 4, height);
+
+	//for (int y = 0; y < height; y++) {
+	//	memcpy(pict, src, width * m_precision * 4);
+	//	pict += d3drect.Pitch;
+	//	src += srcPitch;
+	//}
 
 	return destSurface->UnlockRect();
 }
 
-HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height)
+HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch, int width, int height, IScriptEnvironment* env)
 {
 	HR(m_pDevice->GetRenderTargetData(m_pReadSurfaceGpu, m_pReadSurfaceCpu));
 
@@ -219,11 +239,13 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch, int width,
 	HR(m_pReadSurfaceCpu->LockRect(&d3drect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	for (int y = 0; y < height; y++) {
-		memcpy(dst, pict, width * m_precision * 4);
-		pict += d3drect.Pitch;
-		dst += dstPitch;
-	}
+	env->BitBlt(dst, dstPitch, pict, d3drect.Pitch, width * m_precision * 4, height);
+
+	//for (int y = 0; y < height; y++) {
+	//	memcpy(dst, pict, width * m_precision * 4);
+	//	pict += d3drect.Pitch;
+	//	dst += dstPitch;
+	//}
 
 	return m_pReadSurfaceCpu->UnlockRect();
 }
