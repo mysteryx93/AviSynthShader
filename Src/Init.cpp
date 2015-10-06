@@ -24,6 +24,8 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 		args[15].AsClip(),			// clip 2
 		args[16].AsClip(),			// clip 3
 		args[17].AsClip(),			// clip 4
+		args[18].AsInt(0),			// width
+		args[19].AsInt(0),			// height
 		env);						// env is the link to essential informations, always provide it
 }
 
@@ -67,7 +69,7 @@ const AVS_Linkage *AVS_linkage = 0;
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	AVS_linkage = vectors;
-	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[precision]i[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[param9]s[clip1]c[clip2]c[clip3]c[clip4]c", Create_Shader, 0);
+	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[precision]i[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[param9]s[clip1]c[clip2]c[clip3]c[clip4]c[width]i[height]i", Create_Shader, 0);
 	env->AddFunction("ConvertToFloat", "c[convertYuv]b[precision]i", Create_ConvertToFloat, 0);
 	env->AddFunction("ConvertFromFloat", "c[format]s[convertYuv]b[precision]i", Create_ConvertFromFloat, 0);
 	return "Shader plugin";

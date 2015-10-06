@@ -44,7 +44,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int width, int height, i
 	D3DCAPS9 deviceCaps;
 	HR(m_pD3D9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &deviceCaps));
 
-	DWORD dwBehaviorFlags = D3DCREATE_MULTITHREADED;
+	DWORD dwBehaviorFlags = D3DCREATE_DISABLE_PSGP_THREADING;
 
 	if (deviceCaps.VertexProcessingCaps != 0)
 		dwBehaviorFlags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;
@@ -77,8 +77,8 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params)
 	presentParams.SwapEffect = D3DSWAPEFFECT_COPY;
 	presentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
 	presentParams.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
-	presentParams.BackBufferFormat = m_displayMode.Format;
-	presentParams.BackBufferCount = 1;
+	presentParams.BackBufferFormat = D3DFMT_UNKNOWN; // m_displayMode.Format;
+	presentParams.BackBufferCount = 0;
 	presentParams.EnableAutoDepthStencil = FALSE;
 
 	memcpy(params, &presentParams, sizeof(D3DPRESENT_PARAMETERS));
@@ -201,13 +201,14 @@ HRESULT D3D9RenderImpl::Present(void)
 		}
 	}
 	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
-
+	Sleep(1);
 	// The RenderTarget returns the previously generated scene for an unknown reason.
 	// As a fix, we render another scene so that the previous scene becomes the one returned.
-	HR(m_pDevice->BeginScene());
-	HR(m_pDevice->EndScene());
-	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
-	return m_pDevice->Present(NULL, NULL, NULL, NULL);
+	//HR(m_pDevice->BeginScene());
+	//HR(m_pDevice->EndScene());
+	//SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
+	//return m_pDevice->Present(NULL, NULL, NULL, NULL);
+	//Sleep(1);
 }
 
 HRESULT D3D9RenderImpl::CopyToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {

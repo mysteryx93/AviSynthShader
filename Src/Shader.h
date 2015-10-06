@@ -10,7 +10,7 @@ class Shader : public GenericVideoFilter {
 public:
 	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
 		const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9, 
-		PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, IScriptEnvironment* env);
+		PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, int _width, int _height, IScriptEnvironment* env);
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
@@ -28,4 +28,5 @@ private:
 	PClip clip1, clip2, clip3, clip4;
 	HWND dummyHWND;
 	D3D9RenderImpl* render;
+	VideoInfo destVI;
 };

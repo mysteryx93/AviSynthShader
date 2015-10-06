@@ -5,7 +5,7 @@
 
 Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
 	const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9,
-	PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, IScriptEnvironment* env) :
+	PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, int _height, int _width, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel), precision(_precision), 
 	param1(_param1), param2(_param2), param3(_param3), param4(_param4), param5(_param5), param6(_param6), param7(_param7), param8(_param8), param9(_param9),
 	clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4) {
@@ -17,6 +17,13 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 		env->ThrowError("Shader: path to a compiled shader must be specified");
 	if (precision != 1 && precision != 2)
 		env->ThrowError("Precision must be 1 or 2");
+
+	// If destination clip size isn't specified, we'll assume it is the same as source.
+	destVI = vi;
+	if (_height > 0)
+		destVI.height = _height;
+	if (_width > 0)
+		destVI.width = _width * precision;
 
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
@@ -31,7 +38,7 @@ Shader::~Shader() {
 
 void Shader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, vi.width / precision, vi.height, precision)))
+	if (FAILED(render->Initialize(dummyHWND, destVI.width / precision, destVI.height, precision)))
 		env->ThrowError("Shader: Initialize failed.");
 
 	// Set pixel shader
@@ -75,9 +82,9 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	CopyInputClip(2, clip2, n, env);
 	CopyInputClip(3, clip3, n, env);
 	CopyInputClip(4, clip4, n, env);
-	PVideoFrame dst = env->NewVideoFrame(vi);
+	PVideoFrame dst = env->NewVideoFrame(destVI);
 
-	if FAILED(render->ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), vi.width / precision, vi.height, env))
+	if FAILED(render->ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), destVI.width / precision, destVI.height, env))
 		env->ThrowError("Shader: ProcessFrame failed.");
 
 	return dst;

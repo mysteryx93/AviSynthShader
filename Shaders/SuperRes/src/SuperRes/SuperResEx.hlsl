@@ -92,7 +92,8 @@ float4 main(float2 tex : TEXCOORD0) : COLOR{
     // Convert back to linear light;
 #ifndef FinalPass
     // if (frac(p0.z/2.0) < 0.5) 
-    c0.xyz += softness*(clamp(Luma(c0.xyz), inf, sup) - Luma(c0.xyz));
+    // c0.xyz += softness*(clamp(Luma(c0.xyz), inf, sup) - Luma(c0.xyz)); // this line is causing color distortion when using Softness
+    c0.xyz += softness*(saturate(Luma(c0.xyz)) - Luma(c0.xyz));
     c0.xyz = GammaInv(c0.xyz);
 #endif
 

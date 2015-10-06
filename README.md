@@ -28,7 +28,7 @@ convertYuv: True to convert YUV data to RGB on the CPU. If false, you already ra
 
 precision: 1 to convert from 8-bit-per-channel, 2 to convert from 16-bit-per-channel. Default=2
 
-#### Shader(input, path, entryPoint, shaderModel, precision, param1, param2, param3, param4, param5, param6, param7, param8, param9, clip1, clip2, clip3, clip4)
+#### Shader(input, path, entryPoint, shaderModel, precision, param1, param2, param3, param4, param5, param6, param7, param8, param9, clip1, clip2, clip3, clip4, width, height)
 
 Runs a HLSL pixel shader on specified clip. You can either run a compiled .cso file or compile a .hlsl file.
 
@@ -52,6 +52,8 @@ If setting float, you can set a vector or 2, 3 or 4 elements by separating the v
 The order of the parameters is not important. Note that if a parameter is not being used, it may be discarded during compilation and setting its value will fail.
 
 clip1-clip4: Sets additional input clips. Input sets 's0' within the shader, while clip1-clip4 set 's1' to 's4'. The order is important.
+
+width, height: The size of the output texture. Default = same as input texture.
 
 #### SuperRes(input, passes, strength, softness, hqdownscaling, upscalecommand, folder)
 
