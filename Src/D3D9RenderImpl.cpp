@@ -204,10 +204,10 @@ HRESULT D3D9RenderImpl::Present(void)
 	Sleep(1);
 	// The RenderTarget returns the previously generated scene for an unknown reason.
 	// As a fix, we render another scene so that the previous scene becomes the one returned.
-	//HR(m_pDevice->BeginScene());
-	//HR(m_pDevice->EndScene());
-	//SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
-	//return m_pDevice->Present(NULL, NULL, NULL, NULL);
+	HR(m_pDevice->BeginScene());
+	HR(m_pDevice->EndScene());
+	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
+	return m_pDevice->Present(NULL, NULL, NULL, NULL);
 	//Sleep(1);
 }
 
