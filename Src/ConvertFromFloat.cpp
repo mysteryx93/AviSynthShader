@@ -69,42 +69,43 @@ void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
 void ConvertFromFloat::convFloat(const byte* src, byte* outY, unsigned char* outU, unsigned char* outV) {
 	float r, g, b;
+	D3DXFLOAT16 r2, g2, b2;
 
 	if (precision == 1) {
-		unsigned char b2, g2, r2;
-		memcpy(&b2, src, precision);
-		memcpy(&g2, src + precision, precision);
-		memcpy(&r2, src + precision * 2, precision);
+		unsigned char r1, g1, b1;
+		memcpy(&b1, src, precision);
+		memcpy(&g1, src + precision, precision);
+		memcpy(&r1, src + precision * 2, precision);
 		b = float(b2);
 		g = float(g2);
 		r = float(r2);
 	}
 	else {
-		D3DXFLOAT16 r2, g2, b2;
 		memcpy(&r2, src + precision * 0, precision);
 		memcpy(&g2, src + precision * 1, precision);
 		memcpy(&b2, src + precision * 2, precision);
-		b = (float)b2;
-		g = (float)g2;
-		r = (float)r2;
-
 		// rgb are in the 0 to 1 range
-		r = r / 1 * 255;
-		b = b / 1 * 255;
-		g = g / 1 * 255;
+		r = float(r2) * 255;
+		b = float(b2) * 255;
+		g = float(g2) * 255;
 	}
 
-	float y, u, v;
+	float y2, u2, v2;
+	short y, u, v;
 	if (convertYUV) {
-		y = (0.257f * r) + (0.504f * g) + (0.098f * b) + 16;
-		v = (0.439f * r) - (0.368f * g) - (0.071f * b) + 128;
-		u = -(0.148f * r) - (0.291f * g) + (0.439f * b) + 128;
+		y2 = (0.257f * r) + (0.504f * g) + (0.098f * b) + 16;
+		v2 = (0.439f * r) - (0.368f * g) - (0.071f * b) + 128;
+		u2 = -(0.148f * r) - (0.291f * g) + (0.439f * b) + 128;
 	}
 	else {
-		y = r;
-		u = g;
-		v = b;
+		y2 = r;
+		u2 = g;
+		v2 = b;
 	}
+
+	y = short(y2 + 0.5f);
+	u = short(u2 + 0.5f);
+	v = short(v2 + 0.5f);
 
 	if (y > 255) y = 255;
 	if (u > 255) u = 255;

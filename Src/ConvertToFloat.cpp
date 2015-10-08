@@ -105,9 +105,9 @@ void ConvertToFloat::convFloat(int y, int u, int v, unsigned char* out) {
 	}
 	else {
 		// Texture shaders expect data between 0 and 1
-		r = r / 255 * 1;
-		g = g / 255 * 1;
-		b = b / 255 * 1;
+		r = r / 255;
+		g = g / 255;
+		b = b / 255;
 
 		// Convert the data at the position of RGB with 16-bit float values.
 		D3DXFLOAT16 r2 = D3DXFLOAT16(r);
