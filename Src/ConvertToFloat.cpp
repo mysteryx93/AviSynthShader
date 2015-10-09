@@ -53,7 +53,7 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 	int dstLoopPitch = precision == 1 ? pitch2 : floatBufferPitch;
 
 	// Convert all data to float
-	int Y, U, V;
+	byte Y, U, V;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			Y = py[x];
@@ -81,7 +81,7 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 	unsigned char* dstLoop = precision == 1 ? dst : floatBuffer;
 	int dstLoopPitch = precision == 1 ? dstPitch : floatBufferPitch;
 
-	int B, G, R;
+	byte B, G, R;
 	src += height * srcPitch;
 	for (int y = 0; y < height; ++y) {
 		src -= srcPitch;
@@ -105,34 +105,34 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 }
 
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-void ConvertToFloat::convFloat(int y, int u, int v, unsigned char* out) {
-	float r, g, b;
+void ConvertToFloat::convFloat(byte y, byte u, byte v, unsigned char* out) {
+	int r, g, b;
+
 	if (convertYUV) {
-		b = 1.164f * (y - 16) + 2.018f * (u - 128);
-		g = 1.164f * (y - 16) - 0.813f * (v - 128) - 0.391f * (u - 128);
-		r = 1.164f * (y - 16) + 1.596f * (v - 128);
+		b = 1164 * (y - 16) + 2018 * (u - 128);
+		g = 1164 * (y - 16) - 813 * (v - 128) - 391 * (u - 128);
+		r = 1164 * (y - 16) + 1596 * (v - 128);
 	}
 	else {
 		// Pass YUV values to be converted by a shader
-		r = float(y);
-		g = float(u);
-		b = float(v);
+		r = (int)y * 1000;
+		g = (int)u * 1000;
+		b = (int)v * 1000;
 	}
-
 
 	if (precision == 1) {
 		if (convertYUV) {
-			if (r > 255) r = 255;
-			if (g > 255) g = 255;
-			if (b > 255) b = 255;
+			if (r > 255000) r = 255000;
+			if (g > 255000) g = 255000;
+			if (b > 255000) b = 255000;
 			if (r < 0) r = 0;
 			if (g < 0) g = 0;
 			if (b < 0) b = 0;
 		}
 
-		unsigned char r2 = unsigned char(r);
-		unsigned char g2 = unsigned char(g);
-		unsigned char b2 = unsigned char(b);
+		unsigned char r2 = unsigned char(r / 1000);
+		unsigned char g2 = unsigned char(g / 1000);
+		unsigned char b2 = unsigned char(b / 1000);
 		memcpy(out + 0, &b2, precision);
 		memcpy(out + precision, &g2, precision);
 		memcpy(out + precision * 2, &r2, precision);
@@ -140,21 +140,13 @@ void ConvertToFloat::convFloat(int y, int u, int v, unsigned char* out) {
 	}
 	else {
 		// Texture shaders expect data between 0 and 1
-		r = r / 255;
-		g = g / 255;
-		b = b / 255;
+		float rf = float(r) / 255000;
+		float gf = float(g) / 255000;
+		float bf = float(b) / 255000;
 
-		// Convert the data at the position of RGB with 16-bit float values.
-		//D3DXFLOAT16 r2 = D3DXFLOAT16(r);
-		//D3DXFLOAT16 g2 = D3DXFLOAT16(g);
-		//D3DXFLOAT16 b2 = D3DXFLOAT16(b);
-		//memcpy(out + precision * 0, &r, 4);
-		//memcpy(out + precision * 1, &g, 4);
-		//memcpy(out + precision * 2, &b, 4);
-		//memcpy(out + precision * 3, &AlphaValue, 4);
-		memcpy(out, &r, 4);
-		memcpy(out + 4, &g, 4);
-		memcpy(out + 8, &b, 4);
+		memcpy(out, &rf, 4);
+		memcpy(out + 4, &gf, 4);
+		memcpy(out + 8, &bf, 4);
 		memcpy(out + 12, &AlphaValue, 4);
 	}
 }
