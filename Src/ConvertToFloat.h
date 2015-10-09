@@ -14,7 +14,7 @@ public:
 	const VideoInfo& __stdcall GetVideoInfo() { return viRGB; }
 private:
 	const int precision;
-	const int precisionShift;
+	int precisionShift;
 	const bool convertYUV;
 	const float AlphaValue = 1;
 	unsigned char* floatBuffer;
@@ -23,7 +23,7 @@ private:
 	int halfFloatBufferPitch;
 	void convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);
-	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height);
+	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
 	void convFloat(int y, int u, int v, unsigned char *out);
 	VideoInfo viRGB;
 };

@@ -1,7 +1,7 @@
 #include "ConvertToFloat.h"
 
 ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), precisionShift(_precision + 1), convertYUV(_convertYuv) {
+	GenericVideoFilter(_child), precision(_precision), convertYUV(_convertYuv) {
 	if (!vi.IsYV24() && !vi.IsRGB32())
 		env->ThrowError("Source must be YV12, YV24 or RGB32");
 	if (precision != 1 && precision != 2)
@@ -12,6 +12,11 @@ ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, I
 	viRGB.pixel_type = VideoInfo::CS_BGR32;
 	if (precision == 2) // Half-float frame has its width twice larger than normal
 		viRGB.width <<= 1;
+	
+	if (precision == 1)
+		precisionShift = 2;
+	else
+		precisionShift = 4;
 
 	if (precision == 2) {
 		floatBufferPitch = vi.width * 4 * 4;
@@ -34,7 +39,7 @@ PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
 	// Convert from YV24 to half-float RGB
 	PVideoFrame dst = env->NewVideoFrame(viRGB);
 	if (vi.IsRGB32())
-		convRgbToFloat(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), vi.width, vi.height);
+		convRgbToFloat(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), vi.width, vi.height, env);
 	else
 		convYV24ToFloat(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height, env);
 
@@ -44,18 +49,8 @@ PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
 void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env)
 {
-	// Create buffer of float data
-	unsigned char* dstLoop;
-	int dstLoopPitch;
-	if (precision == 2) {
-		dstLoop = floatBuffer;
-		dstLoopPitch = floatBufferPitch;
-	}
-	else {
-		dstLoop = dst;
-		dstLoopPitch = pitch2;
-	}
-	int loopShift = precision == 1 ? precisionShift : precisionShift + 1;
+	unsigned char* dstLoop = precision == 1 ? dst : floatBuffer;
+	int dstLoopPitch = precision == 1 ? pitch2 : floatBufferPitch;
 
 	// Convert all data to float
 	int Y, U, V;
@@ -65,7 +60,7 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 			U = pu[x];
 			V = pv[x];
 
-			convFloat(Y, U, V, dstLoop + (x << loopShift));
+			convFloat(Y, U, V, dstLoop + (x << precisionShift));
 		}
 		py += pitch1Y;
 		pu += pitch1UV;
@@ -82,7 +77,10 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 	}
 }
 
-void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height) {
+void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env) {
+	unsigned char* dstLoop = precision == 1 ? dst : floatBuffer;
+	int dstLoopPitch = precision == 1 ? dstPitch : floatBufferPitch;
+
 	int B, G, R;
 	src += height * srcPitch;
 	for (int y = 0; y < height; ++y) {
@@ -92,9 +90,17 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 			G = src[x * 4 + 1];
 			R = src[x * 4 + 2];
 
-			convFloat(R, G, B, dst + (x << precisionShift));
+			convFloat(R, G, B, dstLoop + (x << precisionShift));
 		}
-		dst += dstPitch;
+		dstLoop += dstLoopPitch;
+	}
+
+	if (precision == 2) {
+		// Convert float buffer to half-float
+		D3DXFloat32To16Array((D3DXFLOAT16*)halfFloatBuffer, (float*)floatBuffer, width * 4 * height);
+
+		// Copy half-float data back into frame
+		env->BitBlt(dst, dstPitch, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, height);
 	}
 }
 
