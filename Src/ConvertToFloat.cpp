@@ -70,7 +70,8 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 
 	if (precision == 2) {
 		// Convert float buffer to half-float
-		D3DXFloat32To16Array((D3DXFLOAT16*)halfFloatBuffer, (float*)floatBuffer, width * 4 * height);
+		// D3DXFloat32To16Array((D3DXFLOAT16*)halfFloatBuffer, (float*)floatBuffer, width * 4 * height);
+		DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width * 4 * height);
 
 		// Copy half-float data back into frame
 		env->BitBlt(dst, pitch2, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, height);
@@ -97,7 +98,8 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 
 	if (precision == 2) {
 		// Convert float buffer to half-float
-		D3DXFloat32To16Array((D3DXFLOAT16*)halfFloatBuffer, (float*)floatBuffer, width * 4 * height);
+		//D3DXFloat32To16Array((D3DXFLOAT16*)halfFloatBuffer, (float*)floatBuffer, width * 4 * height);
+		DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width * 4 * height);
 
 		// Copy half-float data back into frame
 		env->BitBlt(dst, dstPitch, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, height);
@@ -115,9 +117,9 @@ void ConvertToFloat::convFloat(byte y, byte u, byte v, unsigned char* out) {
 	}
 	else {
 		// Pass YUV values to be converted by a shader
-		r = (int)y * 1000;
-		g = (int)u * 1000;
-		b = (int)v * 1000;
+		r = y * 1000;
+		g = u * 1000;
+		b = v * 1000;
 	}
 
 	if (precision == 1) {

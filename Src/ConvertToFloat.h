@@ -2,6 +2,7 @@
 #include <cstdio>		//needed by OutputDebugString()
 #include <math.h>
 #include <limits.h>
+#include <DirectXPackedVector.h>
 #include "avisynth.h"
 #include "d3dx9.h"
 
