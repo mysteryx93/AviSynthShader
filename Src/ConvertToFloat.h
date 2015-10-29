@@ -12,7 +12,7 @@ public:
 	ConvertToFloat(PClip _child, bool _convertYuv, int _precision, IScriptEnvironment* env);
 	~ConvertToFloat();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-	const VideoInfo& __stdcall GetVideoInfo() { return viRGB; }
+	// const VideoInfo& __stdcall GetVideoInfo() { return viRGB; }
 private:
 	const int precision;
 	int precisionShift;
@@ -26,5 +26,11 @@ private:
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);
 	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
 	void convFloat(byte y, byte u, byte v, unsigned char *out);
-	VideoInfo viRGB;
+	int srcWidth, srcHeight;
+	bool srcRgb;
+
+	// Declare variables in convFloat here to avoid re-assigning them for every pixel.
+	int r, g, b;
+	unsigned char r2, g2, b2;
+	float rf, gf, bf;
 };

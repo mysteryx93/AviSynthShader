@@ -1,203 +1,73 @@
 #include "Shader.h"
-
-
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int _precision,
+Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel,
 	const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9,
-	PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, int _height, int _width, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel), precision(_precision), 
-	param1(_param1), param2(_param2), param3(_param3), param4(_param4), param5(_param5), param6(_param6), param7(_param7), param8(_param8), param9(_param9),
-	clip1(_clip1), clip2(_clip2), clip3(_clip3), clip4(_clip4) {
+	int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _height, int _width, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel),
+	param1(_param1), param2(_param2), param3(_param3), param4(_param4), param5(_param5), param6(_param6), param7(_param7), param8(_param8), param9(_param9) {
+
+	ZeroMemory(&cmd, sizeof(CommandStruct));
+	cmd.Path = _path;
+	cmd.EntryPoint = _entryPoint;
+	cmd.ShaderModel = _shaderModel;
+	cmd.Param[0] = _param1;
+	cmd.Param[1] = _param2;
+	cmd.Param[2] = _param3;
+	cmd.Param[3] = _param4;
+	cmd.Param[4] = _param5;
+	cmd.Param[5] = _param6;
+	cmd.Param[6] = _param7;
+	cmd.Param[7] = _param8;
+	cmd.Param[8] = _param9;
+	cmd.ClipIndex[0] = _clip1;
+	cmd.ClipIndex[1] = _clip2;
+	cmd.ClipIndex[2] = _clip3;
+	cmd.ClipIndex[3] = _clip4;
+	cmd.ClipIndex[4] = _clip5;
+	cmd.ClipIndex[5] = _clip6;
+	cmd.ClipIndex[6] = _clip7;
+	cmd.ClipIndex[7] = _clip8;
+	cmd.ClipIndex[8] = _clip9;
+	cmd.OutputIndex = _output;
+	cmd.OutputWidth = _width;
+	cmd.OutputHeight = _height;
 
 	// Validate parameters
-	if (vi.IsPlanar() || !vi.IsRGB32())
-		env->ThrowError("Shader: Source must be float-precision RGB");
 	if (path == NULL || path[0] == '\0')
 		env->ThrowError("Shader: path to a compiled shader must be specified");
-	if (precision != 1 && precision != 2)
-		env->ThrowError("Precision must be 1 or 2");
 
-	// If destination clip size isn't specified, we'll assume it is the same as source.
-	destVI = vi;
-	if (_height > 0)
-		destVI.height = _height;
-	if (_width > 0)
-		destVI.width = _width * precision;
+	if (vi.pixel_type != VideoInfo::CS_Y8) {
+		vi.pixel_type = VideoInfo::CS_Y8;
+		vi.width = sizeof(CommandStruct);
+		vi.height = 1;
+	}
+	else
+		vi.height++;
 
-	// Initialize
-	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-
-	InitializeDevice(env);
+	cmd.CommandIndex = vi.height - 1;
 }
 
 Shader::~Shader() {
-	delete render;
-	DestroyWindow(dummyHWND);
+	//if (cmd.ConstantTable != NULL)
+	//	delete cmd.ConstantTable;
+	//if (cmd.ShaderBuffer != NULL)
+	//	delete cmd.ShaderBuffer;
+	//if (cmd.Shader != NULL)
+	//	delete cmd.Shader;
 }
 
-void Shader::InitializeDevice(IScriptEnvironment* env) {
-	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, destVI.width / precision, destVI.height, precision)))
-		env->ThrowError("Shader: Initialize failed.");
-
-	// Set pixel shader
-	if (shaderModel == NULL || shaderModel[0] == '\0') {
-		// Precompiled shader
-		unsigned char* ShaderBuf = ReadBinaryFile(path);
-		if (ShaderBuf == NULL)
-			env->ThrowError("Shader: Cannot open shader specified by path");
-		if (FAILED(render->SetPixelShader((DWORD*)ShaderBuf)))
-			env->ThrowError("Shader: Failed to load pixel shader");
-		free(ShaderBuf);
-	}
-	else {
-		// Compile HLSL shader code
-		LPSTR errorMsg = NULL;
-		if (FAILED(render->SetPixelShader(path, entryPoint, shaderModel, &errorMsg)))
-			env->ThrowError("Shader: Failed to compile pixel shader");
-	}
-
-	// Configure pixel shader
-	ParseParam(param1, env);
-	ParseParam(param2, env);
-	ParseParam(param3, env);
-	ParseParam(param4, env);
-	ParseParam(param5, env);
-	ParseParam(param6, env);
-	ParseParam(param7, env);
-	ParseParam(param8, env);
-	ParseParam(param9, env);
-
-	CreateInputClip(0, child);
-	CreateInputClip(1, clip1);
-	CreateInputClip(2, clip2);
-	CreateInputClip(3, clip3);
-	CreateInputClip(4, clip4);
-}
 
 PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
-	CopyInputClip(0, child, n, env);
-	CopyInputClip(1, clip1, n, env);
-	CopyInputClip(2, clip2, n, env);
-	CopyInputClip(3, clip3, n, env);
-	CopyInputClip(4, clip4, n, env);
-	PVideoFrame dst = env->NewVideoFrame(destVI);
-
-	if FAILED(render->ProcessFrame(dst->GetWritePtr(), dst->GetPitch(), destVI.width / precision, destVI.height, env))
-		env->ThrowError("Shader: ProcessFrame failed.");
-
+	// Create an empty frame and insert command data as the last line. One command is stored per frame line and the source clip is discarded.
+	PVideoFrame dst = env->NewVideoFrame(vi);
+	BYTE* dstWriter = dst->GetWritePtr();
+	if (vi.height > 1) {
+		PVideoFrame src = child->GetFrame(n, env);
+		const BYTE* srcReader = src->GetReadPtr();
+		env->BitBlt(dstWriter, dst->GetPitch(), srcReader, src->GetPitch(), sizeof(CommandStruct), vi.height - 1);
+	}
+	dstWriter += dst->GetPitch() * (vi.height - 1);
+	memcpy(dstWriter, &cmd, sizeof(CommandStruct));
 	return dst;
-}
-
-void Shader::CreateInputClip(int index, PClip clip) {
-	if (clip != NULL)
-		render->CreateInputTexture(index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height);
-}
-
-void Shader::CopyInputClip(int index, PClip clip, int n, IScriptEnvironment* env) {
-	if (clip != NULL) {
-		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render->CopyToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height, env)))
-			env->ThrowError("Shader: CopyInputClip failed");
-	}
-}
-
-unsigned char* Shader::ReadBinaryFile(const char* filePath) {
-	FILE *fl = fopen(filePath, "rb");
-	if (fl != NULL)
-	{
-		fseek(fl, 0, SEEK_END);
-		long len = ftell(fl);
-		unsigned char *ret = (unsigned char*)malloc(len);
-		fseek(fl, 0, SEEK_SET);
-		fread(ret, 1, len, fl);
-		fclose(fl);
-		return ret;
-	}
-	else
-		return NULL;
-}
-
-void Shader::ParseParam(const char* param, IScriptEnvironment* env) {
-	if (param != NULL && param[0] != '\0') {
-		if (!SetParam((char*)param)) {
-			// Throw error if failed to set parameter.
-			char* ErrorText = "Shader failed to set parameter: ";
-			char* FullText;
-			FullText = (char*)malloc(strlen(ErrorText) + strlen(param) + 1);
-			strcpy(FullText, ErrorText);
-			strcat(FullText, param);
-			env->ThrowError(FullText);
-			free(FullText);
-		}
-	}
-}
-
-// Shader parameters have this format: "ParamName=1f"
-// The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
-// Returns True if parameter was valid and set successfully, otherwise false.
-bool Shader::SetParam(char* param) {
-	// Copy string to avoid altering source parameter.
-	char* ParamCopy = (char*)malloc(strlen(param) + 1);
-	strcpy(ParamCopy, param);
-
-	// Split parameter string into its values and validate data.
-	char* Name = strtok(ParamCopy, "=");
-	if (Name == NULL)
-		return false;
-	char* Value = strtok(NULL, "=");
-	if (Value == NULL || strlen(Value) < 2)
-		return false;
-	char Type = Value[strlen(Value) - 1];
-	Value[strlen(Value) - 1] = '\0'; // Remove last character from value
-
-	// Set parameter value.
-	if (Type == 'f') {
-		char* VectorValue = strtok(Value, ",");
-		if (VectorValue == NULL) {
-			// Single float value
-			float FValue = strtof(Value, NULL);
-			if (FAILED(render->SetPixelShaderFloatConstant(Name, FValue)))
-				return false;
-		}
-		else {
-			// Vector of 2, 3 or 4 values.
-			D3DXVECTOR4 vector = { 0, 0, 0, 0 };
-			vector.x = strtof(VectorValue, NULL);
-			// Parse 2nd vector value
-			char* VectorValue = strtok(NULL, ",");
-			if (VectorValue != NULL) {
-				vector.y = strtof(VectorValue, NULL);
-				// Parse 3rd vector value
-				char* VectorValue = strtok(NULL, ",");
-				if (VectorValue != NULL) {
-					vector.z = strtof(VectorValue, NULL);
-					// Parse 4th vector value
-					char* VectorValue = strtok(NULL, ",");
-					if (VectorValue != NULL) {
-						vector.w = strtof(VectorValue, NULL);
-					}
-				}
-			}
-
-			if (FAILED(render->SetPixelShaderVector(Name, &vector)))
-				return false;
-		}
-	}
-	else if (Type == 'i') {
-		int IValue = atoi(Value);
-		if (FAILED(render->SetPixelShaderIntConstant(Name, IValue)))
-			return false;
-	}
-	else if (Type == 'b') {
-		bool BValue = Value[0] == '0' ? false : true;
-		if (FAILED(render->SetPixelShaderBoolConstant(Name, BValue)))
-			return false;
-	}
-	else // invalid type
-		return false;
-
-	// Success
-	return true;
 }

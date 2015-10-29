@@ -27,4 +27,10 @@ private:
 	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
 	void convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	VideoInfo viYV;
+
+	// Declare variables in convFloat here to avoid re-assigning them for every pixel.
+	float r, g, b;
+	unsigned char r1, g1, b1;
+	float y2, u2, v2;
+	short y, u, v;
 };

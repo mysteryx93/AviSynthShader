@@ -88,7 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointModel>Precise</FloatingPointModel>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -101,8 +101,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
+    <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ConvertFromFloat.h" />
     <ClInclude Include="ConvertToFloat.h" />
+    <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="D3D9RenderImpl.h" />
     <ClInclude Include="D3D9Macros.h" />
@@ -110,6 +112,7 @@
   <ItemGroup>
     <ClCompile Include="ConvertFromFloat.cpp" />
     <ClCompile Include="ConvertToFloat.cpp" />
+    <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
