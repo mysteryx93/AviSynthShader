@@ -5,22 +5,32 @@
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
+#include "ProcessFrames.h"
+#include <list>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <concurrent_queue.h>
+#include <future>
+using namespace concurrency;
 
 class Shader : public GenericVideoFilter {
 public:
-	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, 
+	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, int precision,
 		const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, const char* _param9, 
-		int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, IScriptEnvironment* env);
+		PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _width, int _height, IScriptEnvironment* env);
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
-	//void ConfigureShader(IScriptEnvironment* env);
-	//unsigned char* ReadBinaryFile(const char* filePath);
-	//void ParseParam(D3D9RenderImpl* render, const char* param, IScriptEnvironment* env);
-	//bool SetParam(D3D9RenderImpl* render, char* param);
-	const char* path;
-	const char* entryPoint;
-	const char* shaderModel;
-	const char *param1, *param2, *param3, *param4, *param5, *param6, *param7, *param8, *param9;
-	CommandStruct cmd;
+	const int m_precision;
+	PClip m_clip[9];
+	CommandStruct m_cmd;
+	
+	static int threadCount;
+	static concurrent_queue<CommandStruct> cmdBuffer;
+	static std::mutex initLock, startLock, waiterLock;
+	static std::thread* WorkerThread;
+	static HANDLE WorkerWaiting;
+	static void AddCommandToQueue(CommandStruct* cmd, IScriptEnvironment* env);
+	static void StartWorkerThread(IScriptEnvironment* env);
 };

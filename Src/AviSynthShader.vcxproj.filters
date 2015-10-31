@@ -6,7 +6,7 @@
     <ClCompile Include="ConvertToFloat.cpp" />
     <ClCompile Include="ConvertFromFloat.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
-    <ClCompile Include="ExecuteShader.cpp" />
+    <ClCompile Include="ProcessFrames.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -16,6 +16,6 @@
     <ClInclude Include="D3D9RenderImpl.h" />
     <ClInclude Include="D3D9Macros.h" />
     <ClInclude Include="CommandStruct.h" />
-    <ClInclude Include="ExecuteShader.h" />
+    <ClInclude Include="ProcessFrames.h" />
   </ItemGroup>
 </Project>

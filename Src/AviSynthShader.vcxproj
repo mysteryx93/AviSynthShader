@@ -104,7 +104,7 @@
     <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ConvertFromFloat.h" />
     <ClInclude Include="ConvertToFloat.h" />
-    <ClInclude Include="ExecuteShader.h" />
+    <ClInclude Include="ProcessFrames.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="D3D9RenderImpl.h" />
     <ClInclude Include="D3D9Macros.h" />
@@ -112,8 +112,8 @@
   <ItemGroup>
     <ClCompile Include="ConvertFromFloat.cpp" />
     <ClCompile Include="ConvertToFloat.cpp" />
-    <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
+    <ClCompile Include="ProcessFrames.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
   </ItemGroup>

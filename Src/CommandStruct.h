@@ -5,18 +5,28 @@
 #include "avisynth.h"
 #include <windows.h>
 
+struct FrameRef {
+	FrameRef::FrameRef() {
+		Width = 0, Height = 0, Pitch = 0;
+	}
+
+	FrameRef::FrameRef(PVideoFrame clip, byte* buffer, int precision) {
+		Width = clip->GetRowSize() / precision / 4;
+		Height = clip->GetHeight();
+		Pitch = clip->GetPitch();
+		Buffer = buffer;
+	}
+
+	int Width, Height, Pitch;
+	byte* Buffer;
+};
+
 struct CommandStruct {
-	byte CommandIndex;
 	const char* Path;
 	const char* EntryPoint;
 	const char* ShaderModel;
 	const char* Param[9];
-	byte ClipIndex[9];
-	byte OutputIndex;
-	int OutputWidth, OutputHeight;
-
-	//DWORD* ShaderBuffer;
-	//ID3DXBuffer* ShaderBufferDX;
-	//IDirect3DPixelShader9* Shader;
-	//ID3DXConstantTable* ConstantTable;
+	FrameRef Input[9];
+	FrameRef Output;
+	HANDLE Event;
 };

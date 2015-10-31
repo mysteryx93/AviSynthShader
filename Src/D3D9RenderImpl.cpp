@@ -8,21 +8,24 @@ HWND D3D9RenderImpl::staticDummyWindow;
 CComPtr<IDirect3DDevice9Ex> D3D9RenderImpl::staticDevice;
 
 D3D9RenderImpl::D3D9RenderImpl() {
-	ZeroMemory(m_InputTextures, sizeof(InputTexture) * maxTextures);
-	ZeroMemory(m_RenderTargets, sizeof(RenderTarget) * maxTextures);
-	ZeroMemory(m_Shaders, sizeof(ShaderItem) * maxTextures);
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
-	for (int i = 0; i < maxTextures; i++) {
-		SafeRelease(m_InputTextures[0].Surface);
-		SafeRelease(m_InputTextures[0].Texture);
-		SafeRelease(m_InputTextures[0].Memory);
+	// Delete objects created in lists. Associated ressources should be automatically freed with CComPtr.
+	for (auto it = m_InputTextures.begin(); it != m_InputTextures.end(); ++it) {
+		delete (*it);
+	}
+	for (auto it = m_RenderTargets.begin(); it != m_RenderTargets.end(); ++it) {
+		delete (*it);
+	}
+	for (auto it = m_Shaders.begin(); it != m_Shaders.end(); ++it) {
+		delete *it;
 	}
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision) {
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision, IScriptEnvironment* env) {
 	m_precision = precision;
+	m_env = env;
 	if (precision == 1)
 		m_format = D3DFMT_X8R8G8B8;
 	else if (precision == 2)
@@ -32,16 +35,6 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision) {
 
 	return CreateDevice(&m_pDevice, hDisplayWindow);
 }
-
-// Create a default static device that is shared across all shaders. It will be used to configure pixel shaders in the Shader class that normally doesn't have a device.
-//HRESULT D3D9RenderImpl::InitializeStatic() {
-//	if (staticDevice == NULL) {
-//		staticDummyWindow = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-//		HR(CreateDevice(&staticDevice, staticDummyWindow));
-//	}
-//	m_pDevice = staticDevice;
-//	return S_OK;
-//}
 
 HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow) {
 	HR(Direct3DCreate9Ex(D3D_SDK_VERSION, &m_pD3D9));
@@ -62,6 +55,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	HR(GetPresentParams(&m_presentParams, hDisplayWindow));
 
 	HR(m_pD3D9->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hDisplayWindow, dwBehaviorFlags, &m_presentParams, NULL, device));
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow)
@@ -90,39 +84,35 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height)
 {
 	// Skip if current render target has right dimensions.
-	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height)
+	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height && !m_pCurrentRenderTarget->IsTaken) {
+		m_pCurrentRenderTarget->IsTaken = true;
 		return S_OK;
+	}
 
 	// Find a render target with desired proportions.
 	RenderTarget* Target = NULL;
 	int i = 0;
-	while (Target == NULL && m_RenderTargets[i].Texture != NULL) {
-		if (m_RenderTargets[i].Width == width && m_RenderTargets[i].Height == height)
-			Target = &m_RenderTargets[i];
-		else
-			i++;
+	RenderTarget* Item;
+	for (auto it = m_RenderTargets.begin(); it != m_RenderTargets.end(); ++it) {
+		Item = (*it);
+		if (Item->Width == width && Item->Height == height && Item->IsTaken == false)
+			Target = Item;
 	}
 
 	// Create it if it doesn't yet exist.
 	if (Target == NULL) {
-		// Find next unasigned texture spot.
-		i = 0;
-		while (Target == NULL && m_RenderTargets[i].Texture != NULL) {
-			if (i++ >= maxTextures)
-				env->ThrowError("ExecuteShader: Cannot output to more than 50 resolutions in a command chain");
-		}
-		Target = &m_RenderTargets[i];
-
+		Target = new RenderTarget();
 		Target->Width = width;
 		Target->Height = height;
+		Target->IsTaken = true;
 		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Target->Texture, NULL));
 		HR(Target->Texture->GetSurfaceLevel(0, &Target->Surface));
 		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_SYSTEMMEM, &Target->Memory, NULL));
-
 		HR(SetupMatrices(Target, width, height));
+		m_RenderTargets.push_back(Target);
 	}
 
 	// Set render target.
@@ -157,166 +147,148 @@ HRESULT D3D9RenderImpl::SetupMatrices(RenderTarget* target, float width, float h
 	return(target->VertexBuffer->Unlock());
 }
 
-HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory) {
-	if (index < 0 || index >= maxTextures)
-		return E_FAIL;
+/// Marks all input textures as being unused.
+void D3D9RenderImpl::ResetInputTextures() {
+	for (auto it = m_InputTextures.begin(); it != m_InputTextures.end(); ++it) {
+		(*it)->IsTaken = false;
+	}
+}
 
-	InputTexture* Obj = &m_InputTextures[index];
-	Obj->ClipIndex = clipIndex;
-	Obj->Width = width;
-	Obj->Height = height;
-
-	if (memoryTexture) {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, isSystemMemory ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &Obj->Memory, NULL));
-		HR(m_pDevice->ColorFill(Obj->Memory, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+/// Finds an input texture with specified dimensions that isn't yet being used.
+HRESULT D3D9RenderImpl::FindInputTexture(int width, int height, InputTexture*& output) {
+	InputTexture* Item;
+	for (auto it = m_InputTextures.begin(); it != m_InputTextures.end(); ++it) {
+		Item = *it;
+		if (Item->Width == width && Item->Height == height && !Item->IsTaken) {
+			output = Item;
+			return S_OK;
+		}
 	}
 
-	HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Obj->Texture, NULL));
-	HR(Obj->Texture->GetSurfaceLevel(0, &m_InputTextures[index].Surface));
-
+	// If no matching texture is found, create it.
+	HR(CreateInputTexture(width, height, output));
+	m_InputTextures.push_back(output);
 	return S_OK;
 }
 
-InputTexture* D3D9RenderImpl::FindTextureByClipIndex(int clipIndex, IScriptEnvironment* env) {
-	int Result = -1;
-	int ItemIndex;
-	for (int i = 0; i < maxTextures; i++) {
-		ItemIndex = m_InputTextures[i].ClipIndex;
-		if (ItemIndex == clipIndex)
-			Result = i;
-		else if (ItemIndex == 0)
-			break;
-	}
-	if (Result == -1)
-		env->ThrowError("Shader: Clip index not found");
-	return &m_InputTextures[Result];
+/// Creates a shader input texture.
+HRESULT D3D9RenderImpl::CreateInputTexture(int width, int height, InputTexture*& outTexture) {
+	outTexture = new InputTexture();
+	outTexture->IsTaken = false;
+	outTexture->Width = width;
+	outTexture->Height = height;
+
+	HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_DEFAULT, &outTexture->Memory, NULL));
+	HR(m_pDevice->ColorFill(outTexture->Memory, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+
+	HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &outTexture->Texture, NULL));
+	HR(outTexture->Texture->GetSurfaceLevel(0, &outTexture->Surface));
+	return S_OK;
 }
 
-void D3D9RenderImpl::ResetTextureClipIndex() {
-	for (int i = 9; i < maxTextures; i++) {
-		m_InputTextures[i].ClipIndex = 0;
-	}
-}
-
-HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, InputTexture* inputList[9], CommandStruct* previousCmd)
 {
+	//int Width = cmd->Output->GetRowSize() / m_precision / 4;
+	//int Height = cmd->Output->GetHeight();
 	HR(m_pDevice->TestCooperativeLevel());
-	HR(SetRenderTarget(width, height, env));
-	HR(CreateScene(cmd, env));
-	HR(Present());
-	return CopyFromRenderTarget(9 + cmd->CommandIndex, cmd->OutputIndex, width, height);
+	HR(SetRenderTarget(cmd->Output.Width, cmd->Output.Height));
+	HR(CreateScene(cmd, inputList));
+	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
+
+	// It always returns the previously generated frame while we fill in the current frame data.
+	if (previousCmd != NULL)
+		HR(CopyFromRenderTarget(previousCmd->Output.Buffer, previousCmd->Output.Pitch));
+	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
+/// Returns the result of the last frame from the Render Target.
+HRESULT D3D9RenderImpl::FlushRenderTarget(CommandStruct* cmd) {
+	// Flush the device by creating a dummy scene.
+	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
+	HR(m_pDevice->BeginScene());
+	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
+	HR(m_pDevice->EndScene());
+	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
+
+	// Get the output frame.
+	HR(CopyFromRenderTarget(cmd->Output.Buffer, cmd->Output.Pitch));
+	m_pCurrentRenderTarget->IsTaken = false;
+	return S_OK;
+}
+
+HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, InputTexture* inputList[9])
 {
 	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
 	HR(m_pDevice->BeginScene());
 	SCENE_HR(m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1), m_pDevice);
-	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex].Shader), m_pDevice);
+	SCENE_HR(m_pDevice->SetPixelShader(m_pCurrentShader->Shader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pCurrentRenderTarget->VertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
 	// Set input clips.
 	InputTexture* Input;
 	for (int i = 0; i < 9; i++) {
-		if (cmd->ClipIndex[i] > 0) {
-			Input = FindTextureByClipIndex(cmd->ClipIndex[i], env);
-			if (Input != NULL) {
-				SCENE_HR(m_pDevice->SetTexture(i, Input->Texture), m_pDevice);
-			}
-			else
-				env->ThrowError("Shader: Invalid clip index.");
-		}
+		if (inputList[i] != NULL)
+			SCENE_HR(m_pDevice->SetTexture(i, inputList[i]->Texture), m_pDevice);
 	}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
 	return m_pDevice->EndScene();
 }
 
-HRESULT D3D9RenderImpl::Present(void)
-{
-	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
-	//Sleep(8);
-	// The RenderTarget returns the previously generated scene for an unknown reason.
-	// As a fix, we render another scene so that the previous scene becomes the one returned.
-	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
-	HR(m_pDevice->BeginScene());
-	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
-	HR(m_pDevice->EndScene());
-	return m_pDevice->Present(NULL, NULL, NULL, NULL);
-	//Sleep(8);
-}
-
-HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
-	// Copies source frame into main surface buffer, or into additional input textures
-	CComPtr<IDirect3DSurface9> destSurface = m_InputTextures[index].Memory;
-	if (index < 0 || index >= maxTextures)
-		return E_FAIL;
-
+HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, InputTexture* dst) {
 	D3DLOCKED_RECT d3drect;
-	HR(destSurface->LockRect(&d3drect, NULL, 0));
+	HR(dst->Memory->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_precision * 4, height);
+	m_env->BitBlt(pict, d3drect.Pitch, src, srcPitch, dst->Width * m_precision * 4, dst->Height);
 
-	HR(destSurface->UnlockRect());
+	HR(dst->Memory->UnlockRect());
 
 	// Copy to GPU
-	HR(m_pDevice->ColorFill(m_InputTextures[index].Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	return (m_pDevice->StretchRect(m_InputTextures[index].Memory, NULL, m_InputTextures[index].Surface, NULL, D3DTEXF_POINT));
+	HR(m_pDevice->ColorFill(dst->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	return (m_pDevice->StretchRect(dst->Memory, NULL, dst->Surface, NULL, D3DTEXF_POINT));
 }
 
-HRESULT D3D9RenderImpl::CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height)
+HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 {
-	if (dstIndex < 0 || dstIndex >= maxTextures)
-		return E_FAIL;
-
-	InputTexture* Output = &m_InputTextures[dstIndex];
 	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
 	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
-	Output->ClipIndex = outputIndex;
-	if (Output->Memory == NULL) {
-		HR(m_pDevice->ColorFill(Output->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-		HR(m_pDevice->StretchRect(pReadSurfaceGpu, NULL, Output->Surface, NULL, D3DTEXF_POINT));
-	}
-	else {
-		// If reading last command, copy it back to CPU directly
-		HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, Output->Memory));
-	}
+	HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, m_pCurrentRenderTarget->Memory));
+
+	D3DLOCKED_RECT srcRect;
+	HR(m_pCurrentRenderTarget->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
+	BYTE* srcPict = (BYTE*)srcRect.pBits;
+
+	m_env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, m_pCurrentRenderTarget->Width * m_precision * 4, m_pCurrentRenderTarget->Height);
+
+	HR(m_pCurrentRenderTarget->Memory->UnlockRect());
+	m_pCurrentRenderTarget->IsTaken = false;
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env) {
-	InputTexture* ReadSurface = &m_InputTextures[9 + commandIndex];
+HRESULT D3D9RenderImpl::SetPixelShader(CommandStruct* cmd) {
+	// If previous shader is still good, keep that one.
+	if (CompareShader(cmd, m_pCurrentShader))
+		return S_OK;
 
-	D3DLOCKED_RECT srcRect, dstRect;
-	HR(ReadSurface->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
-	BYTE* srcPict = (BYTE*)srcRect.pBits;
+	// Loop through shaders to find one that matches.
+	m_pCurrentShader = NULL;
+	for (auto it = m_Shaders.begin(); it != m_Shaders.end(); ++it) {
+		if (CompareShader(cmd, *it)) {
+			m_pCurrentShader = *it;
+			break;
+		}
+	}
 
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_precision * 4, ReadSurface->Height);
-
-	return ReadSurface->Memory->UnlockRect();
+	// If no matching shader exists, create it.
+	if (m_pCurrentShader == NULL) {
+		HR(InitPixelShader(cmd, m_pCurrentShader));
+		//env->ThrowError("Shader: Failed to compile pixel shader");
+	}
 }
-//
-//HRESULT D3D9RenderImpl::SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)
-//{
-//	CComPtr<ID3DXBuffer> code;
-//	CComPtr<ID3DXBuffer> errMsg;
-//	
-//	HRESULT hr = D3DXCompileShaderFromFile(pPixelShaderName, NULL, NULL, entryPoint, shaderModel, 0, &code, &errMsg, &m_pPixelConstantTable);
-//	if (FAILED(hr)) {
-//		if (errMsg != NULL) {
-//			size_t len = errMsg->GetBufferSize() + 1;
-//			*ppError = new CHAR[len];
-//			memcpy(*ppError, errMsg->GetBufferPointer(), len);
-//		}
-//		return hr;
-//	}
-//
-//	return m_pDevice->CreatePixelShader((DWORD*)code->GetBufferPointer(), &m_pPixelShader);
-//}
 
-HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex];
+HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, ShaderItem*& outShader) {
+	ShaderItem* Shader = new ShaderItem();
 	CComPtr<ID3DXBuffer> code;
 	unsigned char* ShaderBuf = NULL;
 	DWORD* CodeBuffer = NULL;
@@ -326,7 +298,7 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 		ShaderBuf = ReadBinaryFile(cmd->Path);
 		if (ShaderBuf == NULL)
 			return E_FAIL;
-		HR(D3DXGetShaderConstantTable((DWORD*)ShaderBuf, &Shader->ConstantTable));
+		HR(D3DXGetShaderConstantTable((DWORD*)ShaderBuf, &(Shader->ConstantTable)));
 		CodeBuffer = (DWORD*)ShaderBuf;
 	}
 	else {
@@ -335,11 +307,116 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 		CodeBuffer = (DWORD*)code->GetBufferPointer();
 	}
 
-	HR(m_pDevice->CreatePixelShader(CodeBuffer, &Shader->Shader))
-
+	HR(m_pDevice->CreatePixelShader(CodeBuffer, &Shader->Shader));
 	if (ShaderBuf != NULL)
 		free(ShaderBuf);
+
+	// Configure pixel shader
+	Shader->Path = cmd->Path;
+	for (int i = 0; i < 9; i++) {
+		Shader->Param[i] = cmd->Param[i];
+		ParseParam(Shader->ConstantTable, cmd->Param[i], NULL);
+	}
+
+	m_Shaders.push_back(Shader);
+	outShader = Shader;
 	return S_OK;
+}
+
+/// Returns whether Path and Params are the same for specified command and shader.
+bool D3D9RenderImpl::CompareShader(CommandStruct* cmd, ShaderItem* shader) {
+	if (cmd == NULL || shader == NULL)
+		return false;
+	if (strcmp(cmd->Path, shader->Path) != 0)
+		return false;
+	for (int i = 0; i < 9; i++) {
+		if (strcmp(cmd->Param[i], shader->Param[i]) != 0)
+			return false;
+	}
+	return true;
+}
+
+void D3D9RenderImpl::ParseParam(LPD3DXCONSTANTTABLE table, const char* param, IScriptEnvironment* env) {
+	if (param != NULL && param[0] != '\0') {
+		if (!SetParam(table, (char*)param)) {
+			// Throw error if failed to set parameter.
+			char* ErrorText = "Shader failed to set parameter: ";
+			char* FullText;
+			FullText = (char*)malloc(strlen(ErrorText) + strlen(param) + 1);
+			strcpy(FullText, ErrorText);
+			strcat(FullText, param);
+			env->ThrowError(FullText);
+			free(FullText);
+		}
+	}
+}
+
+// Shader parameters have this format: "ParamName=1f"
+// The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
+// Returns True if parameter was valid and set successfully, otherwise false.
+bool D3D9RenderImpl::SetParam(LPD3DXCONSTANTTABLE table, char* param) {
+	// Copy string to avoid altering source parameter.
+	char* ParamCopy = (char*)malloc(strlen(param) + 1);
+	strcpy(ParamCopy, param);
+
+	// Split parameter string into its values and validate data.
+	char* Name = strtok(ParamCopy, "=");
+	if (Name == NULL)
+		return false;
+	char* Value = strtok(NULL, "=");
+	if (Value == NULL || strlen(Value) < 2)
+		return false;
+	char Type = Value[strlen(Value) - 1];
+	Value[strlen(Value) - 1] = '\0'; // Remove last character from value
+
+									 // Set parameter value.
+	if (Type == 'f') {
+		char* VectorValue = strtok(Value, ",");
+		if (VectorValue == NULL) {
+			// Single float value
+			float FValue = strtof(Value, NULL);
+			if (FAILED(SetPixelShaderFloatConstant(table, Name, FValue)))
+				return false;
+		}
+		else {
+			// Vector of 2, 3 or 4 values.
+			D3DXVECTOR4 vector = { 0, 0, 0, 0 };
+			vector.x = strtof(VectorValue, NULL);
+			// Parse 2nd vector value
+			char* VectorValue = strtok(NULL, ",");
+			if (VectorValue != NULL) {
+				vector.y = strtof(VectorValue, NULL);
+				// Parse 3rd vector value
+				char* VectorValue = strtok(NULL, ",");
+				if (VectorValue != NULL) {
+					vector.z = strtof(VectorValue, NULL);
+					// Parse 4th vector value
+					char* VectorValue = strtok(NULL, ",");
+					if (VectorValue != NULL) {
+						vector.w = strtof(VectorValue, NULL);
+					}
+				}
+			}
+
+			if (FAILED(SetPixelShaderVector(table, Name, &vector)))
+				return false;
+		}
+	}
+	else if (Type == 'i') {
+		int IValue = atoi(Value);
+		if (FAILED(SetPixelShaderIntConstant(table, Name, IValue)))
+			return false;
+	}
+	else if (Type == 'b') {
+		bool BValue = Value[0] == '0' ? false : true;
+		if (FAILED(SetPixelShaderBoolConstant(table, Name, BValue)))
+			return false;
+	}
+	else // invalid type
+		return false;
+
+	// Success
+	return true;
 }
 
 unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
@@ -357,14 +434,6 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	else
 		return NULL;
 }
-
-//
-//HRESULT D3D9RenderImpl::SetPixelShader(DWORD* buffer)
-//{
-//	HR(D3DXGetShaderConstantTable(buffer, &m_pPixelConstantTable));
-//	// m_pDevice->SetPixelShader
-//	return m_pDevice->CreatePixelShader(buffer, &m_pPixelShader);
-//}
 
 HRESULT D3D9RenderImpl::SetPixelShaderIntConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, int value)
 {
