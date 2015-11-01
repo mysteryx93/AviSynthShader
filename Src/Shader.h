@@ -6,13 +6,7 @@
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
 #include "ProcessFrames.h"
-#include <list>
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <concurrent_queue.h>
-#include <future>
-using namespace concurrency;
+#include "WorkerThread.h"
 
 class Shader : public GenericVideoFilter {
 public:
@@ -25,12 +19,4 @@ private:
 	const int m_precision;
 	PClip m_clip[9];
 	CommandStruct m_cmd;
-	
-	static int threadCount;
-	static concurrent_queue<CommandStruct> cmdBuffer;
-	static std::mutex initLock, startLock, waiterLock;
-	static std::thread* WorkerThread;
-	static HANDLE WorkerWaiting;
-	static void AddCommandToQueue(CommandStruct* cmd, IScriptEnvironment* env);
-	static void StartWorkerThread(IScriptEnvironment* env);
 };

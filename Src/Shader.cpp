@@ -40,7 +40,6 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	if (_height > 0)
 		vi.height = _height;
 
-	threadCount++;
 	m_cmd.Event = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	//Worker = new ProcessFrames(env);
@@ -67,101 +66,14 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	}
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	cmd.Output = FrameRef(dst, dst->GetWritePtr(), m_precision);
-/*
-	Worker->Execute(&cmd, NULL);
-	return dst;*/
+
 	
 	// Add command to the worker thread queue and wait for result.
-	AddCommandToQueue(&cmd, env);
+	WorkerThread::AddCommandToQueue(cmd, env);
 	WaitForSingleObject(cmd.Event, 10000);
-	initLock.lock();
+	WorkerThread::initLock.lock();
 	ResetEvent(cmd.Event);
-	initLock.unlock();
+	WorkerThread::initLock.unlock();
 
 	return dst;
-}
-
-
-
-
-/// Static Worker Thread. Couldn't get it to work when defined in a separate file.
-
-int Shader::threadCount = 0;
-concurrent_queue<CommandStruct> Shader::cmdBuffer;
-std::mutex Shader::startLock, Shader::initLock, Shader::waiterLock;
-std::once_flag OnceFlag;
-std::thread* Shader::WorkerThread = NULL;
-HANDLE Shader::WorkerWaiting = NULL;
-
-	void Shader::AddCommandToQueue(CommandStruct* cmd, IScriptEnvironment* env) {
-		// Add command to queue.
-		cmdBuffer.push(*cmd);
-
-		// If thread is idle or not running, make it run.
-		if (WorkerWaiting != NULL)
-			SetEvent(WorkerWaiting);
-		if (WorkerThread == NULL) {
-			startLock.lock();
-			if (WorkerThread == NULL)
-				WorkerThread = new std::thread(StartWorkerThread, env);
-			startLock.unlock();
-		}
-	}
-
-void Shader::StartWorkerThread(IScriptEnvironment* env) {
-	if (WorkerThread != NULL)
-		return;
-
-	ProcessFrames Worker(env);
-
-	// Start waiting event with a state meaning it's not waiting.
-	WorkerWaiting = CreateEvent(NULL, TRUE, TRUE, NULL);
-
-	// Process all commands in the queue.
-	CommandStruct CurrentCmd, PreviousCmd;
-	if (!cmdBuffer.try_pop(CurrentCmd))
-		CurrentCmd.Path = NULL;
-	while (CurrentCmd.Path != NULL) {
-		// The result of the 1st execution will be returned on the 2nd call.
-		if (FAILED(Worker.Execute(&CurrentCmd, NULL)))
-			env->ThrowError("Shader: Failed to execute command");
-		initLock.lock();
-		SetEvent(CurrentCmd.Event); // Notify that processing is completed.
-		initLock.unlock();
-
-		PreviousCmd = CurrentCmd;
-		if (!cmdBuffer.try_pop(CurrentCmd))
-			CurrentCmd.Path = NULL;
-
-		while (CurrentCmd.Path != NULL) {
-			if (FAILED(Worker.Execute(&CurrentCmd, NULL)))
-				env->ThrowError("Shader: Failed to execute command");
-			SetEvent(CurrentCmd.Event); // Notify that processing is completed.
-
-			PreviousCmd = CurrentCmd;
-			if (!cmdBuffer.try_pop(CurrentCmd))
-				CurrentCmd.Path = NULL;
-		}
-
-		// Flush the device to get last frame.
-		//Worker.Flush(&PreviousCmd);
-		//SetEvent(PreviousCmd.WorkerEvent); // Notify that processing is completed.
-
-		// When queue is empty, Wait for event to be set by AddCommandToQueue.
-		waiterLock.lock();
-		WaitForSingleObject(WorkerWaiting, 10000);
-		ResetEvent(WorkerWaiting);
-
-		// If there are still no commands after timeout, stop thread.
-		if (!cmdBuffer.try_pop(CurrentCmd))
-			CurrentCmd.Path = NULL;
-		waiterLock.unlock();
-	}
-
-	// Release event and thread.
-	startLock.lock();
-	CloseHandle(WorkerWaiting);
-	WorkerWaiting = NULL;
-	WorkerThread = NULL;
-	startLock.unlock();
 }

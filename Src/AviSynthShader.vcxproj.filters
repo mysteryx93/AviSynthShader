@@ -7,6 +7,7 @@
     <ClCompile Include="ConvertFromFloat.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
     <ClCompile Include="ProcessFrames.cpp" />
+    <ClCompile Include="WorkerThread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -17,5 +18,6 @@
     <ClInclude Include="D3D9Macros.h" />
     <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ProcessFrames.h" />
+    <ClInclude Include="WorkerThread.h" />
   </ItemGroup>
 </Project>

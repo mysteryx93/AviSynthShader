@@ -5,6 +5,7 @@
 #include "avisynth.h"
 #include <windows.h>
 
+/// Calling AviSynth functions from other threads causes conflicts, so we must query the info before sending to the execution thread.
 struct FrameRef {
 	FrameRef::FrameRef() {
 		Width = 0, Height = 0, Pitch = 0;
@@ -21,6 +22,7 @@ struct FrameRef {
 	byte* Buffer;
 };
 
+/// Contains the pixel shader command to execute.
 struct CommandStruct {
 	const char* Path;
 	const char* EntryPoint;
