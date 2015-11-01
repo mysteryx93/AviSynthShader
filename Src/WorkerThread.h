@@ -24,8 +24,7 @@ public:
 		if ((std::thread*)pThread != NULL)
 			SetEvent(WorkerWaiting);
 		else {
-			if ((std::thread*)pThread == NULL)
-				pThread = new std::thread(StartWorkerThread, env);
+			pThread = new std::thread(StartWorkerThread, env);
 		}
 	}
 
@@ -69,12 +68,16 @@ public:
 			// When queue is empty, Wait for event to be set by AddCommandToQueue.
 			WaitForSingleObject(WorkerWaiting, 10000);
 
-			// If there are still no commands after timeout, stop thread.
-			if (!cmdBuffer.try_pop(CurrentCmd))
-				CurrentCmd.Path = NULL;
+			while (CurrentCmd.Path == NULL) {
+				Sleep(200);
+				// If there are still no commands after timeout, stop thread.
+				if (!cmdBuffer.try_pop(CurrentCmd))
+					CurrentCmd.Path = NULL;
+			}
 		}
 
 		// Release event and thread.
+		std::lock_guard<std::mutex> lock(addLock);
 		CloseHandle(WorkerWaiting);
 		WorkerWaiting = NULL;
 		pThread = NULL;
