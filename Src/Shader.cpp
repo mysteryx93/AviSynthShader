@@ -40,7 +40,7 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	if (_height > 0)
 		vi.height = _height;
 
-	m_cmd.Event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	m_cmd.Event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	//Worker = new ProcessFrames(env);
 }
@@ -71,9 +71,6 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	// Add command to the worker thread queue and wait for result.
 	WorkerThread::AddCommandToQueue(cmd, env);
 	WaitForSingleObject(cmd.Event, 10000);
-	WorkerThread::initLock.lock();
-	ResetEvent(cmd.Event);
-	WorkerThread::initLock.unlock();
 
 	return dst;
 }

@@ -12,8 +12,9 @@ D3D9RenderImpl::D3D9RenderImpl() {
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
 	// Delete objects created in lists. Associated ressources should be automatically freed with CComPtr.
-	for (auto it = m_InputTextures.begin(); it != m_InputTextures.end(); ++it) {
-		delete (*it);
+	//for (auto it = m_InputTextures.begin(); it != m_InputTextures.end(); ++it) {
+	for (auto& it : m_InputTextures) {
+		delete it;
 	}
 	for (auto it = m_RenderTargets.begin(); it != m_RenderTargets.end(); ++it) {
 		delete (*it);
