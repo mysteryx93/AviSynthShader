@@ -11,17 +11,16 @@ class WorkerThread {
 public:
 	static concurrency::concurrent_queue<CommandStruct> cmdBuffer;
 	static std::mutex addLock;
-	static std::atomic<std::thread*> pThread;
-	static std::atomic<HANDLE> WorkerWaiting;
+	static std::thread* pThread;
+	static HANDLE WorkerWaiting;
 
 	static void AddCommandToQueue(CommandStruct cmd, IScriptEnvironment* env) {
-		std::lock_guard<std::mutex> lock(addLock);
 		// Add command to queue.
 		cmdBuffer.push(cmd);
 
 		// If thread is idle or not running, make it run.
-		//if (WorkerWaiting != NULL)
-		if ((std::thread*)pThread != NULL)
+		std::lock_guard<std::mutex> lock(addLock);
+		if (pThread)
 			SetEvent(WorkerWaiting);
 		else {
 			pThread = new std::thread(StartWorkerThread, env);
@@ -29,9 +28,6 @@ public:
 	}
 
 	static void WorkerThread::StartWorkerThread(IScriptEnvironment* env) {
-		if ((std::thread*)pThread != NULL)
-			return;
-
 		ProcessFrames Worker(env);
 
 		// Start waiting event with a state meaning it's not waiting.
@@ -66,10 +62,8 @@ public:
 			//SetEvent(PreviousCmd.WorkerEvent); // Notify that processing is completed.
 
 			// When queue is empty, Wait for event to be set by AddCommandToQueue.
-			WaitForSingleObject(WorkerWaiting, 10000);
-
-			while (CurrentCmd.Path == NULL) {
-				Sleep(200);
+			// Note that the added item might have already be read by the previous loop, so keep requesting data until we get a clear timeout.
+			while (CurrentCmd.Path == NULL && WaitForSingleObject(WorkerWaiting, 10000) != WAIT_TIMEOUT) {
 				// If there are still no commands after timeout, stop thread.
 				if (!cmdBuffer.try_pop(CurrentCmd))
 					CurrentCmd.Path = NULL;
