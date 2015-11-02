@@ -19,7 +19,6 @@ struct InputTexture {
 
 struct RenderTarget {
 	int Width, Height;
-	bool IsTaken;
 	CComPtr<IDirect3DSurface9> Memory;
 	CComPtr<IDirect3DTexture9> Texture;
 	CComPtr<IDirect3DSurface9> Surface;	

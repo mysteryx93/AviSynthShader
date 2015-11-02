@@ -88,8 +88,7 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height)
 {
 	// Skip if current render target has right dimensions.
-	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height && !m_pCurrentRenderTarget->IsTaken) {
-		m_pCurrentRenderTarget->IsTaken = true;
+	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height) {
 		return S_OK;
 	}
 
@@ -99,7 +98,7 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height)
 	RenderTarget* Item;
 	for (auto it = m_RenderTargets.begin(); it != m_RenderTargets.end(); ++it) {
 		Item = (*it);
-		if (Item->Width == width && Item->Height == height && Item->IsTaken == false)
+		if (Item->Width == width && Item->Height == height)
 			Target = Item;
 	}
 
@@ -108,7 +107,6 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height)
 		Target = new RenderTarget();
 		Target->Width = width;
 		Target->Height = height;
-		Target->IsTaken = true;
 		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Target->Texture, NULL));
 		HR(Target->Texture->GetSurfaceLevel(0, &Target->Surface));
 		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_SYSTEMMEM, &Target->Memory, NULL));
@@ -213,7 +211,6 @@ HRESULT D3D9RenderImpl::FlushRenderTarget(CommandStruct* cmd) {
 
 	// Get the output frame.
 	HR(CopyFromRenderTarget(cmd->Output.Buffer, cmd->Output.Pitch));
-	m_pCurrentRenderTarget->IsTaken = false;
 	return S_OK;
 }
 
@@ -263,7 +260,6 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(byte* dst, int dstPitch)
 	m_env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, m_pCurrentRenderTarget->Width * m_precision * 4, m_pCurrentRenderTarget->Height);
 
 	HR(m_pCurrentRenderTarget->Memory->UnlockRect());
-	m_pCurrentRenderTarget->IsTaken = false;
 	return S_OK;
 }
 

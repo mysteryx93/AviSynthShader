@@ -35,22 +35,24 @@ public:
 
 		// Process all commands in the queue.
 		CommandStruct CurrentCmd, PreviousCmd;
+		PreviousCmd.Path = NULL;
 		if (!cmdBuffer.try_pop(CurrentCmd))
 			CurrentCmd.Path = NULL;
 		while (CurrentCmd.Path != NULL) {
 			// The result of the 1st execution will be returned on the 2nd call.
-			if (FAILED(Worker.Execute(&CurrentCmd, NULL)))
+			if (FAILED(Worker.Execute(&CurrentCmd, PreviousCmd.Path ? &PreviousCmd : NULL)))
 				env->ThrowError("Shader: Failed to execute command");
-			SetEvent(CurrentCmd.Event); // Notify that processing is completed.
+			if (PreviousCmd.Path)
+				SetEvent(PreviousCmd.Event); // Notify that processing is completed.
 
 			PreviousCmd = CurrentCmd;
 			if (!cmdBuffer.try_pop(CurrentCmd))
 				CurrentCmd.Path = NULL;
 
 			while (CurrentCmd.Path != NULL) {
-				if (FAILED(Worker.Execute(&CurrentCmd, NULL)))
+				if (FAILED(Worker.Execute(&CurrentCmd, &PreviousCmd)))
 					env->ThrowError("Shader: Failed to execute command");
-				SetEvent(CurrentCmd.Event); // Notify that processing is completed.
+				SetEvent(PreviousCmd.Event); // Notify that processing is completed.
 
 				PreviousCmd = CurrentCmd;
 				if (!cmdBuffer.try_pop(CurrentCmd))
@@ -58,8 +60,8 @@ public:
 			}
 
 			// Flush the device to get last frame.
-			//Worker.Flush(&PreviousCmd);
-			//SetEvent(PreviousCmd.WorkerEvent); // Notify that processing is completed.
+			Worker.Flush(&PreviousCmd);
+			SetEvent(PreviousCmd.Event); // Notify that processing is completed.
 
 			// When queue is empty, Wait for event to be set by AddCommandToQueue.
 			// Note that the added item might have already be read by the previous loop, so keep requesting data until we get a clear timeout.

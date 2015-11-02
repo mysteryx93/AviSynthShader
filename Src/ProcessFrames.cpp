@@ -28,7 +28,6 @@ HRESULT ProcessFrames::Execute(CommandStruct* cmd, CommandStruct* previousCmd) {
 		}
 	}
 	HR(render.ProcessFrame(cmd, InputList, previousCmd));
-	HR(Flush(cmd));
 	return S_OK;
 }
 
