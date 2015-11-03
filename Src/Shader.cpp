@@ -16,7 +16,9 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	m_clip[7] = _clip8;
 	m_clip[8] = _clip9;
 
+	std::mutex* LockCopy = m_cmd.Lock; // We want to keep that.
 	ZeroMemory(&m_cmd, sizeof(CommandStruct));
+	m_cmd.Lock = LockCopy;
 	m_cmd.Path = _path;
 	m_cmd.EntryPoint = _entryPoint;
 	m_cmd.ShaderModel = _shaderModel;
@@ -70,9 +72,20 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	//Worker->Execute(&cmd, NULL);
 	//Worker->Flush(&cmd);
 	//return dst;
+
+	//WorkerThread::AddCommandToQueue(cmd, env);
+	//WaitForSingleObject(cmd.Event, 10000);
+	//return dst;
+
 	
+	// Create a deep copy of the command strings and video buffers.
+	CommandStruct CmdDeepCopy = cmd.DeepCopy();
+
 	// Add command to the worker thread queue and wait for result.
-	WorkerThread::AddCommandToQueue(cmd, env);
-	WaitForSingleObject(cmd.Event, 10000);
+	WorkerThread::AddCommandToQueue(CmdDeepCopy, env);
+	WaitForSingleObject(CmdDeepCopy.Event, 10000);
+	
+	CmdDeepCopy.Release();
+
 	return dst;
 }

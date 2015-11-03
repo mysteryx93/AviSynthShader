@@ -32,7 +32,8 @@ public:
 
 		if (WorkerThreadCount < MaxThreadCount) {
 			std::lock_guard<std::mutex> lock(addLock);
-			pThreads.push_back(new std::thread(StartWorkerThread, WorkerThreadCount++, env));
+			if (WorkerThreadCount < MaxThreadCount)
+				pThreads.push_back(new std::thread(StartWorkerThread, WorkerThreadCount++, env));
 		}
 	}
 
@@ -41,44 +42,43 @@ public:
 
 		// Process all commands in the queue.
 		CommandStruct CurrentCmd, PreviousCmd;
-		PreviousCmd.Path = NULL;
-		if (!cmdBuffer.try_pop(CurrentCmd))
-			CurrentCmd.Path = NULL;
-		while (CurrentCmd.Path) {
+		cmdBuffer.try_pop(CurrentCmd);
+		while (!CurrentCmd.IsNull()) {
 			// The result of the 1st execution will be returned on the 2nd call.
-			if (FAILED(Worker.Execute(&CurrentCmd, NULL))) //PreviousCmd.Path ? &PreviousCmd : 
+			if (FAILED(Worker.Execute(&CurrentCmd, PreviousCmd.Path ? &PreviousCmd : NULL)))
 				env->ThrowError("Shader: Failed to execute command");
-			Worker.Flush(&CurrentCmd);
-			SetEvent(CurrentCmd.Event);
-			//if (PreviousCmd.Path)
-			//	SetEvent(PreviousCmd.Event); // Notify that processing is completed.
+			//Worker.Flush(&CurrentCmd);
+			//SetEvent(CurrentCmd.Event);
+			if (PreviousCmd.Path)
+				SetEvent(PreviousCmd.Event); // Notify that processing is completed.
 
 			PreviousCmd = CurrentCmd;
 			if (!cmdBuffer.try_pop(CurrentCmd))
-				CurrentCmd.Path = NULL;
+				CurrentCmd = CommandStruct();
 
-			while (CurrentCmd.Path) {
-				if (FAILED(Worker.Execute(&CurrentCmd, NULL))) //&PreviousCmd
+			while (!CurrentCmd.IsNull()) {
+				if (FAILED(Worker.Execute(&CurrentCmd, &PreviousCmd))) //
 					env->ThrowError("Shader: Failed to execute command");
-				Worker.Flush(&CurrentCmd);
-				SetEvent(CurrentCmd.Event);
-				//SetEvent(PreviousCmd.Event); // Notify that processing is completed.
+				//Worker.Flush(&CurrentCmd);
+				//SetEvent(CurrentCmd.Event);
+				SetEvent(PreviousCmd.Event); // Notify that processing is completed.
 
 				PreviousCmd = CurrentCmd;
 				if (!cmdBuffer.try_pop(CurrentCmd))
-					CurrentCmd.Path = NULL;
+					CurrentCmd = CommandStruct();
 			}
 
 			// Flush the device to get last frame.
-			//Worker.Flush(&PreviousCmd);
-			//SetEvent(PreviousCmd.Event); // Notify that processing is completed.
+			Worker.Flush(&PreviousCmd);
+			SetEvent(PreviousCmd.Event); // Notify that processing is completed.
+			PreviousCmd = CommandStruct();
 
 			// When queue is empty, Wait for event to be set by AddCommandToQueue.
 			// Note that the added item might have already be read by the previous loop, so keep requesting data until we get a clear timeout.
 			while (!CurrentCmd.Path && WaitForSingleObject(WorkerWaiting, 10000) != WAIT_TIMEOUT) {
 				// If there are still no commands after timeout, stop thread.
 				if (!cmdBuffer.try_pop(CurrentCmd))
-					CurrentCmd.Path = NULL;
+					CurrentCmd = CommandStruct();
 			}
 		}
 

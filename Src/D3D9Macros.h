@@ -11,6 +11,7 @@ inline void SafeRelease(T& p)
     }
 }
 
+
 #define HR(x) if(FAILED(x)) { return x; }
 
 #define SCENE_HR(hr, m_pDevice) if(FAILED(hr)) { m_pDevice->EndScene(); return hr; }
