@@ -2,5 +2,6 @@
 
 concurrency::concurrent_queue<CommandStruct> WorkerThread::cmdBuffer;
 std::mutex WorkerThread::addLock;
-std::thread* WorkerThread::pThread;
-HANDLE WorkerThread::WorkerWaiting = NULL;
+std::list<std::thread*> WorkerThread::pThreads;
+std::atomic<HANDLE> WorkerThread::WorkerWaiting = NULL;
+std::atomic<int> WorkerThread::MaxThreadCount = 4, WorkerThread::WorkerThreadCount = 0;

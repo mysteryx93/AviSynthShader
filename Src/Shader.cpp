@@ -67,10 +67,12 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	cmd.Output = FrameRef(dst, dst->GetWritePtr(), m_precision);
 
+	//Worker->Execute(&cmd, NULL);
+	//Worker->Flush(&cmd);
+	//return dst;
 	
 	// Add command to the worker thread queue and wait for result.
 	WorkerThread::AddCommandToQueue(cmd, env);
 	WaitForSingleObject(cmd.Event, 10000);
-
 	return dst;
 }

@@ -19,4 +19,5 @@ private:
 	const int m_precision;
 	PClip m_clip[9];
 	CommandStruct m_cmd;
+	ProcessFrames* Worker;
 };
