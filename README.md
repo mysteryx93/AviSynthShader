@@ -6,14 +6,14 @@ This implementation allows running several shaders in a row. Shader() returns a 
 
 The following example will run Diff1 and Diff2 on the clip before returning a Merge of both results. (these shader names are fictive, you have to use real shaders!)
 
-function ShaderExample(clip input) {
-input = input.ConvertToFloat()
-cmd = input.Shader("Diff1.cso", output=2)
-cmd = cmd.Shader("Diff2.cso", output=3)
-cmd = cmd.Shader("Merge.cso", clip1=2, clip2=3, output=1)
-input = cmd.ShaderExecute(input)
-return input.ConvertFromFloat()
-}
+    function ShaderExample(clip input){
+    input = input.ConvertToFloat()
+    cmd = input.Shader("Diff1.cso", output=2)
+    cmd = cmd.Shader("Diff2.cso", output=3)
+    cmd = cmd.Shader("Merge.cso", clip1=2, clip2=3, output=1)
+    input = cmd.ShaderExecute(input)
+    return input.ConvertFromFloat()
+    }
 
 ## Syntax:
 
