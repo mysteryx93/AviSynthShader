@@ -33,16 +33,6 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision) {
 	return CreateDevice(&m_pDevice, hDisplayWindow);
 }
 
-// Create a default static device that is shared across all shaders. It will be used to configure pixel shaders in the Shader class that normally doesn't have a device.
-//HRESULT D3D9RenderImpl::InitializeStatic() {
-//	if (staticDevice == NULL) {
-//		staticDummyWindow = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-//		HR(CreateDevice(&staticDevice, staticDummyWindow));
-//	}
-//	m_pDevice = staticDevice;
-//	return S_OK;
-//}
-
 HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow) {
 	HR(Direct3DCreate9Ex(D3D_SDK_VERSION, &m_pD3D9));
 	if (!m_pD3D9) {
@@ -235,15 +225,20 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
 HRESULT D3D9RenderImpl::Present(void)
 {
 	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
-	//Sleep(8);
 	// The RenderTarget returns the previously generated scene for an unknown reason.
 	// As a fix, we render another scene so that the previous scene becomes the one returned.
-	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
-	HR(m_pDevice->BeginScene());
-	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
-	HR(m_pDevice->EndScene());
-	return m_pDevice->Present(NULL, NULL, NULL, NULL);
-	//Sleep(8);
+	//HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
+	//HR(m_pDevice->BeginScene());
+	//SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
+	//HR(m_pDevice->EndScene());
+	//return m_pDevice->Present(NULL, NULL, NULL, NULL);
+
+
+	//IDirect3DQuery9* pEventQuery = NULL;
+	//HR(m_pDevice->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery));
+	//HR(pEventQuery->Issue(D3DISSUE_END));
+	//while (S_FALSE == pEventQuery->GetData(NULL, 0, D3DGETDATA_FLUSH));
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
@@ -296,24 +291,6 @@ HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int ds
 
 	return ReadSurface->Memory->UnlockRect();
 }
-//
-//HRESULT D3D9RenderImpl::SetPixelShader(LPCSTR pPixelShaderName, LPCSTR entryPoint, LPCSTR shaderModel, LPSTR* ppError)
-//{
-//	CComPtr<ID3DXBuffer> code;
-//	CComPtr<ID3DXBuffer> errMsg;
-//	
-//	HRESULT hr = D3DXCompileShaderFromFile(pPixelShaderName, NULL, NULL, entryPoint, shaderModel, 0, &code, &errMsg, &m_pPixelConstantTable);
-//	if (FAILED(hr)) {
-//		if (errMsg != NULL) {
-//			size_t len = errMsg->GetBufferSize() + 1;
-//			*ppError = new CHAR[len];
-//			memcpy(*ppError, errMsg->GetBufferPointer(), len);
-//		}
-//		return hr;
-//	}
-//
-//	return m_pDevice->CreatePixelShader((DWORD*)code->GetBufferPointer(), &m_pPixelShader);
-//}
 
 HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* env) {
 	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex];
@@ -357,14 +334,6 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	else
 		return NULL;
 }
-
-//
-//HRESULT D3D9RenderImpl::SetPixelShader(DWORD* buffer)
-//{
-//	HR(D3DXGetShaderConstantTable(buffer, &m_pPixelConstantTable));
-//	// m_pDevice->SetPixelShader
-//	return m_pDevice->CreatePixelShader(buffer, &m_pPixelShader);
-//}
 
 HRESULT D3D9RenderImpl::SetPixelShaderIntConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, int value)
 {
