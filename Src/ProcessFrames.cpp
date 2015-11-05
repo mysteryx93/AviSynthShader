@@ -12,7 +12,7 @@ ProcessFrames::~ProcessFrames() {
 }
 
 HRESULT ProcessFrames::Execute(CommandStruct* cmd, CommandStruct* previousCmd) {
-	std::lock_guard<std::mutex> lock(*cmd->Lock);
+	//std::lock_guard<std::mutex> lock(*cmd->Lock);
 
 	// Compile shader if it's not yet compiled.
 	render.SetPixelShader(cmd);

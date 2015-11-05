@@ -44,11 +44,11 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 
 	m_cmd.Event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-	//Worker = new ProcessFrames(env);
+	Worker = new ProcessFrames(env);
 }
 
 Shader::~Shader() {
-	//delete Worker;
+	delete Worker;
 	CloseHandle(m_cmd.Event);
 }
 
@@ -69,13 +69,13 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	cmd.Output = FrameRef(dst, dst->GetWritePtr(), m_precision);
 
-	//Worker->Execute(&cmd, NULL);
+	Worker->Execute(&cmd, &cmd);
 	//Worker->Flush(&cmd);
-	//return dst;
+	return dst;
 
-	//WorkerThread::AddCommandToQueue(cmd, env);
-	//WaitForSingleObject(cmd.Event, 10000);
-	//return dst;
+	WorkerThread::AddCommandToQueue(cmd, env);
+	WaitForSingleObject(cmd.Event, 10000);
+	return dst;
 
 	
 	// Create a deep copy of the command strings and video buffers.
