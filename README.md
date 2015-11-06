@@ -82,7 +82,7 @@ clip1-clip9: The clips on which to run the shaders.
 precision: 1 if input clips are 8-bit-per-channel, 2 if input clips are 16-bit-per-channel. Default=2
 
 
-#### SuperRes(input, passes, strength, softness, hqdownscaling, upscalecommand, folder)
+#### SuperRes(input, passes, strength, softness, upscalecommand, folder)
 
 In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
 
@@ -95,8 +95,6 @@ passes: How many SuperRes passes to run. Default=1.
 strength: How agressively we want to run SuperRes, between 0 and 1. Default=1.
 
 softness: How much smoothness we want to add, between 0 and 1. Default=0.
-
-hqdownscaling: True to downscale using Bicubic, false to downscale using Bilinear.
 
 upscalecommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
 
