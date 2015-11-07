@@ -15,7 +15,7 @@ ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, I
 	vi.pixel_type = VideoInfo::CS_BGR32;
 	if (precision > 1) // Half-float frame has its width twice larger than normal
 		vi.width <<= 1;
-	
+
 	if (precision == 1)
 		precisionShift = 2;
 	else if (precision == 2)
@@ -24,9 +24,9 @@ ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, I
 		precisionShift = 4;
 
 	if (precision == 3) {
-		floatBufferPitch = srcWidth * 4 * 4;
+		floatBufferPitch = srcWidth << 4;
 		floatBuffer = (unsigned char*)malloc(floatBufferPitch);
-		halfFloatBufferPitch = srcWidth * 4 * 2;
+		halfFloatBufferPitch = srcWidth << 3;
 		halfFloatBuffer = (unsigned char*)malloc(halfFloatBufferPitch);
 	}
 }
@@ -65,19 +65,23 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 			U = pu[x];
 			V = pv[x];
 
-			convFloat(Y, U, V, dstLoop + (x << precisionShift));
+			if (!convertYUV && precision < 3)
+				convInt(Y, U, V, dstLoop + (x << precisionShift));
+			else
+				convFloat(Y, U, V, dstLoop + (x << precisionShift));
 		}
 		py += pitch1Y;
 		pu += pitch1UV;
 		pv += pitch1UV;
 		if (precision == 3) {
 			// Convert float buffer to half-float
-			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width * 4);
+			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width << 2);
 
 			// Copy half-float data back into frame
 			env->BitBlt(dst, pitch2, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, 1);
 			dst += pitch2;
-		} else
+		}
+		else
 			dstLoop += dstLoopPitch;
 	}
 }
@@ -91,15 +95,18 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 	for (int y = 0; y < height; ++y) {
 		src -= srcPitch;
 		for (int x = 0; x < width; ++x) {
-			B = src[x * 4];
-			G = src[x * 4 + 1];
-			R = src[x * 4 + 2];
+			B = src[x << 2];
+			G = src[(x << 2) + 1];
+			R = src[(x << 2) + 2];
 
-			convFloat(R, G, B, dstLoop + (x << precisionShift));
+			if (!convertYUV && precision < 3)
+				convInt(R, G, B, dstLoop + (x << precisionShift));
+			else
+				convFloat(R, G, B, dstLoop + (x << precisionShift));
 		}
 		if (precision == 3) {
 			// Convert float buffer to half-float
-			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width * 4);
+			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width << 2);
 
 			// Copy half-float data back into frame
 			env->BitBlt(dst, dstPitch, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, 1);
@@ -111,7 +118,7 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 }
 
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-void ConvertToFloat::convFloat(byte y, unsigned char u, unsigned char v, unsigned char* out) {
+void ConvertToFloat::convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
 	int r, g, b;
 	if (convertYUV) {
 		b = 1164 * (y - 16) + 2018 * (u - 128);
@@ -138,10 +145,10 @@ void ConvertToFloat::convFloat(byte y, unsigned char u, unsigned char v, unsigne
 			b2 = v;
 		}
 
-		memcpy(out + 0, &b2, precision);
-		memcpy(out + precision, &g2, precision);
-		memcpy(out + precision * 2, &r2, precision);
-		out[precision * 3] = 0;
+		memcpy(out + 0, &b2, 1);
+		memcpy(out + 1, &g2, 1);
+		memcpy(out + 2, &r2, 1);
+		// out[precision * 3] = 0;
 	}
 	else if (precision == 2) {
 		// UINT16, texture shaders expect data between 0 and UINT16_MAX
@@ -153,20 +160,20 @@ void ConvertToFloat::convFloat(byte y, unsigned char u, unsigned char v, unsigne
 			if (r < 0) r = 0;
 			if (g < 0) g = 0;
 			if (b < 0) b = 0;
-			rs = unsigned short(r / 1000 * 256);
-			gs = unsigned short(g / 1000 * 256);
-			bs = unsigned short(b / 1000 * 256);
+			rs = unsigned short(r / (1000 << 8));
+			gs = unsigned short(g / (1000 << 8));
+			bs = unsigned short(b / (1000 << 8));
 		}
 		else {
-			rs = unsigned short(y * 256);
-			gs = unsigned short(u * 256);
-			bs = unsigned short(v * 256);
+			rs = unsigned short(y << 8);
+			gs = unsigned short(u << 8);
+			bs = unsigned short(v << 8);
 		}
 
 		memcpy(out, &rs, 2);
 		memcpy(out + 2, &gs, 2);
 		memcpy(out + 4, &bs, 2);
-		memcpy(out + 6, &AlphaShort, 2);
+		//memcpy(out + 6, &AlphaShort, 2);
 	}
 	else {
 		// Half-float, texture shaders expect data between 0 and 1
@@ -185,6 +192,23 @@ void ConvertToFloat::convFloat(byte y, unsigned char u, unsigned char v, unsigne
 		memcpy(out, &rf, 4);
 		memcpy(out + 4, &gf, 4);
 		memcpy(out + 8, &bf, 4);
-		memcpy(out + 12, &AlphaFloat, 4);
+		//memcpy(out + 12, &AlphaFloat, 4);
+	}
+}
+
+// Shortcut to process BYTE or UINT16 values faster when not converting colors
+void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
+	if (precision == 1) {
+		memcpy(out, &y, 2);
+		memcpy(out + 1, &u, 2);
+		memcpy(out + 2, &v, 2);
+	}
+	else { // Precision == 2
+		unsigned short outY = y << 8;
+		unsigned short outU = u << 8;
+		unsigned short outV = v << 8;
+		memcpy(out, &outY, 2);
+		memcpy(out + 2, &outU, 2);
+		memcpy(out + 4, &outV, 2);
 	}
 }

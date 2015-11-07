@@ -26,5 +26,6 @@ private:
 		int pitch1, int pitch2Y, int pitch2UV, int width, int height, IScriptEnvironment* env);
 	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
 	void convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
+	void convInt(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	VideoInfo viYV;
 };

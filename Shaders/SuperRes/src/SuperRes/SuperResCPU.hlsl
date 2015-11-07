@@ -95,8 +95,6 @@ float4 main(float2 tex : TEXCOORD0) : COLOR{
     // c0.xyz += softness*(clamp(Luma(c0.xyz), inf, sup) - Luma(c0.xyz)); // this line is causing color distortion when using Softness
     c0.xyz += softness*(saturate(Luma(c0.xyz)) - Luma(c0.xyz));
     c0.xyz = GammaInv(c0.xyz);
-    // Tweak: Convert back to YUV.
-    c0.xyz = ConvertToYUV(c0.xyz);
 #endif
 
     return c0;

@@ -5,9 +5,12 @@
 #include "Shader.h"
 #include "ExecuteShader.h"
 
+const int DefaultPrecision = 2;
+const int DefaultConvertYuv = false;
+
 AVSValue __cdecl Create_ConvertToFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	bool ConvertYuv = args[1].AsBool(false);
+	bool ConvertYuv = args[1].AsBool(DefaultConvertYuv);
 	if (input->GetVideoInfo().IsYV12())
 		input = env->Invoke("ConvertToYV24", input).AsClip();
 	// Don't convert YUV to RGB when source format is RGB32.
@@ -17,13 +20,13 @@ AVSValue __cdecl Create_ConvertToFloat(AVSValue args, void* user_data, IScriptEn
 	return new ConvertToFloat(
 		input,			// source clip
 		ConvertYuv,		// whether to convert YUV to RGB on the CPU
-		args[2].AsInt(2), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[2].AsInt(DefaultPrecision), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		env);			// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ConvertFromFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	const char* Format = args[1].AsString("YV12");
-	bool ConvertYuv = args[2].AsBool(false);
+	bool ConvertYuv = args[2].AsBool(DefaultConvertYuv);
 	// Don't convert RGB to YUV when destination format is RGB32.
 	if (strcmp(Format, "RGB32") == 0)
 		ConvertYuv = false;
@@ -32,7 +35,7 @@ AVSValue __cdecl Create_ConvertFromFloat(AVSValue args, void* user_data, IScript
 		args[0].AsClip(),			// source clip
 		Format,						// destination format
 		ConvertYuv,					// whether to convert RGB to YUV on the CPU
-		args[3].AsInt(2),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[3].AsInt(DefaultPrecision), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		env);						// env is the link to essential informations, always provide it
 
 	if (strcmp(args[1].AsString("YV12"), "YV12") == 0)
@@ -83,7 +86,7 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[7].AsClip(),			// clip 7
 		args[8].AsClip(),			// clip 8
 		args[9].AsClip(),			// clip 9
-		args[10].AsInt(2),			// precision
+		args[10].AsInt(DefaultPrecision), // precision
 		env);
 }
 

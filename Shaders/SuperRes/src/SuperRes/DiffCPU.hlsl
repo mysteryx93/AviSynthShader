@@ -32,9 +32,8 @@ float4 main(float2 tex : TEXCOORD0) : COLOR {
     float4 c0 = tex2D(s0, tex);
     float4 c1 = tex2D(s1, tex);
 
-    c0.xyz = Gamma(c0.rgb);
-    c1.rgb = ConvertToRGB(c1.xyz);
-    float3 diff = c0.xyz - c1.rgb;
+	c0.xyz = Gamma(c0.rgb);
+    float3 diff = c0.xyz - c1.xyz;
 
     return float4(diff, Luma(c1));
 }

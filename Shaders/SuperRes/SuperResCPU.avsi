@@ -28,9 +28,9 @@ function SuperResPass(clip input, clip original, float strength, float softness,
 	downsample = downsample.BicubicResize(original.Width / 2, original.Height)
 	downsample = downsample.ConvertToFloat(precision=3,convertYuv=true)
 
-	cmd = downsample.Shader(folder+"SuperResDiff.cso", clip1=2, clip2=3, output=4)
+	cmd = downsample.Shader(folder+"SuperResDiffCPU.cso", clip1=2, clip2=3, output=4)
 
-	cmd = cmd.Shader(folder + (pass==passes ? "SuperResFinal.cso" : "SuperRes.cso"), clip1=1, clip2=4, output=1, \
+	cmd = cmd.Shader(folder + (pass==passes ? "SuperResFinalCPU.cso" : "SuperRes.cso"), clip1=1, clip2=4, output=1, \
 		param1="size1=" + string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
 		Param2="args0=" + string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
 	return cmd.ExecuteShader(input, downsample, original, precision=3)

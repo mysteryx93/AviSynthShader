@@ -27,9 +27,9 @@ ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _conv
 		precisionShift = 4;
 
 	if (precision == 3) {
-		floatBufferPitch = vi.width / 2 * 4 * 4;
+		floatBufferPitch = vi.width << 3;
 		floatBuffer = (unsigned char*)malloc(floatBufferPitch);
-		halfFloatBufferPitch = vi.width / 2 * 4 * 2;
+		halfFloatBufferPitch = vi.width << 2;
 		halfFloatBuffer = (unsigned char*)malloc(halfFloatBufferPitch);
 	}
 }
@@ -66,15 +66,18 @@ void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsig
 	for (int y = 0; y < height; ++y) {
 		if (precision == 3) {
 			// Copy half-float data back into frame
-			env->BitBlt(halfFloatBuffer, halfFloatBufferPitch, src, pitch1, width * 4 * 2, 1);
+			env->BitBlt(halfFloatBuffer, halfFloatBufferPitch, src, pitch1, width << 3, 1);
 
 			// Convert float buffer to half-float
-			DirectX::PackedVector::XMConvertHalfToFloatStream((float*)floatBuffer, 4, (DirectX::PackedVector::HALF*)halfFloatBuffer, 2, width * 4);
+			DirectX::PackedVector::XMConvertHalfToFloatStream((float*)floatBuffer, 4, (DirectX::PackedVector::HALF*)halfFloatBuffer, 2, width << 2);
 			src += pitch1;
 		}
 
 		for (int x = 0; x < width; ++x) {
-			convFloat(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x]);
+			if (!convertYUV && precision < 3)
+				convInt(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x]);
+			else
+				convFloat(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x]);
 		}
 		if (precision < 3)
 			srcLoop += srcLoopPitch;
@@ -94,16 +97,19 @@ void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
 	for (int y = 0; y < height; ++y) {
 		if (precision == 3) {
 			// Copy frame half-float data into buffer
-			env->BitBlt(halfFloatBuffer, halfFloatBufferPitch, src, pitchSrc, width * 4 * 2, 1);
+			env->BitBlt(halfFloatBuffer, halfFloatBufferPitch, src, pitchSrc, width << 3, 1);
 
 			// Convert half-float buffer to float
-			DirectX::PackedVector::XMConvertHalfToFloatStream((float*)floatBuffer, 4, (DirectX::PackedVector::HALF*)halfFloatBuffer, 2, width * 4);
+			DirectX::PackedVector::XMConvertHalfToFloatStream((float*)floatBuffer, 4, (DirectX::PackedVector::HALF*)halfFloatBuffer, 2, width << 2);
 			src += pitchSrc;
 		}
 
 		dst -= pitchDst;
 		for (int x = 0; x < width; ++x) {
-			convFloat(srcLoop + (x << precisionShift), &dst[x * 4 + 2], &dst[x * 4 + 1], &dst[x * 4]);
+			if (!convertYUV && precision < 3)
+				convInt(srcLoop + (x << precisionShift), &dst[(x << 2) + 2], &dst[(x << 2) + 1], &dst[x << 2]);
+			else
+				convFloat(srcLoop + (x << precisionShift), &dst[(x << 2) + 2], &dst[(x << 2) + 1], &dst[x << 2]);
 		}
 		if (precision < 3)
 			srcLoop += srcLoopPitch;
@@ -118,9 +124,9 @@ void ConvertFromFloat::convFloat(const byte* src, unsigned char* outY, unsigned 
 	short y, u, v;
 	if (precision == 1) {
 		unsigned char r1, g1, b1;
-		memcpy(&b1, src, precision);
-		memcpy(&g1, src + precision, precision);
-		memcpy(&r1, src + precision * 2, precision);
+		memcpy(&b1, src, 1);
+		memcpy(&g1, src + 1, 1);
+		memcpy(&r1, src + 2, 1);
 		b = float(b1);
 		g = float(g1);
 		r = float(r1);
@@ -173,4 +179,18 @@ void ConvertFromFloat::convFloat(const byte* src, unsigned char* outY, unsigned 
 	outY[0] = unsigned char(y);
 	outU[0] = unsigned char(u);
 	outV[0] = unsigned char(v);
+}
+
+// Shortcut to process BYTE or UINT16 values faster when not converting colors
+void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
+	if (precision == 1) {
+		outY[0] = src[0];
+		outU[0] = src[1];
+		outV[0] = src[2];
+	}
+	else { // precision == 2
+		outY[0] = ((unsigned short*)src)[0] >> 8;
+		outU[0] = ((unsigned short*)src)[1] >> 8;
+		outV[0] = ((unsigned short*)src)[2] >> 8;
+	}
 }

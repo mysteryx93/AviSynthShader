@@ -18,7 +18,7 @@ private:
 	int precisionShift;
 	const bool convertYUV;
 	const float AlphaFloat = 1;
-	const unsigned short AlphaShort = UINT16_MAX;
+	const unsigned short AlphaShort = 0; // UINT16_MAX;
 	unsigned char* floatBuffer;
 	int floatBufferPitch;
 	unsigned char* halfFloatBuffer;
@@ -27,6 +27,7 @@ private:
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);
 	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
 	void convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char *out);
+	void convInt(byte y, unsigned char u, unsigned char v, unsigned char* out);
 	int srcWidth, srcHeight;
 	bool srcRgb;
 
