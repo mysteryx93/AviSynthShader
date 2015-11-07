@@ -3,7 +3,7 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	passes = default(passes, 1)
 	strength = default(strength, 1)
 	softness = default(softness, 0)
-	folder = default(folder, "./")
+	folder = default(folder, ScriptDir())
 
 	Assert((passes > 0 && passes <= 3) ? true : false, chr(10) + "Passes must be between 1 and 3" + chr(10))
 	Assert((strength >= 0 && strength <= 1) ? true : false, chr(10) + "Strength must be between 0 and 1" + chr(10))
@@ -13,7 +13,7 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	original = input.ConvertToFloat()
 	Eval("input = input." + upscalecommand)
 	input = input.ConvertToFloat()
-	input = input.Shader(folder+"GammaToLinear.cso").ExecuteShader(input)
+	input = input.Shader(folder+"YuvToLinear.cso").ExecuteShader(input)
 	input = SuperResPass(input, original, strength, softness, 1, passes, folder)
 	input = passes > 1 ? input.SuperResPass(original, strength, softness, 2, passes, folder) : input
 	input = passes > 2 ? input.SuperResPass(original, strength, softness, 3, passes, folder) : input
@@ -28,10 +28,12 @@ function SuperResPass(clip input, clip original, float strength, float softness,
 	downsample = downsample.BicubicResize(original.Width / 2, original.Height)
 	downsample = downsample.ConvertToFloat()
 
-	cmd = downsample.Shader(folder+"SuperResDiff.cso", clip1=2, clip2=3, output=4)
+	#cmd = input.Shader(folder+"YuvToGamma.cso", clip1=3, output=3)
+	cmd = input.Shader(folder+"SuperResDiffYUV.cso", clip1=2, clip2=3, output=4)
 
 	cmd = cmd.Shader(folder + (pass==passes ? "SuperResFinal.cso" : "SuperRes.cso"), clip1=1, clip2=4, output=1, \
 		param1="size1=" + string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
 		Param2="args0=" + string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
+	cmd = pass == passes ? cmd.Shader(folder+"GammaToYuv.cso", clip1=1, output=1) : cmd
 	return cmd.ExecuteShader(input, downsample, original)
 }

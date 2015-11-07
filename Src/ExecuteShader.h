@@ -19,7 +19,7 @@ private:
 	
 	void ParseParam(LPD3DXCONSTANTTABLE table, const char* param, IScriptEnvironment* env);
 	bool SetParam(LPD3DXCONSTANTTABLE table, char* param);
-	const int precision;
+	int precision;
 	PClip m_clips[9];
 	HWND dummyHWND;
 	D3D9RenderImpl* render;

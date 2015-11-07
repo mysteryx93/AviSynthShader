@@ -17,7 +17,8 @@ private:
 	const int precision;
 	int precisionShift;
 	const bool convertYUV;
-	const float AlphaValue = 1;
+	const float AlphaFloat = 1;
+	const unsigned short AlphaShort = UINT16_MAX;
 	unsigned char* floatBuffer;
 	int floatBufferPitch;
 	unsigned char* halfFloatBuffer;
@@ -25,12 +26,9 @@ private:
 	void convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);
 	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
-	void convFloat(byte y, byte u, byte v, unsigned char *out);
+	void convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char *out);
 	int srcWidth, srcHeight;
 	bool srcRgb;
 
 	// Declare variables in convFloat here to avoid re-assigning them for every pixel.
-	int r, g, b;
-	unsigned char r2, g2, b2;
-	float rf, gf, bf;
 };

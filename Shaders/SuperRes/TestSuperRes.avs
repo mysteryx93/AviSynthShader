@@ -2,7 +2,7 @@ PluginPath="C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\En
 LoadPlugin(PluginPath+"nnedi3.dll")
 LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
 #LoadPlugin(PluginPath+"Shader.dll")
-Import("SuperRes.avsi")
+Import("SuperResYUV.avsi")
 
 #SetMTMode(3,4)
 AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")

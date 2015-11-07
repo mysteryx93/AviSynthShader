@@ -22,13 +22,20 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 }
 
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision) {
-	m_precision = precision;
 	if (precision == 1)
 		m_format = D3DFMT_X8R8G8B8;
 	else if (precision == 2)
+		m_format = D3DFMT_A16B16G16R16;
+	else if (precision == 3)
 		m_format = D3DFMT_A16B16G16R16F;
 	else
 		return E_FAIL;
+
+	m_precision = precision;
+	if (precision == 3)
+		m_precision = 2;
+	else
+		m_precision = precision;
 
 	return CreateDevice(&m_pDevice, hDisplayWindow);
 }

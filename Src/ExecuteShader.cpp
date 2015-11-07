@@ -17,8 +17,8 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	// Validate parameters
 	if (!vi.IsY8())
 		env->ThrowError("ExecuteShader: Source must be a command chain");
-	if (precision != 1 && precision != 2)
-		env->ThrowError("ExecuteShader: Precision must be 1 or 2");
+	if (precision < 1 || precision > 3)
+		env->ThrowError("ExecuteShader: Precision must be 1, 2 or 3");
 
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
@@ -39,6 +39,10 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
 	if (FAILED(render->Initialize(dummyHWND, precision)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
+
+	// We only need to know the difference between precision 2 and 3 to initialize video buffers. Then, both are 16 bits.
+	if (precision == 3)
+		precision = 2;
 
 	CreateInputClip(0, env);
 	CreateInputClip(1, env);

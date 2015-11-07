@@ -1,4 +1,4 @@
-# AviSynth Shader v0.9.1
+# AviSynth Shader v0.9.2
 
 This plugin allows running HLSL pixel shaders within AviSynth. This gives access to various HLSL filters that haven't been programmed in AviSynth.
 
@@ -19,15 +19,15 @@ The following example will run Diff1 and Diff2 on the clip before returning a Me
 
 #### ConvertToFloat(input, convertYuv, precision)
 
-Converts a YV12, YV24 or RGB32 clip into a wider frame containing half-float data. Clips must be converted in such a way before running any shader.
+Converts a YV12, YV24 or RGB32 clip into a wider frame containing UINT16 or half-float data. Clips must be converted in such a way before running any shader.
 
 16-bit-per-channel half-float data isn't natively supported by AviSynth. It is stored in a RGB32 container with a Width that is twice larger. When using Clip.Width, you must divine by 2 to get the accurate width.
 
 Arguments:
 
-convertYuv: True to convert RGB data to YUV on the CPU. If false, YUV data will be copied as-is and can then be converted with a shader. Default=true unless source is RGB32.
+convertYuv: True to convert RGB data to YUV on the CPU. If false, YUV data will be copied as-is and can then be converted with a shader. Default=false.
 
-precision: 1 to convert into 8-bit-per-channel, 2 to convert into 16-bit-per-channel. Default=2
+precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=2
 
 #### ConvertFromFloat(input, format, convertYuv, precision)
 
@@ -37,9 +37,9 @@ Arguments:
 
 format: The video format to convert to. Valid formats are YV12, YV24 and RGB32. Default=YV12.
 
-convertYuv: True to convert YUV data to RGB on the CPU. If false, you already ran a shader to convert to YUV and the data will be copied as-is. Default=true unless destination is RGB32.
+convertYuv: True to convert YUV data to RGB on the CPU. If false, you already ran a shader to convert to YUV and the data will be copied as-is. Default=false.
 
-precision: 1 to convert from 8-bit-per-channel, 2 to convert from 16-bit-per-channel. Default=2
+precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=2
 
 #### Shader(input, path, entryPoint, shaderModel, param1-param9, clip1-clip9, width, height)
 
@@ -79,7 +79,7 @@ cmd: A clip containing the commands returned by calling Shader.
 
 clip1-clip9: The clips on which to run the shaders.
 
-precision: 1 if input clips are 8-bit-per-channel, 2 if input clips are 16-bit-per-channel. Default=2
+precision: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=2
 
 
 #### SuperRes(input, passes, strength, softness, upscalecommand, folder)
