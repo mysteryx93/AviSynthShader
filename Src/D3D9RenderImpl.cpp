@@ -311,6 +311,7 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 		if (ShaderBuf == NULL)
 			return E_FAIL;
 		HR(D3DXGetShaderConstantTable((DWORD*)ShaderBuf, &Shader->ConstantTable));
+		// HR(D3DXGetShaderConstantTableEx((DWORD*)ShaderBuf, D3DXCONSTTABLE_LARGEADDRESSAWARE, &Shader->ConstantTable));
 		CodeBuffer = (DWORD*)ShaderBuf;
 	}
 	else {
