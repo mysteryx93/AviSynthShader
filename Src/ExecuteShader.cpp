@@ -190,7 +190,7 @@ bool ExecuteShader::SetParam(LPD3DXCONSTANTTABLE table, char* param) {
 	char Type = Value[strlen(Value) - 1];
 	Value[strlen(Value) - 1] = '\0'; // Remove last character from value
 
-									 // Set parameter value.
+	// Set parameter value.
 	if (Type == 'f') {
 		char* VectorValue = strtok(Value, ",");
 		if (VectorValue == NULL) {

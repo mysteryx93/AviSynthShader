@@ -14,9 +14,4 @@ struct CommandStruct {
 	byte ClipIndex[9];
 	byte OutputIndex;
 	int OutputWidth, OutputHeight;
-
-	//DWORD* ShaderBuffer;
-	//ID3DXBuffer* ShaderBufferDX;
-	//IDirect3DPixelShader9* Shader;
-	//ID3DXConstantTable* ConstantTable;
 };

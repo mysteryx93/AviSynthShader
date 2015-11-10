@@ -204,11 +204,9 @@ void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, 
 		out[2] = v;
 	}
 	else { // Precision == 2
-		unsigned short outY = y << 8;
-		unsigned short outU = u << 8;
-		unsigned short outV = v << 8;
-		memcpy(out, &outY, 2);
-		memcpy(out + 2, &outU, 2);
-		memcpy(out + 4, &outV, 2);
+		unsigned short *outS = (unsigned short *)out;
+		outS[0] = (unsigned short)y << 8;
+		outS[1] = (unsigned short)u << 8;
+		outS[2] = (unsigned short)v << 8;
 	}
 }
