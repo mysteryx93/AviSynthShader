@@ -114,6 +114,11 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 
+		// Temporary fix: Configure pixel shader
+		for (int i = 0; i < 9; i++) {
+			ParseParam(render->m_LastShader->ConstantTable, cmd.Param[i], env);
+		}
+
 		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, env))
 			env->ThrowError("Shader: ProcessFrame failed.");
 	}

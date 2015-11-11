@@ -29,6 +29,9 @@ private:
 	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
 	void convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char *out);
 	void convInt(byte y, unsigned char u, unsigned char v, unsigned char* out);
+	void ConvertToFloat::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height);
+	__m128i	load_8_16l(const void *lsb_ptr, __m128i zero);
+	void store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb);
 	int srcWidth, srcHeight;
 	bool srcRgb;
 

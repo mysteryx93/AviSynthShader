@@ -45,6 +45,8 @@ PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	if (srcRgb)
 		convRgbToFloat(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), srcWidth, srcHeight, env);
+	//else if (precision == 2 && !convertYUV)
+	//	bitblt_i8_to_i16_sse2((uint8_t*)src->GetReadPtr(PLANAR_Y), (uint8_t*)src->GetReadPtr(PLANAR_U), (uint8_t*)src->GetReadPtr(PLANAR_V), src->GetPitch(PLANAR_Y), (uint16_t*)dst->GetWritePtr(), dst->GetPitch(), srcHeight);
 	else
 		convYV24ToFloat(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), srcWidth, srcHeight, env);
 
@@ -209,4 +211,64 @@ void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, 
 		outS[1] = (unsigned short)u << 8;
 		outS[2] = (unsigned short)v << 8;
 	}
+}
+
+// restrictions: src_stride MUST BE a multiple of 8, dst_stride MUST BE a multiple of 64 and 8x src_stride (x4 planes, x2 pixel size)
+void ConvertToFloat::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height)
+{
+	assert(srcPitch % 2 == 0);
+	assert(dstPitch % 16 == 0);
+	assert(dstPitch / srcPitch == 8);
+
+	const __m128i  zero = _mm_setzero_si128();
+	const __m128i  val_ma = _mm_set1_epi16(0);
+	const __m128i  mask_lsb = _mm_set1_epi16(0x00FF);
+
+	uint8_t        convBuffer[8];
+	convBuffer[3] = 255;
+	convBuffer[7] = 255;
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < srcPitch; x += 2) {
+			// 1. Merge 2 pixels from 3 planes into buffer.
+			convBuffer[0] = srcY[0];
+			convBuffer[1] = srcU[0];
+			convBuffer[2] = srcV[0];
+			convBuffer[4] = srcY[1];
+			convBuffer[5] = srcU[1];
+			convBuffer[6] = srcV[1];
+
+			// 2. Convert 8 bytes from UINT8 buffer into UINT16 dest
+			__m128i val = load_8_16l(convBuffer, zero);
+			val = _mm_slli_epi16(val, 8);
+			store_8_16l(dst, val, mask_lsb);
+
+			// 3. Move to the next stride
+			srcY += 2;
+			srcU += 2;
+			srcV += 2;
+			dst += 8; // dst is uint16_t so this moves 16 bytes
+		}
+	}
+}
+
+__m128i	ConvertToFloat::load_8_16l(const void *lsb_ptr, __m128i zero)
+{
+	assert(lsb_ptr != 0);
+
+	const __m128i  val_lsb = _mm_loadl_epi64(
+		reinterpret_cast <const __m128i *> (lsb_ptr)
+		);
+	const __m128i  val = _mm_unpacklo_epi8(val_lsb, zero);
+
+	return (val);
+}
+
+void ConvertToFloat::store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb)
+{
+	assert(lsb_ptr != 0);
+
+	__m128i        lsb = _mm_and_si128(mask_lsb, val);
+	lsb = _mm_packus_epi16(lsb, lsb);
+	_mm_storel_epi64(reinterpret_cast <__m128i *> (lsb_ptr), lsb);
 }
