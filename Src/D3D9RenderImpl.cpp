@@ -49,7 +49,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	D3DCAPS9 deviceCaps;
 	HR(m_pD3D9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &deviceCaps));
 
-	DWORD dwBehaviorFlags = 0; // D3DCREATE_DISABLE_PSGP_THREADING;
+	DWORD dwBehaviorFlags = D3DCREATE_DISABLE_PSGP_THREADING;
 
 	if (deviceCaps.VertexProcessingCaps != 0)
 		dwBehaviorFlags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;
