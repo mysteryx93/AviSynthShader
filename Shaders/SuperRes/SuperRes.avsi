@@ -4,15 +4,14 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	strength = default(strength, 1)
 	softness = default(softness, 0)
 	folder = default(folder, ScriptDir())
-	#folder = GetFNPath(ScriptDir())
 
 	Assert((passes > 0 && passes <= 3) ? true : false, chr(10) + "Passes must be between 1 and 3" + chr(10))
 	Assert((strength >= 0 && strength <= 1) ? true : false, chr(10) + "Strength must be between 0 and 1" + chr(10))
 	Assert((softness >= 0 && softness <= 1) ? true : false, chr(10) + "Softness must be between 0 and 1" + chr(10))
 	Assert(Defined(upscalecommand), chr(10) + "You must specify upscalecommand" + chr(10))
 
-	convertYuv = !input.IsRGB32()
-	sourceFormat = input.IsYV12() ? "YV12" : input.IsYV24() ? "YV24" : "RGB32"
+	convertYuv = !input.IsRGB()
+	sourceFormat = input.IsYV12() ? "YV12" : input.IsYV24() ? "YV24" : input.IsRGB24() ? "RGB24" : "RGB32"
 
 	original = input.ConvertToFloat()
 	Eval("input = input." + upscalecommand)
@@ -40,11 +39,4 @@ function SuperResPass(clip cmd, clip input, clip original, float strength, float
 		param1=string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
 		Param2=string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
 	return cmd
-}
-
-Function GetFNPath(String FN) {
-    FN=RevStr(FN)       n1=FindStr(FN,"\")      n2=FindStr(FN,"/")
-    n=(n1==0)?n2:(n2==0)?n1:Min(n1,n2)                              # Find smallest non-zero
-    FN = (n>1)? MidStr(FN,n): FN                                    # Strip up to (but NOT including) slash [Leave at least eg "D:\")
-    return FN.revStr    
 }

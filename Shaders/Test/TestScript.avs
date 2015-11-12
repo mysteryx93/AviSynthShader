@@ -8,7 +8,7 @@ ConvertToFloat()
 #Shader(path="Shaders\YuvToGamma.cso")
 #cmd = Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
 #Shader(path="Shaders\GammaToYuv.cso")
-Test()
+#Test()
 ConvertFromFloat()
 #Distributor()
 
