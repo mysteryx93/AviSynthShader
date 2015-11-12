@@ -55,7 +55,6 @@ public:
 	static const int maxTextures = 50;
 	InputTexture m_InputTextures[maxTextures];
 	ShaderItem m_Shaders[maxTextures];
-	ShaderItem* m_LastShader; // Temporary fix
 
 private:
 	static HWND staticDummyWindow;

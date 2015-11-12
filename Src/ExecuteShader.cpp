@@ -116,7 +116,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 
 		// Temporary fix: Configure pixel shader
 		for (int i = 0; i < 9; i++) {
-			ParseParam(render->m_LastShader->ConstantTable, cmd.Param[i], env);
+			ParseParam(render->m_Shaders[cmd.CommandIndex].ConstantTable, cmd.Param[i], env);
 		}
 
 		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, env))
@@ -153,8 +153,15 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 }
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	if FAILED(render->InitPixelShader(cmd, env))
-		env->ThrowError("Shader: Failed to compile pixel shader");
+	if FAILED(render->InitPixelShader(cmd, env)) {
+		char* ErrorText = "Shader: Failed to open pixel shader ";
+		char* FullText;
+		FullText = (char*)malloc(strlen(ErrorText) + strlen(cmd->Path) + 1);
+		strcpy(FullText, ErrorText);
+		strcat(FullText, cmd->Path);
+		env->ThrowError(FullText);
+		free(FullText);
+	}
 
 	// Configure pixel shader
 	for (int i = 0; i < 9; i++) {

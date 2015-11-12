@@ -321,7 +321,6 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 	}
 
 	HR(m_pDevice->CreatePixelShader(CodeBuffer, &Shader->Shader));
-	m_LastShader = Shader;
 
 	if (ShaderBuf != NULL)
 		free(ShaderBuf);
