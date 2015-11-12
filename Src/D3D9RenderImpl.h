@@ -37,7 +37,6 @@ public:
 	~D3D9RenderImpl();
 
 	HRESULT Initialize(HWND hDisplayWindow, int precision);
-	HRESULT InitializeStatic();
 	HRESULT CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory);
 	HRESULT CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env);
@@ -46,12 +45,8 @@ public:
 	void ResetTextureClipIndex();
 
 	HRESULT InitPixelShader(CommandStruct* cmd, IScriptEnvironment* env);
-	HRESULT SetPixelShaderIntConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, int value);
-	HRESULT SetPixelShaderFloatConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, float value);
-	HRESULT SetPixelShaderBoolConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, bool value);
-	HRESULT SetPixelShaderConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, LPVOID value, UINT size);
-	HRESULT SetPixelShaderMatrix(LPD3DXCONSTANTTABLE table, D3DXMATRIX* matrix, LPCSTR name);
-	HRESULT SetPixelShaderVector(LPD3DXCONSTANTTABLE table, LPCSTR name, D3DXVECTOR4* vector);
+	HRESULT SetDefaults(LPD3DXCONSTANTTABLE table);
+	HRESULT SetPixelShaderConstant(int index, const ParamStruct* param);
 	static const int maxTextures = 50;
 	InputTexture m_InputTextures[maxTextures];
 	ShaderItem m_Shaders[maxTextures];
@@ -66,7 +61,6 @@ private:
 	HRESULT CreateScene(CommandStruct* cmd, IScriptEnvironment* env);
 	HRESULT CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height);
 	HRESULT SetRenderTarget(int width, int height, IScriptEnvironment* env);
-	HRESULT Present();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);
 
 	CComPtr<IDirect3D9Ex>           m_pD3D9;

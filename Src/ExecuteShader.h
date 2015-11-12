@@ -17,8 +17,8 @@ private:
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
 	
-	void ParseParam(LPD3DXCONSTANTTABLE table, const char* param, IScriptEnvironment* env);
-	bool SetParam(LPD3DXCONSTANTTABLE table, char* param);
+	bool ParseParam(LPD3DXCONSTANTTABLE table, ParamStruct* param);
+	void ThrowParamFailed(int index, const char* param, IScriptEnvironment* env);
 	int precision;
 	PClip m_clips[9];
 	HWND dummyHWND;

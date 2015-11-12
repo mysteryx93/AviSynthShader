@@ -11,15 +11,15 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	cmd.Path = _path;
 	cmd.EntryPoint = _entryPoint;
 	cmd.ShaderModel = _shaderModel;
-	cmd.Param[0] = _param1;
-	cmd.Param[1] = _param2;
-	cmd.Param[2] = _param3;
-	cmd.Param[3] = _param4;
-	cmd.Param[4] = _param5;
-	cmd.Param[5] = _param6;
-	cmd.Param[6] = _param7;
-	cmd.Param[7] = _param8;
-	cmd.Param[8] = _param9;
+	cmd.Param[0].String = _param1;
+	cmd.Param[1].String = _param2;
+	cmd.Param[2].String = _param3;
+	cmd.Param[3].String = _param4;
+	cmd.Param[4].String = _param5;
+	cmd.Param[5].String = _param6;
+	cmd.Param[6].String = _param7;
+	cmd.Param[7].String = _param8;
+	cmd.Param[8].String = _param9;
 	cmd.ClipIndex[0] = _clip1;
 	cmd.ClipIndex[1] = _clip2;
 	cmd.ClipIndex[2] = _clip3;
@@ -49,12 +49,6 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 }
 
 Shader::~Shader() {
-	//if (cmd.ConstantTable != NULL)
-	//	delete cmd.ConstantTable;
-	//if (cmd.ShaderBuffer != NULL)
-	//	delete cmd.ShaderBuffer;
-	//if (cmd.Shader != NULL)
-	//	delete cmd.Shader;
 }
 
 

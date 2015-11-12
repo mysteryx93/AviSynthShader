@@ -114,9 +114,12 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 
-		// Temporary fix: Configure pixel shader
+		// Configure pixel shader
 		for (int i = 0; i < 9; i++) {
-			ParseParam(render->m_Shaders[cmd.CommandIndex].ConstantTable, cmd.Param[i], env);
+			if (cmd.Param[i].Type != ParamType::None) {
+				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
+					ThrowParamFailed(i, cmd.Param[i].String, env);
+			}
 		}
 
 		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, env))
@@ -165,89 +168,87 @@ void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env)
 
 	// Configure pixel shader
 	for (int i = 0; i < 9; i++) {
-		ParseParam(render->m_Shaders[cmd->CommandIndex].ConstantTable, cmd->Param[i], env);
-	}
-}
-
-void ExecuteShader::ParseParam(LPD3DXCONSTANTTABLE table, const char* param, IScriptEnvironment* env) {
-	if (param != NULL && param[0] != '\0') {
-		if (!SetParam(table, (char*)param)) {
-			// Throw error if failed to set parameter.
-			char* ErrorText = "Shader failed to set parameter: ";
-			char* FullText;
-			FullText = (char*)malloc(strlen(ErrorText) + strlen(param) + 1);
-			strcpy(FullText, ErrorText);
-			strcat(FullText, param);
-			env->ThrowError(FullText);
-			free(FullText);
+		ParamStruct* param = &cmd->Param[i];
+		if (param->String && param->String[0] != '\0') {
+			if (!ParseParam(render->m_Shaders[cmd->CommandIndex].ConstantTable, param))
+				ThrowParamFailed(i, param->String, env);
 		}
 	}
 }
 
-// Shader parameters have this format: "ParamName=1f"
 // The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
-// Returns True if parameter was valid and set successfully, otherwise false.
-bool ExecuteShader::SetParam(LPD3DXCONSTANTTABLE table, char* param) {
-	// Copy string to avoid altering source parameter.
-	char* ParamCopy = (char*)malloc(strlen(param) + 1);
-	strcpy(ParamCopy, param);
-
-	// Split parameter string into its values and validate data.
-	char* Name = strtok(ParamCopy, "=");
-	if (Name == NULL)
-		return false;
-	char* Value = strtok(NULL, "=");
-	if (Value == NULL || strlen(Value) < 2)
-		return false;
-	char Type = Value[strlen(Value) - 1];
-	Value[strlen(Value) - 1] = '\0'; // Remove last character from value
+// Returns True if parameter was valid, otherwise false.
+bool ExecuteShader::ParseParam(LPD3DXCONSTANTTABLE table, ParamStruct* param) {
+	// Count ',' to determine vector size.
+	int Count = 0;
+	int Pos = 0;
+	while (param->String[Pos] != '\0') {
+		if (param->String[Pos++] == ',')
+			Count++;
+	}
 
 	// Set parameter value.
+	char Type = param->String[strlen(param->String) - 1];
 	if (Type == 'f') {
-		char* VectorValue = strtok(Value, ",");
-		if (VectorValue == NULL) {
-			// Single float value
-			float FValue = strtof(Value, NULL);
-			if (FAILED(render->SetPixelShaderFloatConstant(table, Name, FValue)))
+		param->Type = ParamType::Float;
+		if (Count == 0) {
+			if (sscanf(param->String, "%ff", &param->Value[0]) < 1)
 				return false;
 		}
-		else {
-			// Vector of 2, 3 or 4 values.
-			D3DXVECTOR4 vector = { 0, 0, 0, 0 };
-			vector.x = strtof(VectorValue, NULL);
-			// Parse 2nd vector value
-			char* VectorValue = strtok(NULL, ",");
-			if (VectorValue != NULL) {
-				vector.y = strtof(VectorValue, NULL);
-				// Parse 3rd vector value
-				char* VectorValue = strtok(NULL, ",");
-				if (VectorValue != NULL) {
-					vector.z = strtof(VectorValue, NULL);
-					// Parse 4th vector value
-					char* VectorValue = strtok(NULL, ",");
-					if (VectorValue != NULL) {
-						vector.w = strtof(VectorValue, NULL);
-					}
-				}
-			}
-
-			if (FAILED(render->SetPixelShaderVector(table, Name, &vector)))
+		else if (Count == 1) {
+			if (sscanf(param->String, "%f,%ff", &param->Value[0], &param->Value[1]) < 2)
 				return false;
 		}
+		else if (Count == 2) {
+			if (sscanf(param->String, "%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2]) < 3)
+				return false;
+		}
+		else if (Count == 3) {
+			if (sscanf(param->String, "%f,%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2], &param->Value[3]) < 4)
+				return false;
+		}
+		else
+			return false;
 	}
 	else if (Type == 'i') {
-		int IValue = atoi(Value);
-		if (FAILED(render->SetPixelShaderIntConstant(table, Name, IValue)))
+		param->Type = ParamType::Int;
+		if (Count == 0) {
+			if (sscanf(param->String, "%ii", &param->Value[0]) < 1)
+				return false;
+		}
+		else if (Count == 1) {
+			if (sscanf(param->String, "%i,%ii", &param->Value[0], &param->Value[1]) < 2)
+				return false;
+		}
+		else if (Count == 2) {
+			if (sscanf(param->String, "%i,%i,%ii", &param->Value[0], &param->Value[1], &param->Value[2]) < 3)
+				return false;
+		}
+		else if (Count == 3) {
+			if (sscanf(param->String, "%i,%i,%i,%ii", &param->Value[0], &param->Value[1], &param->Value[2], &param->Value[3]) < 4)
+				return false;
+		}
+		else
 			return false;
 	}
 	else if (Type == 'b') {
-		bool BValue = Value[0] == '0' ? false : true;
-		if (FAILED(render->SetPixelShaderBoolConstant(table, Name, BValue)))
-			return false;
+		param->Type == ParamType::Bool;
+		bool* pOut = (bool*)param->Value;
+		pOut[0] = param->String[0] == '0' ? false : true;
 	}
 	else // invalid type
 		return false;
 
 	// Success
 	return true;
+}
+
+// Throw error if failed to set parameter.
+void ExecuteShader::ThrowParamFailed(int index, const char* param, IScriptEnvironment* env) {
+	char* ErrorText = "Shader failed to set parameter: Param%d = %s";
+	char* FullText;
+	FullText = (char*)malloc(strlen(ErrorText) - 3 + strlen(param) + 1);
+	sprintf(FullText, ErrorText, index + 1, param);
+	env->ThrowError(FullText);
+	free(FullText);
 }

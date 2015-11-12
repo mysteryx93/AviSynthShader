@@ -4,6 +4,7 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	strength = default(strength, 1)
 	softness = default(softness, 0)
 	folder = default(folder, ScriptDir())
+	#folder = GetFNPath(ScriptDir())
 
 	Assert((passes > 0 && passes <= 3) ? true : false, chr(10) + "Passes must be between 1 and 3" + chr(10))
 	Assert((strength >= 0 && strength <= 1) ? true : false, chr(10) + "Strength must be between 0 and 1" + chr(10))
@@ -28,15 +29,22 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, string folder)
 {
 	cmd = cmd.Shader(folder+"Bicubic.cso", output=3, \
-		param1="out_size=" + string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%f") + "," + string(1./original.Height,"%f") + "f",\
-		param2="in_size=" + string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
-		param3="BC=" + string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
+		param1=string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%f") + "," + string(1./original.Height,"%f") + "f",\
+		param2=string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
+		param3=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
 		width=original.Width / 2, height=original.Height)
 
 	cmd = cmd.Shader(folder + (convertYuv ? "SuperResDiff.cso" : "SuperResDiffCpu.cso"), clip1=3, clip2=2, output=4)
 
 	cmd = cmd.Shader(folder + (pass==passes ? (convertYuv ? "SuperResFinal.cso" : "SuperResFinalCpu.cso") : "SuperRes.cso"), clip1=1, clip2=4, output=1, \
-		param1="size1=" + string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
-		Param2="args0=" + string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
+		param1=string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
+		Param2=string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
 	return cmd
+}
+
+Function GetFNPath(String FN) {
+    FN=RevStr(FN)       n1=FindStr(FN,"\")      n2=FindStr(FN,"/")
+    n=(n1==0)?n2:(n2==0)?n1:Min(n1,n2)                              # Find smallest non-zero
+    FN = (n>1)? MidStr(FN,n): FN                                    # Strip up to (but NOT including) slash [Leave at least eg "D:\")
+    return FN.revStr    
 }

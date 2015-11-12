@@ -200,7 +200,7 @@ HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, 
 	HR(m_pDevice->TestCooperativeLevel());
 	HR(SetRenderTarget(width, height, env));
 	HR(CreateScene(cmd, env));
-	HR(Present());
+	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
 	return CopyFromRenderTarget(9 + cmd->CommandIndex, cmd->OutputIndex, width, height);
 }
 
@@ -227,25 +227,6 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
 	return m_pDevice->EndScene();
-}
-
-HRESULT D3D9RenderImpl::Present(void)
-{
-	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
-	// The RenderTarget returns the previously generated scene for an unknown reason.
-	// As a fix, we render another scene so that the previous scene becomes the one returned.
-	//HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
-	//HR(m_pDevice->BeginScene());
-	//SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
-	//HR(m_pDevice->EndScene());
-	//return m_pDevice->Present(NULL, NULL, NULL, NULL);
-
-
-	//IDirect3DQuery9* pEventQuery = NULL;
-	//HR(m_pDevice->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery));
-	//HR(pEventQuery->Issue(D3DISSUE_END));
-	//while (S_FALSE == pEventQuery->GetData(NULL, 0, D3DGETDATA_FLUSH));
-	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
@@ -311,7 +292,6 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 		if (ShaderBuf == NULL)
 			return E_FAIL;
 		HR(D3DXGetShaderConstantTable((DWORD*)ShaderBuf, &Shader->ConstantTable));
-		// HR(D3DXGetShaderConstantTableEx((DWORD*)ShaderBuf, D3DXCONSTTABLE_LARGEADDRESSAWARE, &Shader->ConstantTable));
 		CodeBuffer = (DWORD*)ShaderBuf;
 	}
 	else {
@@ -343,32 +323,19 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 		return NULL;
 }
 
-HRESULT D3D9RenderImpl::SetPixelShaderIntConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, int value)
-{
-	return table->SetInt(m_pDevice, name, value);
+HRESULT D3D9RenderImpl::SetDefaults(LPD3DXCONSTANTTABLE table) {
+	return table->SetDefaults(m_pDevice);
 }
 
-HRESULT D3D9RenderImpl::SetPixelShaderFloatConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, float value)
-{
-	return table->SetFloat(m_pDevice, name, value);
-}
-
-HRESULT D3D9RenderImpl::SetPixelShaderBoolConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, bool value)
-{
-	return table->SetBool(m_pDevice, name, value);
-}
-
-HRESULT D3D9RenderImpl::SetPixelShaderConstant(LPD3DXCONSTANTTABLE table, LPCSTR name, LPVOID value, UINT size)
-{
-	return table->SetValue(m_pDevice, name, value, size);
-}
-
-HRESULT D3D9RenderImpl::SetPixelShaderMatrix(LPD3DXCONSTANTTABLE table, D3DXMATRIX* matrix, LPCSTR name)
-{
-	return table->SetMatrix(m_pDevice, name, matrix);
-}
-
-HRESULT D3D9RenderImpl::SetPixelShaderVector(LPD3DXCONSTANTTABLE table, LPCSTR name, D3DXVECTOR4* vector)
-{
-	return table->SetVector(m_pDevice, name, vector);
+HRESULT D3D9RenderImpl::SetPixelShaderConstant(int index, const ParamStruct* param) {
+	if (param->Type == ParamType::Float) {
+		HR(m_pDevice->SetPixelShaderConstantF(index, (float*)param->Value, 1));
+	}
+	else if (param->Type == ParamType::Int) {
+		HR(m_pDevice->SetPixelShaderConstantI(index, (int*)param->Value, 1));
+	}
+	else if (param->Type == ParamType::Bool) {
+		HR(m_pDevice->SetPixelShaderConstantB(index, (const BOOL*)param->Value, 1));
+	}
+	return S_OK;
 }
