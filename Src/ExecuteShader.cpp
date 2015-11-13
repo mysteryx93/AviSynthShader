@@ -117,8 +117,14 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		// Configure pixel shader
 		for (int i = 0; i < 9; i++) {
 			if (cmd.Param[i].Type != ParamType::None) {
-				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
-					ThrowParamFailed(i, cmd.Param[i].String, env);
+				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i]))) {
+					char* ErrorText = "Shader invalid parameter: Param%d = %s";
+					char* FullText;
+					FullText = (char*)malloc(strlen(ErrorText) - 3 + strlen(cmd.Param[i].String) + 1);
+					sprintf(FullText, ErrorText, i + 1, cmd.Param[i].String);
+					env->ThrowError(FullText);
+					free(FullText);
+				}
 			}
 		}
 
@@ -165,90 +171,4 @@ void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env)
 		env->ThrowError(FullText);
 		free(FullText);
 	}
-
-	// Configure pixel shader
-	for (int i = 0; i < 9; i++) {
-		ParamStruct* param = &cmd->Param[i];
-		if (param->String && param->String[0] != '\0') {
-			if (!ParseParam(render->m_Shaders[cmd->CommandIndex].ConstantTable, param))
-				ThrowParamFailed(i, param->String, env);
-		}
-	}
-}
-
-// The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
-// Returns True if parameter was valid, otherwise false.
-bool ExecuteShader::ParseParam(LPD3DXCONSTANTTABLE table, ParamStruct* param) {
-	// Count ',' to determine vector size.
-	int Count = 0;
-	int Pos = 0;
-	while (param->String[Pos] != '\0') {
-		if (param->String[Pos++] == ',')
-			Count++;
-	}
-
-	// Set parameter value.
-	char Type = param->String[strlen(param->String) - 1];
-	if (Type == 'f') {
-		param->Type = ParamType::Float;
-		if (Count == 0) {
-			if (sscanf(param->String, "%ff", &param->Value[0]) < 1)
-				return false;
-		}
-		else if (Count == 1) {
-			if (sscanf(param->String, "%f,%ff", &param->Value[0], &param->Value[1]) < 2)
-				return false;
-		}
-		else if (Count == 2) {
-			if (sscanf(param->String, "%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2]) < 3)
-				return false;
-		}
-		else if (Count == 3) {
-			if (sscanf(param->String, "%f,%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2], &param->Value[3]) < 4)
-				return false;
-		}
-		else
-			return false;
-	}
-	else if (Type == 'i') {
-		param->Type = ParamType::Int;
-		if (Count == 0) {
-			if (sscanf(param->String, "%ii", &param->Value[0]) < 1)
-				return false;
-		}
-		else if (Count == 1) {
-			if (sscanf(param->String, "%i,%ii", &param->Value[0], &param->Value[1]) < 2)
-				return false;
-		}
-		else if (Count == 2) {
-			if (sscanf(param->String, "%i,%i,%ii", &param->Value[0], &param->Value[1], &param->Value[2]) < 3)
-				return false;
-		}
-		else if (Count == 3) {
-			if (sscanf(param->String, "%i,%i,%i,%ii", &param->Value[0], &param->Value[1], &param->Value[2], &param->Value[3]) < 4)
-				return false;
-		}
-		else
-			return false;
-	}
-	else if (Type == 'b') {
-		param->Type == ParamType::Bool;
-		bool* pOut = (bool*)param->Value;
-		pOut[0] = param->String[0] == '0' ? false : true;
-	}
-	else // invalid type
-		return false;
-
-	// Success
-	return true;
-}
-
-// Throw error if failed to set parameter.
-void ExecuteShader::ThrowParamFailed(int index, const char* param, IScriptEnvironment* env) {
-	char* ErrorText = "Shader failed to set parameter: Param%d = %s";
-	char* FullText;
-	FullText = (char*)malloc(strlen(ErrorText) - 3 + strlen(param) + 1);
-	sprintf(FullText, ErrorText, index + 1, param);
-	env->ThrowError(FullText);
-	free(FullText);
 }

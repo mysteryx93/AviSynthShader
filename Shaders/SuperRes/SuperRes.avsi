@@ -28,15 +28,15 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, string folder)
 {
 	cmd = cmd.Shader(folder+"Bicubic.cso", output=3, \
-		param1=string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%f") + "," + string(1./original.Height,"%f") + "f",\
-		param2=string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
-		param3=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
+		param0=string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%f") + "," + string(1./original.Height,"%f") + "f",\
+		param1=string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
+		param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
 		width=original.Width / 2, height=original.Height)
 
 	cmd = cmd.Shader(folder + (convertYuv ? "SuperResDiff.cso" : "SuperResDiffCpu.cso"), clip1=3, clip2=2, output=4)
 
 	cmd = cmd.Shader(folder + (pass==passes ? (convertYuv ? "SuperResFinal.cso" : "SuperResFinalCpu.cso") : "SuperRes.cso"), clip1=1, clip2=4, output=1, \
-		param1=string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
-		Param2=string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
+		param2=string(original.Width/2) + "," + string(original.Height) + "," + string(float(1)/(original.Width/2),"%f") + "," + string(float(1)/original.Height,"%f") + "f", \
+		Param3=string(strength,"%f") + "," + string(softness,"%f") + "," + string(pass) + "," + string(passes) + "f")
 	return cmd
 }

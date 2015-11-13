@@ -50,15 +50,15 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 		args[1].AsString(""),		// shader path
 		args[2].AsString("main"),	// entry point
 		args[3].AsString(""),		// shader model
-		args[4].AsString(""),		// param 1
-		args[5].AsString(""),		// param 2
-		args[6].AsString(""),		// param 3
-		args[7].AsString(""),		// param 4
-		args[8].AsString(""),		// param 5
-		args[9].AsString(""),		// param 6
-		args[10].AsString(""),		// param 7
-		args[11].AsString(""),		// param 8
-		args[12].AsString(""),		// param 9
+		args[4].AsString(""),		// param 0
+		args[5].AsString(""),		// param 1
+		args[6].AsString(""),		// param 2
+		args[7].AsString(""),		// param 3
+		args[8].AsString(""),		// param 4
+		args[9].AsString(""),		// param 5
+		args[10].AsString(""),		// param 6
+		args[11].AsString(""),		// param 7
+		args[12].AsString(""),		// param 8
 		args[13].AsInt(1),			// clip 1
 		args[14].AsInt(0),			// clip 2
 		args[15].AsInt(0),			// clip 3
@@ -96,7 +96,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	AVS_linkage = vectors;
 	env->AddFunction("ConvertToFloat", "c[convertYuv]b[precision]i", Create_ConvertToFloat, 0);
 	env->AddFunction("ConvertFromFloat", "c[format]s[convertYuv]b[precision]i", Create_ConvertFromFloat, 0);
-	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[param9]s[clip1]i[clip2]i[clip3]i[clip4]i[clip5]i[clip6]i[clip7]i[clip8]i[clip9]i[output]i[width]i[height]i", Create_Shader, 0);
+	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[param0]s[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[clip1]i[clip2]i[clip3]i[clip4]i[clip5]i[clip6]i[clip7]i[clip8]i[clip9]i[output]i[width]i[height]i", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[clip1]c[clip2]c[clip3]c[clip4]c[clip5]c[clip6]c[clip7]c[clip8]c[clip9]c[precision]i", Create_ExecuteShader, 0);
 	return "Shader plugin";
 }

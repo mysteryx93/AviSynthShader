@@ -8,17 +8,17 @@ ConvertToFloat()
 #Shader(path="Shaders\YuvToGamma.cso")
 #cmd = Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
 #Shader(path="Shaders\GammaToYuv.cso")
-#Test()
+Test()
 ConvertFromFloat()
 #Distributor()
 
 function Test(clip input) {
 cmd = input.Shader(path="Test.hlsl", shaderModel="ps_3_0")
-cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=.5f", param2="InputSize=352,288f")
-cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=2f", param2="InputSize=352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
+cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1=".5f", param2="352,288f")
+cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="2f", param2="352,288f")
+#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
+#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
+#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
 return cmd.ExecuteShader(input)
 }
 
