@@ -63,7 +63,6 @@ void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsig
 	const byte* srcLoop = precision == 3 ? floatBuffer : src;
 	int srcLoopPitch = precision == 3 ? floatBufferPitch : pitch1;
 
-	unsigned char U, V;
 	for (int y = 0; y < height; ++y) {
 		if (precision == 3) {
 			// Copy half-float data back into frame
@@ -192,8 +191,11 @@ void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned ch
 		outV[0] = src[2];
 	}
 	else { // precision == 2
-		outY[0] = ((unsigned short*)src)[0] >> 8;
-		outU[0] = ((unsigned short*)src)[1] >> 8;
-		outV[0] = ((unsigned short*)src)[2] >> 8;
+		const uint16_t TrimLimit = UINT16_MAX - 128;
+		const uint16_t* pOut = (uint16_t*)src;
+		// Conversion to UINT16 gave values between 0 and 255*256=65280. Add 128 to avoid darkening.
+		outY[0] = (pOut[0] <= TrimLimit ? pOut[0] + 128 : pOut[0]) >> 8;
+		outU[0] = (pOut[1] <= TrimLimit ? pOut[1] + 128 : pOut[1]) >> 8;
+		outV[0] = (pOut[2] <= TrimLimit ? pOut[2] + 128 : pOut[2]) >> 8;
 	}
 }
