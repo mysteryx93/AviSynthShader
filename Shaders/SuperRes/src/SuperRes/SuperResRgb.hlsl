@@ -115,10 +115,7 @@ float4 main(float2 tex : TEXCOORD0) : COLOR{
 	c0.xyz = GammaInv(c0.xyz);
 
 	c0.xyz += softness * soft;
-#else
-	// Tweak: Convert back to YUV.
-    c0.xyz = ConvertToYUV(c0.xyz);
 #endif
 
-    return c0;
+	return c0;
 }
