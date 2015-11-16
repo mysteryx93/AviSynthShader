@@ -1,4 +1,4 @@
-# AviSynth Shader v0.9.2
+# AviSynth Shader v1.0
 
 This plugin allows running HLSL pixel shaders within AviSynth. This gives access to various HLSL filters that haven't been programmed in AviSynth.
 
@@ -6,14 +6,13 @@ This implementation allows running several shaders in a row. Shader() returns a 
 
 The following example will run Diff1 and Diff2 on the clip before returning a Merge of both results. (these shader names are fictive, you have to use real shaders!)
 
-    function ShaderExample(clip input){
-    input = input.ConvertToFloat()
-    cmd = input.Shader("Diff1.cso", output=2)
-    cmd = cmd.Shader("Diff2.cso", output=3)
-    cmd = cmd.Shader("Merge.cso", clip1=2, clip2=3, output=1)
-    input = cmd.ShaderExecute(input)
-    return input.ConvertFromFloat()
-    }
+    ConvertToFloat()
+	input
+    Shader("Diff1.cso", output=2)
+    Shader("Diff2.cso", output=3)
+    Shader("Merge.cso", clip1=2, clip2=3, output=1)
+    ShaderExecute(input)
+    ConvertFromFloat()
 
 ## Syntax:
 
@@ -55,12 +54,12 @@ entryPoint: If compiling HLSL source code, specified the code entry point.
 
 shaderModel: If compiling HLSL source code, specified the shader model. Usually PS_2_0 or PS_3_0
 
-param1-param9: Sets each of the shader parameters.
-Ex: "float4 p0 : register(c0);" will be set with Param1="p0=1,1,1,1f"
+param0-param8: Sets each of the shader parameters.
+Ex: "float4 p4 : register(c4);" will be set with Param4="1,1,1,1f"
 
-The first part is the shader parameter name, followed by '=' and the value, ending with 'f'(float), 'i'(int) or 'b'(bool).
-If setting float, you can set a vector or 2, 3 or 4 elements by separating the values with ','.
-The order of the parameters is not important. Note that if a parameter is not being used, it may be discarded during compilation and setting its value will fail.
+End each value with 'f'(float), 'i'(int) or 'b'(bool) to specify its type.
+Param0 corresponds to c0, Param1 corresponds to c1, etc.
+If setting float or int, you can set a vector or 2, 3 or 4 elements by separating the values with ','.
 
 clip1-clip9: The index of the clips to set into this shader. Input clips are defined when calling ExecuteShader. Clip1 sets 's0' within the shader, while clip2-clip9 set 's1' to 's8'. The order is important.
 Default for clip1 is 1, for clip2-clip9 is 0 which means no source clip.
@@ -82,11 +81,13 @@ clip1-clip9: The clips on which to run the shaders.
 precision: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=2
 
 
-#### SuperRes(input, passes, strength, softness, upscalecommand, folder)
+#### SuperRes(input, passes, strength, softness, upscalecommand, folder, convert)
 
 In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
 
 Enhances upscaling quality.
+
+Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 Arguments:
 
@@ -99,6 +100,29 @@ softness: How much smoothness we want to add, between 0 and 1. Default=0.
 upscalecommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
 
 folder: The folder containing .cso files, ending with '/'. Leave empty to use default folder.
+
+convert: Whether to call ConvertToFloat and ConvertFromFloat() within the shader. Set to false if input is already converted. Default=true.
+
+
+#### Super-xBR(input, edgeStrength, weight, thirdPass, folder, convert)
+
+In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
+
+Doubles the size of the image. Produces a sharp result, but with severe ringing.
+
+Supported video formats: YV12, YV24, RGB24 and RGB32.
+
+Arguments:
+
+edgeStrength: Value between 0 and 5 specifying the strength. Default=1.
+
+weight: Value between 0 and 1.5 specifying the weight. Default=1.
+
+thirdPass: Whether to run a 3rd pass. Default=true.
+
+folder: The folder containing .cso files, ending with '/'. Leave empty to use default folder.
+
+convert: Whether to call ConvertToFloat and ConvertFromFloat() within the shader. Set to false if input is already converted. Default=true.
 
 
 Shiandow provides many other HLSL shaders available here that can be integrated into AviSynth.

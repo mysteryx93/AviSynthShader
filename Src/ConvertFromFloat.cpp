@@ -197,5 +197,12 @@ void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned ch
 		outY[0] = (pOut[0] <= TrimLimit ? pOut[0] + 128 : pOut[0]) >> 8;
 		outU[0] = (pOut[1] <= TrimLimit ? pOut[1] + 128 : pOut[1]) >> 8;
 		outV[0] = (pOut[2] <= TrimLimit ? pOut[2] + 128 : pOut[2]) >> 8;
+
+		//uint32_t overflowed = (uint32_t)pOut[0] + 128;
+		//outY[0] = -(overflowed >> 16) | (uint16_t)overflowed;
+		//overflowed = (uint32_t)pOut[1] + 128;
+		//outU[0] = -(overflowed >> 16) | (uint16_t)overflowed;
+		//overflowed = (uint32_t)pOut[2] + 128;
+		//outV[0] = -(overflowed >> 16) | (uint16_t)overflowed;
 	}
 }
