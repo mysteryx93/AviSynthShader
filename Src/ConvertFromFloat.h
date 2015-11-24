@@ -27,5 +27,6 @@ private:
 	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
 	void convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	void convInt(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
+	uint16_t sadd16(uint16_t a, uint16_t b);
 	VideoInfo viDst;
 };

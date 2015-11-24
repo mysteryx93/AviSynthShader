@@ -324,6 +324,12 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 
 unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	FILE *fl = fopen(filePath, "rb");
+	if (fl == NULL) {
+		// Try in same folder as DLL file.
+		char path[MAX_PATH];
+		GetDefaultPath(path, MAX_PATH, filePath);
+		fl = fopen(path, "rb");
+	}
 	if (fl != NULL)
 	{
 		fseek(fl, 0, SEEK_END);
@@ -336,6 +342,29 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	}
 	else
 		return NULL;
+}
+
+// Gets the path where the DLL file is located.
+void D3D9RenderImpl::GetDefaultPath(char* outPath, int maxSize, const char* filePath)
+{
+	HMODULE hm = NULL;
+
+	if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)&StaticFunction,
+		&hm))
+	{
+		int ret = GetLastError();
+		fprintf(stderr, "GetModuleHandle returned %d\n", ret);
+	}
+	GetModuleFileNameA(hm, outPath, maxSize);
+
+	// Strip the file name to keep the path ending with '\'
+	char *pos = strrchr(outPath, '\\') + 1;
+	if (pos != NULL) {
+		strcpy(pos, filePath);
+		// *pos = '\0'; //this will put the null terminator here. you can also copy to another string if you want
+	}
 }
 
 HRESULT D3D9RenderImpl::SetDefaults(LPD3DXCONSTANTTABLE table) {

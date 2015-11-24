@@ -1,5 +1,5 @@
 #SetMTMode(3,8)
-LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
+LoadPlugin("C:\GitHub\AviSynthShader\Src\Release\Shader.dll")
 #LoadPlugin("C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\Encoder\Shader.dll")
 AviSource("F:\AVSMeter\Preview.avi")
 #SetMTMode(2)
@@ -10,7 +10,6 @@ ConvertToFloat()
 #Shader(path="Shaders\GammaToYuv.cso")
 Test()
 ConvertFromFloat()
-#Distributor()
 
 function Test(clip input) {
 cmd = input.Shader(path="Test.hlsl", shaderModel="ps_3_0")

@@ -1,4 +1,4 @@
-# AviSynth Shader v1.0
+# AviSynth Shader v1.1
 
 This plugin allows running HLSL pixel shaders within AviSynth. This gives access to various HLSL filters that haven't been programmed in AviSynth.
 
@@ -81,7 +81,7 @@ clip1-clip9: The clips on which to run the shaders.
 precision: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=2
 
 
-#### SuperRes(input, passes, strength, softness, upscalecommand, folder, convert)
+#### SuperRes(input, passes, strength, softness, upscalecommand, srcMatrix601, convert)
 
 In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
 
@@ -99,12 +99,12 @@ softness: How much smoothness we want to add, between 0 and 1. Default=0.
 
 upscalecommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
 
-folder: The folder containing .cso files, ending with '/'. Leave empty to use default folder.
+srcMatrix601: If true, the color matrix will be changed from Rec.601 to Rec.709 while running SuperRes. This avoids having to apply ColorMatrix separately. Default=false.
 
 convert: Whether to call ConvertToFloat and ConvertFromFloat() within the shader. Set to false if input is already converted. Default=true.
 
 
-#### Super-xBR(input, edgeStrength, weight, thirdPass, folder, convert)
+#### Super-xBR(input, edgeStrength, weight, thirdPass, convert)
 
 In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
 
@@ -120,9 +120,20 @@ weight: Value between 0 and 1.5 specifying the weight. Default=1.
 
 thirdPass: Whether to run a 3rd pass. Default=true.
 
-folder: The folder containing .cso files, ending with '/'. Leave empty to use default folder.
-
 convert: Whether to call ConvertToFloat and ConvertFromFloat() within the shader. Set to false if input is already converted. Default=true.
+
+
+#### ColorMatrix601to709(input)
+
+In Shaders\ColorMatrix\ColorMatrix.avsi. Thanks to Shiandow for writing this great code!
+
+Converts color matrix from Rec.601 to Rec.709 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
+
+
+#### ColorMatrix709to601(input)
+
+Converts color matrix from Rec.709 to Rec.601 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
+
 
 
 Shiandow provides many other HLSL shaders available here that can be integrated into AviSynth.

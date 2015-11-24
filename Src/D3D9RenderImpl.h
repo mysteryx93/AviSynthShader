@@ -52,10 +52,9 @@ public:
 	ShaderItem m_Shaders[maxTextures];
 
 private:
-	static HWND staticDummyWindow;
-	static CComPtr<IDirect3DDevice9Ex> staticDevice;
-
 	unsigned char* ReadBinaryFile(const char* filePath);
+	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);
+	static void StaticFunction() {}; // needed by GetDefaultPath
 	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow);
 	HRESULT SetupMatrices(RenderTarget* target, float width, float height);
 	HRESULT CreateScene(CommandStruct* cmd, IScriptEnvironment* env);

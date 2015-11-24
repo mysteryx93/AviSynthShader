@@ -194,15 +194,18 @@ void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned ch
 		const uint16_t TrimLimit = UINT16_MAX - 128;
 		const uint16_t* pOut = (uint16_t*)src;
 		// Conversion to UINT16 gave values between 0 and 255*256=65280. Add 128 to avoid darkening.
-		outY[0] = (pOut[0] <= TrimLimit ? pOut[0] + 128 : pOut[0]) >> 8;
-		outU[0] = (pOut[1] <= TrimLimit ? pOut[1] + 128 : pOut[1]) >> 8;
-		outV[0] = (pOut[2] <= TrimLimit ? pOut[2] + 128 : pOut[2]) >> 8;
 
-		//uint32_t overflowed = (uint32_t)pOut[0] + 128;
-		//outY[0] = -(overflowed >> 16) | (uint16_t)overflowed;
-		//overflowed = (uint32_t)pOut[1] + 128;
-		//outU[0] = -(overflowed >> 16) | (uint16_t)overflowed;
-		//overflowed = (uint32_t)pOut[2] + 128;
-		//outV[0] = -(overflowed >> 16) | (uint16_t)overflowed;
+		outY[0] = sadd16(pOut[0], 128) >> 8;
+		outU[0] = sadd16(pOut[1], 128) >> 8;
+		outV[0] = sadd16(pOut[2], 128) >> 8;
+
+		//outY[0] = (pOut[0] <= TrimLimit ? pOut[0] + 128 : pOut[0]) >> 8;
+		//outU[0] = (pOut[1] <= TrimLimit ? pOut[1] + 128 : pOut[1]) >> 8;
+		//outV[0] = (pOut[2] <= TrimLimit ? pOut[2] + 128 : pOut[2]) >> 8;
 	}
+}
+
+uint16_t ConvertFromFloat::sadd16(uint16_t a, uint16_t b)
+{
+	return (a > 0xFFFF - b) ? 0xFFFF : a + b;
 }

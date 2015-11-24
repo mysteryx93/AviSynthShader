@@ -1,0 +1,9 @@
+Version 1.1: November 24th 2015
+- Shader will now attempt open relative paths in the same folder as the DLL.
+- Folder argument removed from SuperRes and Super-xBR. CSO files must be in the same folder as Shader.dll
+- Added ColorMatrix.avsi for high bit dept color matrix conversion to avoid banding
+- SuperRes now has srcMatrix601 argument allowing to convert color matrix while running SuperRes with no performance cost.
+
+Version 1.0: Official release (November 15th 2015)
+
+by: Etienne Charland
