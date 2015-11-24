@@ -2,10 +2,25 @@
 // The code has been mostly rewritten for our needs.
 // http://www.codeproject.com/Articles/207642/Video-Shadering-with-Direct-D
 
-#include "D3D9RenderImpl.h"
+// Memory transfers explained
+// We can only read/write to a texture that is on the CPU side, and DirectX9 can only 
+// do its work with textures on the GPU side. We must transfer data around.
+//
+// In this sample, we have 3 input textures out of 9 slots, and we run 3 shaders.
+// D = D3DPOOL_DEFAULT, S = D3DPOOL_SYSTEMMEM, R = D3DUSAGE_RENDERTARGET
+//
+// m_InputTextures
+// Index  1 2 3 4 5 6 7 8 9 10 11 12
+// CPU    D D D                   S
+// GPU    R R R             R  R  R
+//
+// m_RenderTargets, one R texture per output resolution. The Render Target then gets 
+// copied into the next available index. Command1 outputs to RenderTarget[0] and then
+// to index 10, Command2 outputs to index 11, Command3 outputs to index 12, etc.
+// Only the final output needs to be copied from the GPU back onto the CPU, 
+// requiring a SYSTEMMEM texture.
 
-HWND D3D9RenderImpl::staticDummyWindow;
-CComPtr<IDirect3DDevice9Ex> D3D9RenderImpl::staticDevice;
+#include "D3D9RenderImpl.h"
 
 D3D9RenderImpl::D3D9RenderImpl() {
 	ZeroMemory(m_InputTextures, sizeof(InputTexture) * maxTextures);
