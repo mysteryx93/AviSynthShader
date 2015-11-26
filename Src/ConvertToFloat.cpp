@@ -199,9 +199,9 @@ void ConvertToFloat::convFloat(unsigned char y, unsigned char u, unsigned char v
 // Shortcut to process BYTE or UINT16 values faster when not converting colors
 void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
 	if (precision == 1) {
-		out[0] = y;
+		out[0] = v;
 		out[1] = u;
-		out[2] = v;
+		out[2] = y;
 	}
 	else { // Precision == 2
 		unsigned short *outS = (unsigned short *)out;

@@ -1,4 +1,4 @@
-# AviSynth Shader v1.1
+# AviSynth Shader v1.2
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -80,7 +80,11 @@ cmd: A clip containing the commands returned by calling Shader.
 
 clip1-clip9: The clips on which to run the shaders.
 
-precision: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=2
+precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision, 3 to execute with half-float precision
+
+precisionIn: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=2
+
+precisionOut: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2
 
 
 #### SuperRes(input, passes, strength, softness, upscalecommand, srcMatrix601, convert)

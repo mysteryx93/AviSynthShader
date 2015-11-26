@@ -1,8 +1,8 @@
 #include "ExecuteShader.h"
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _precision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision) {
+ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _precision, int _precisionIn, int _precisionOut, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), precisionIn(_precisionIn), precisionOut(_precisionOut) {
 
 	m_clips[0] = _clip1;
 	m_clips[1] = _clip2;
@@ -37,12 +37,16 @@ ExecuteShader::~ExecuteShader() {
 
 void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, precision)))
+	if (FAILED(render->Initialize(dummyHWND, precision, precisionIn, precisionOut)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// We only need to know the difference between precision 2 and 3 to initialize video buffers. Then, both are 16 bits.
 	if (precision == 3)
 		precision = 2;
+	if (precisionIn == 3)
+		precisionIn = 2;
+	if (precisionOut == 3)
+		precisionOut = 2;
 
 	CreateInputClip(0, env);
 	CreateInputClip(1, env);
@@ -76,13 +80,14 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 		IsLast = i == srcHeight - 1; // Only create memory on the CPU side for the last command, as it is the only one that needs to be read back.
-		render->CreateInputTexture(9 + i, cmd.OutputIndex, OutputWidth, OutputHeight, IsLast, IsLast);
+		if (FAILED(render->CreateInputTexture(9 + i, cmd.OutputIndex, OutputWidth, OutputHeight, IsLast, IsLast)))
+			env->ThrowError("ExecuteShader: Failed to create input texture.");
 
 		if (IsLast) {
 			if (cmd.OutputIndex != 1)
 				env->ThrowError("ExecuteShader: Last command must have Output = 1");
 
-			vi.width = OutputWidth * precision;
+			vi.width = OutputWidth * precisionOut;
 			vi.height = OutputHeight;
 		}
 	}
@@ -95,12 +100,14 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
+	bool IsLast;
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
 	render->ResetTextureClipIndex();
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
 		srcReader += src->GetPitch();
+		IsLast = i == srcHeight - 1;
 
 		// Copy input clips from AviSynth
 		for (int j = 0; j < 9; j++) {
@@ -117,19 +124,13 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		// Configure pixel shader
 		for (int i = 0; i < 9; i++) {
 			if (cmd.Param[i].Type != ParamType::None) {
-				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i]))) {
-					char* ErrorText = "Shader invalid parameter: Param%d = %s";
-					char* FullText;
-					FullText = (char*)malloc(strlen(ErrorText) - 3 + strlen(cmd.Param[i].String) + 1);
-					sprintf(FullText, ErrorText, i + 1, cmd.Param[i].String);
-					env->ThrowError(FullText);
-					free(FullText);
-				}
+				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
+					env->ThrowError("ExecuteShader failed to set parameters.");
 			}
 		}
 
-		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, env))
-			env->ThrowError("Shader: ProcessFrame failed.");
+		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, env))
+			env->ThrowError("ExecuteShader: ProcessFrame failed.");
 	}
 
 	// After last command, copy result back to AviSynth.
@@ -145,7 +146,8 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 		if (!clip->GetVideoInfo().IsRGB32())
 			env->ThrowError("ExecuteShader: Source must be float-precision RGB");
 
-		render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height, true, false);
+		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / precisionIn, clip->GetVideoInfo().height, true, false)))
+			env->ThrowError("ExecuteShader: Failed to create input textures.");
 	}
 	else
 		render->m_InputTextures[index].ClipIndex = index + 1;
@@ -156,7 +158,7 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (m_clips[index] != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precision, clip->GetVideoInfo().height, env)))
+		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precisionIn, clip->GetVideoInfo().height, env)))
 			env->ThrowError("ExecuteShader: CopyInputClip failed");
 	}
 }
@@ -165,9 +167,10 @@ void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env)
 	if FAILED(render->InitPixelShader(cmd, env)) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
-		FullText = (char*)malloc(strlen(ErrorText) + strlen(cmd->Path) + 1);
-		strcpy(FullText, ErrorText);
-		strcat(FullText, cmd->Path);
+		int TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;
+		FullText = (char*)malloc(TextLength);
+		strcpy_s(FullText, TextLength, ErrorText);
+		strcat_s(FullText, TextLength, cmd->Path);
 		env->ThrowError(FullText);
 		free(FullText);
 	}

@@ -10,13 +10,13 @@
 // D = D3DPOOL_DEFAULT, S = D3DPOOL_SYSTEMMEM, R = D3DUSAGE_RENDERTARGET
 //
 // m_InputTextures
-// Index  1 2 3 4 5 6 7 8 9 10 11 12
+// Index  0 1 2 3 4 5 6 7 8 9 10 11
 // CPU    D D D                   S
 // GPU    R R R             R  R  R
 //
-// m_RenderTargets, one R texture per output resolution. The Render Target then gets 
+// m_RenderTargets contains one R texture per output resolution. The Render Target then gets 
 // copied into the next available index. Command1 outputs to RenderTarget[0] and then
-// to index 10, Command2 outputs to index 11, Command3 outputs to index 12, etc.
+// to index 9, Command2 outputs to index 10, Command3 outputs to index 11, etc.
 // Only the final output needs to be copied from the GPU back onto the CPU, 
 // requiring a SYSTEMMEM texture.
 
@@ -36,23 +36,31 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 	}
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision) {
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision, int precisionIn, int precisionOut) {
+	HR(ApplyPrecision(precision, m_precision, m_format));
+	HR(ApplyPrecision(precisionIn, m_precisionIn, m_formatIn));
+	HR(ApplyPrecision(precisionOut, m_precisionOut, m_formatOut));
+
+	return CreateDevice(&m_pDevice, hDisplayWindow);
+}
+
+// Applies the video format corresponding to specified pixel precision.
+HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionOut, D3DFORMAT &formatOut) {
 	if (precision == 1)
-		m_format = D3DFMT_X8R8G8B8;
+		formatOut = D3DFMT_X8R8G8B8;
 	else if (precision == 2)
-		m_format = D3DFMT_A16B16G16R16;
+		formatOut = D3DFMT_A16B16G16R16;
 	else if (precision == 3)
-		m_format = D3DFMT_A16B16G16R16F;
+		formatOut = D3DFMT_A16B16G16R16F;
 	else
 		return E_FAIL;
 
-	m_precision = precision;
 	if (precision == 3)
-		m_precision = 2;
+		precisionOut = 2;
 	else
-		m_precision = precision;
+		precisionOut = precision;
 
-	return CreateDevice(&m_pDevice, hDisplayWindow);
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow) {
@@ -64,7 +72,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	D3DCAPS9 deviceCaps;
 	HR(m_pD3D9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &deviceCaps));
 
-	DWORD dwBehaviorFlags = D3DCREATE_DISABLE_PSGP_THREADING;
+	DWORD dwBehaviorFlags = 0; // D3DCREATE_DISABLE_PSGP_THREADING;
 
 	if (deviceCaps.VertexProcessingCaps != 0)
 		dwBehaviorFlags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;
@@ -74,6 +82,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	HR(GetPresentParams(&m_presentParams, hDisplayWindow));
 
 	HR(m_pD3D9->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hDisplayWindow, dwBehaviorFlags, &m_presentParams, NULL, device));
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow)
@@ -102,17 +111,17 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env)
 {
 	// Skip if current render target has right dimensions.
-	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height)
+	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height && m_pCurrentRenderTarget->Format == format)
 		return S_OK;
 
 	// Find a render target with desired proportions.
 	RenderTarget* Target = NULL;
 	int i = 0;
 	while (Target == NULL && m_RenderTargets[i].Texture != NULL) {
-		if (m_RenderTargets[i].Width == width && m_RenderTargets[i].Height == height)
+		if (m_RenderTargets[i].Width == width && m_RenderTargets[i].Height == height && m_RenderTargets[i].Format == format)
 			Target = &m_RenderTargets[i];
 		else
 			i++;
@@ -130,11 +139,12 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, IScriptEnvironmen
 
 		Target->Width = width;
 		Target->Height = height;
-		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Target->Texture, NULL));
+		Target->Format = format;
+		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT, &Target->Texture, NULL));
 		HR(Target->Texture->GetSurfaceLevel(0, &Target->Surface));
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, D3DPOOL_SYSTEMMEM, &Target->Memory, NULL));
+		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, &Target->Memory, NULL));
 
-		HR(SetupMatrices(Target, width, height));
+		HR(SetupMatrices(Target, float(width), float(height)));
 	}
 
 	// Set render target.
@@ -178,13 +188,16 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 	Obj->Width = width;
 	Obj->Height = height;
 
-	if (memoryTexture) {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_format, isSystemMemory ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &Obj->Memory, NULL));
-		HR(m_pDevice->ColorFill(Obj->Memory, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	if (memoryTexture && !isSystemMemory) {
+		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_formatIn, D3DPOOL_DEFAULT, &Obj->Memory, NULL));
 	}
-
-	HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Obj->Texture, NULL));
-	HR(Obj->Texture->GetSurfaceLevel(0, &m_InputTextures[index].Surface));
+	else if (isSystemMemory) {
+		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_formatOut, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
+	}
+	if (!isSystemMemory) {
+		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Obj->Texture, NULL));
+		HR(Obj->Texture->GetSurfaceLevel(0, &Obj->Surface));
+	}
 
 	return S_OK;
 }
@@ -210,10 +223,10 @@ void D3D9RenderImpl::ResetTextureClipIndex() {
 	}
 }
 
-HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, IScriptEnvironment* env)
 {
 	HR(m_pDevice->TestCooperativeLevel());
-	HR(SetRenderTarget(width, height, env));
+	HR(SetRenderTarget(width, height, isLast ? m_formatOut : m_format, env));
 	HR(CreateScene(cmd, env));
 	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
 	return CopyFromRenderTarget(9 + cmd->CommandIndex, cmd->OutputIndex, width, height);
@@ -254,7 +267,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	HR(destSurface->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_precision * 4, height);
+	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_precisionIn * 4, height);
 
 	HR(destSurface->UnlockRect());
 
@@ -286,11 +299,11 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(int dstIndex, int outputIndex, int 
 HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env) {
 	InputTexture* ReadSurface = &m_InputTextures[9 + commandIndex];
 
-	D3DLOCKED_RECT srcRect, dstRect;
+	D3DLOCKED_RECT srcRect;
 	HR(ReadSurface->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
 	BYTE* srcPict = (BYTE*)srcRect.pBits;
 
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_precision * 4, ReadSurface->Height);
+	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_precisionOut * 4, ReadSurface->Height);
 
 	return ReadSurface->Memory->UnlockRect();
 }
@@ -363,7 +376,6 @@ void D3D9RenderImpl::GetDefaultPath(char* outPath, int maxSize, const char* file
 	char *pos = strrchr(outPath, '\\') + 1;
 	if (pos != NULL) {
 		strcpy(pos, filePath);
-		// *pos = '\0'; //this will put the null terminator here. you can also copy to another string if you want
 	}
 }
 

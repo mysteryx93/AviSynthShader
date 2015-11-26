@@ -5,7 +5,6 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	softness = default(softness, 0)
 	convert = default(convert, true)
 	srcMatrix601 = default(srcMatrix601, false)
-	precision = 2
 
 	Assert((passes > 0 && passes <= 3) ? true : false, chr(10) + "Passes must be between 1 and 3" + chr(10))
 	Assert((strength >= 0 && strength <= 1) ? true : false, chr(10) + "Strength must be between 0 and 1" + chr(10))
@@ -18,16 +17,16 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	original = convert ? ConvertToFloat(precision=precision) : last
+	original = convert ? ConvertToFloat(precision=1) : last
 	Eval(upscalecommand)
-	input = convert ? ConvertToFloat(precision=precision) : last
+	input = convert ? ConvertToFloat(precision=1) : last
 	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
 	SuperResPass(last, input, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
 	passes > 1 ? SuperResPass(input, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
 	passes > 2 ? SuperResPass(input, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
 
-	ExecuteShader(last, input, original, precision=precision)
-	convert ? ConvertFromFloat(format=sourceFormat,precision=precision) : last
+	ExecuteShader(last, input, original, precision=2, precisionIn=convert?1:2, precisionOut=convert?1:2)
+	convert ? ConvertFromFloat(format=sourceFormat, precision=1) : last
 }
 
 function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, bool srcMatrix601)

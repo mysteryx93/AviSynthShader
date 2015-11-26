@@ -1,3 +1,9 @@
+Version 1.2: November 26th 2015
+- Added precisionIn and precisionOut arguments to ExecuteShader, allowing converting data on the GPU
+- SuperRes, Super-sBR and ColorMatrix scripts adapted to convert with precision=1 while doing the processing with precision=2
+- Removed D3DCREATE_DISABLE_PSGP_THREADING flag from DirectX9 device
+- Performance is similar, memory usage is slightly lower and CPU usage is considerably lower
+
 Version 1.1: November 24th 2015
 - Shader will now attempt open relative paths in the same folder as the DLL.
 - Folder argument removed from SuperRes and Super-xBR. CSO files must be in the same folder as Shader.dll

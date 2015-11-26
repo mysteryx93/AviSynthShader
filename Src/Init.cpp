@@ -87,6 +87,8 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[8].AsClip(),			// clip 8
 		args[9].AsClip(),			// clip 9
 		args[10].AsInt(DefaultPrecision), // precision
+		args[11].AsInt(DefaultPrecision), // precisionIn
+		args[12].AsInt(DefaultPrecision), // precisionOut
 		env);
 }
 
@@ -97,6 +99,6 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	env->AddFunction("ConvertToFloat", "c[convertYuv]b[precision]i", Create_ConvertToFloat, 0);
 	env->AddFunction("ConvertFromFloat", "c[format]s[convertYuv]b[precision]i", Create_ConvertFromFloat, 0);
 	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[param0]s[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[clip1]i[clip2]i[clip3]i[clip4]i[clip5]i[clip6]i[clip7]i[clip8]i[clip9]i[output]i[width]i[height]i", Create_Shader, 0);
-	env->AddFunction("ExecuteShader", "c[clip1]c[clip2]c[clip3]c[clip4]c[clip5]c[clip6]c[clip7]c[clip8]c[clip9]c[precision]i", Create_ExecuteShader, 0);
+	env->AddFunction("ExecuteShader", "c[clip1]c[clip2]c[clip3]c[clip4]c[clip5]c[clip6]c[clip7]c[clip8]c[clip9]c[precision]i[precisionIn]i[precisionOut]i", Create_ExecuteShader, 0);
 	return "Shader plugin";
 }

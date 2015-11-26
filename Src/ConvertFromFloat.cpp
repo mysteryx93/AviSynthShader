@@ -186,9 +186,9 @@ void ConvertFromFloat::convFloat(const byte* src, unsigned char* outY, unsigned 
 // Shortcut to process BYTE or UINT16 values faster when not converting colors
 void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
 	if (precision == 1) {
-		outY[0] = src[0];
+		outV[0] = src[0];
 		outU[0] = src[1];
-		outV[0] = src[2];
+		outY[0] = src[2];
 	}
 	else { // precision == 2
 		const uint16_t TrimLimit = UINT16_MAX - 128;

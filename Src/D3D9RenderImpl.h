@@ -17,6 +17,7 @@ struct InputTexture {
 
 struct RenderTarget {
 	int Width, Height;
+	D3DFORMAT Format;
 	CComPtr<IDirect3DSurface9> Memory;
 	CComPtr<IDirect3DTexture9> Texture;
 	CComPtr<IDirect3DSurface9> Surface;
@@ -36,11 +37,11 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl();
 
-	HRESULT Initialize(HWND hDisplayWindow, int precision);
+	HRESULT Initialize(HWND hDisplayWindow, int precision, int precisionIn, int precisionOut);
 	HRESULT CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory);
 	HRESULT CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env);
-	HRESULT ProcessFrame(CommandStruct* cmd, int width, int height, IScriptEnvironment* env);
+	HRESULT ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, IScriptEnvironment* env);
 	InputTexture* FindTextureByClipIndex(int clipIndex, IScriptEnvironment* env);
 	void ResetTextureClipIndex();
 
@@ -52,6 +53,7 @@ public:
 	ShaderItem m_Shaders[maxTextures];
 
 private:
+	HRESULT ApplyPrecision(int precision, int &precisionOut, D3DFORMAT &formatOut);
 	unsigned char* ReadBinaryFile(const char* filePath);
 	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);
 	static void StaticFunction() {}; // needed by GetDefaultPath
@@ -59,7 +61,7 @@ private:
 	HRESULT SetupMatrices(RenderTarget* target, float width, float height);
 	HRESULT CreateScene(CommandStruct* cmd, IScriptEnvironment* env);
 	HRESULT CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height);
-	HRESULT SetRenderTarget(int width, int height, IScriptEnvironment* env);
+	HRESULT SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env);
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);
 
 	CComPtr<IDirect3D9Ex>           m_pD3D9;
@@ -68,7 +70,11 @@ private:
 	RenderTarget* m_pCurrentRenderTarget = NULL;
 
 	int m_precision;
+	int m_precisionIn;
+	int m_precisionOut;
 	D3DFORMAT m_format;
+	D3DFORMAT m_formatIn;
+	D3DFORMAT m_formatOut;
 	D3DDISPLAYMODE m_displayMode;
 	D3DPRESENT_PARAMETERS m_presentParams;
 	IScriptEnvironment* m_env;
