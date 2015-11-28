@@ -1,3 +1,7 @@
+Version 1.2.1: November 28th 2015
+- Fixed distortion bug introduced in last version when using PrecisionIn=1
+- SuperRes, Super-xBR and ColorMatrix now use PrecisionIn=2 until the bug is corrected
+
 Version 1.2: November 26th 2015
 - Added precisionIn and precisionOut arguments to ExecuteShader, allowing converting data on the GPU
 - SuperRes, Super-sBR and ColorMatrix scripts adapted to convert with precision=1 while doing the processing with precision=2
