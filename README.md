@@ -1,4 +1,4 @@
-# AviSynth Shader v1.2.1 (Nov 28th 2015)
+# AviSynth Shader v1.2.1
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
