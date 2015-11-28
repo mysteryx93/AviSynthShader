@@ -13,7 +13,7 @@ function SuperXBR(clip input, float "edgeStrength", float "weight", bool "thirdP
 	convertYuv = convert && !IsRGB()
 	sourceFormat = IsYV12() ? "YV12" : IsYV24() ? "YV24" : IsRGB24() ? "RGB24" : "RGB32"
 
-	input = convert ? ConvertToFloat(precision=1) : last
+	input = convert ? ConvertToFloat(precision=2) : last
 	#convertYuv ? Shader("YuvToGamma.cso") : nop
 	
 	input
@@ -36,7 +36,7 @@ function SuperXBR(clip input, float "edgeStrength", float "weight", bool "thirdP
 		param3=size1_string) : nop
 
 	#convertYuv ? Shader("GammaToYuv.cso") : nop
-	last.ExecuteShader(input, precision=2, precisionIn=convert?1:2, precisionOut=convert?1:2)
+	last.ExecuteShader(input, precision=2, precisionIn=convert?2:2, precisionOut=convert?1:2)
 
 	convert ? ConvertFromFloat(format=sourceFormat,precision=1) : last
 }

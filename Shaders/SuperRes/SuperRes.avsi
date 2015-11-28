@@ -17,15 +17,15 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	original = convert ? ConvertToFloat(precision=1) : last
+	original = convert ? ConvertToFloat(precision=2) : last
 	Eval(upscalecommand)
-	input = convert ? ConvertToFloat(precision=1) : last
+	input = convert ? ConvertToFloat(precision=2) : last
 	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
 	SuperResPass(last, input, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
 	passes > 1 ? SuperResPass(input, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
 	passes > 2 ? SuperResPass(input, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
 
-	ExecuteShader(last, input, original, precision=2, precisionIn=convert?1:2, precisionOut=convert?1:2)
+	ExecuteShader(last, input, original, precision=3, precisionIn=convert?2:2, precisionOut=convert?1:2)
 	convert ? ConvertFromFloat(format=sourceFormat, precision=1) : last
 }
 
