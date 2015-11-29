@@ -1,3 +1,7 @@
+Version 1.2.2: November 29th 2015
+- For SuperRes, HLSL Bicubic downscaler is broken and has been disabled. Downscaling is now done in AviSynth
+- There will be a performance hit and it will take a lot more memory, but the image will be good. Until HLSL Bicubic is fixed.
+
 Version 1.2.1: November 28th 2015
 - Fixed distortion bug introduced in last version when using PrecisionIn=1
 - SuperRes, Super-xBR and ColorMatrix now use PrecisionIn=2 until the bug is corrected

@@ -17,29 +17,35 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	original = convert ? ConvertToFloat(precision=2) : last
+	original = convert ? ConvertToFloat() : last
 	Eval(upscalecommand)
-	input = convert ? ConvertToFloat(precision=2) : last
-	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
-	SuperResPass(last, input, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
-	passes > 1 ? SuperResPass(input, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
-	passes > 2 ? SuperResPass(input, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
+	input = convert ? ConvertToFloat() : last
+	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso").ExecuteShader(input)
+	SuperResPass(last, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
+	passes > 1 ? SuperResPass(last, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
+	passes > 2 ? SuperResPass(last, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
 
-	ExecuteShader(last, input, original, precision=3, precisionIn=convert?2:2, precisionOut=convert?1:2)
-	convert ? ConvertFromFloat(format=sourceFormat, precision=1) : last
+	convert ? ConvertFromFloat(format=sourceFormat) : last
 }
 
 function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, bool srcMatrix601)
 {
-	cmd.Shader("Bicubic.cso", output=3, \
-		param0=string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%.32f") + "," + string(1./original.Height,"%.32f") + "f",\
-		param1=string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
-		param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
-		width=original.Width / 2, height=original.Height)
+	downsample = input.ConvertFromFloat(format="RGB24")
+	downsample = downsample.BicubicResize(original.Width / 2, original.Height)
+	downsample = downsample.ConvertToFloat()
 
-	Shader(convertYuv && srcMatrix601 ? "SuperResDiff601.cso" : convertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", clip1=3, clip2=2, output=4)
+# 	Bicubic HLSL is broken
+#	cmd.Shader("Bicubic.cso", output=3, \
+#		param0=string(original.Width / 2) + "," + string(original.Height) + "," + string(1./(original.Width / 2),"%.32f") + "," + string(1./original.Height,"%.32f") + "f",\
+#		param1=string(input.Width / 2) + "," + string(input.Height) + "," + string(1./(input.Width / 2),"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
+#		param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
+#		width=original.Width / 2, height=original.Height)
+	input
+	Shader(convertYuv && srcMatrix601 ? "SuperResDiff601.cso" : convertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", clip1=2, clip2=3, output=4)
 
 	Shader(pass==passes ? (convertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", clip1=1, clip2=4, output=1, \
 		param2=string(original.Width/2) + "," + string(original.Height) + "," + string(1./(original.Width/2),"%.32f") + "," + string(1./original.Height,"%.32f") + "f", \
 		Param3=string(strength,"%.32f") + "," + string(softness,"%.32f") + "," + string(pass) + "," + string(passes) + "f")
+
+	ExecuteShader(last, input, downsample, original)
 }
