@@ -21,14 +21,14 @@ function SuperRes(clip input, int "passes", float "strength", float "softness", 
 	Eval(upscalecommand)
 	input = convert ? ConvertToFloat() : last
 	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso").ExecuteShader(input)
-	SuperResPass(last, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
-	passes > 1 ? SuperResPass(last, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
-	passes > 2 ? SuperResPass(last, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
+	SuperResPass(last, original, strength, softness, 1, passes, convert, convertYuv, srcMatrix601)
+	passes > 1 ? SuperResPass(last, original, strength, softness, 2, passes, convert, convertYuv, srcMatrix601) : nop
+	passes > 2 ? SuperResPass(last, original, strength, softness, 3, passes, convert, convertYuv, srcMatrix601) : nop
 
-	convert ? ConvertFromFloat(format=sourceFormat) : last
+	convert ? ConvertFromFloat(format=sourceFormat, precision=1) : last
 }
 
-function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, bool srcMatrix601)
+function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convert, bool convertYuv, bool srcMatrix601)
 {
 	downsample = input.ConvertFromFloat(format="RGB24")
 	downsample = downsample.BicubicResize(original.Width / 2, original.Height)
@@ -47,5 +47,5 @@ function SuperResPass(clip cmd, clip input, clip original, float strength, float
 		param2=string(original.Width/2) + "," + string(original.Height) + "," + string(1./(original.Width/2),"%.32f") + "," + string(1./original.Height,"%.32f") + "f", \
 		Param3=string(strength,"%.32f") + "," + string(softness,"%.32f") + "," + string(pass) + "," + string(passes) + "f")
 
-	ExecuteShader(last, input, downsample, original)
+	ExecuteShader(last, input, downsample, original, precisionIn=2, precision=3, precisionOut=(convert&&pass==passes?1:2))
 }
