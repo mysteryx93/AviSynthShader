@@ -1,3 +1,12 @@
+Version 1.3: December 1st 2015
+- SuperRes distortion problems fixed. Colors should now be accurate.
+- Shaders now use PrecisionIn=1 and convert frames to 16-bit on the GPU
+- Fixed SuperRes when using Softness parameter
+- Shader.dll now treats overflow coordinates with CLAMP
+- Fixed distortion line at the right and bottom of Super-xBR
+- Fixed sub-pixel shift with Super-xBR when ThirdPass=false
+- 10% performance increase and lowered memory usage
+
 Version 1.2.2: November 29th 2015
 - For SuperRes, HLSL Bicubic downscaler is broken and has been disabled. Downscaling is now done in AviSynth
 - There will be a performance hit and it will take a lot more memory, but the image will be good. Until HLSL Bicubic is fixed.

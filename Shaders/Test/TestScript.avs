@@ -1,24 +1,21 @@
 #SetMTMode(3,8)
-LoadPlugin("C:\GitHub\AviSynthShader\Src\Release\Shader.dll")
+LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
 #LoadPlugin("C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\Encoder\Shader.dll")
-AviSource("F:\AVSMeter\Preview.avi")
+#AviSource("F:\AVSMeter\Preview.avi")
+ImageSource("Clown.png").ConvertToYV12()
 #SetMTMode(2)
 #ConvertToYV24()
-ConvertToFloat()
+ConvertToFloat(precision=1)
 #Shader(path="Shaders\YuvToGamma.cso")
-#cmd = Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="Amount=1f", param2="InputSize=352,288f")
 #Shader(path="Shaders\GammaToYuv.cso")
 Test()
-ConvertFromFloat()
+ConvertFromFloat(precision=3)
 
 function Test(clip input) {
-cmd = input.Shader(path="Test.hlsl", shaderModel="ps_3_0")
-cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1=".5f", param2="352,288f")
-cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="2f", param2="352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
-#cmd = cmd.Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1="1f", param2="352,288f")
-return cmd.ExecuteShader(input)
+input
+#cmd = input.Shader(path="Test.hlsl", shaderModel="ps_3_0")
+Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1=".5f", param2=string(width)+","+string(height)+"f")
+return ExecuteShader(last, input, precisionIn=1, precision=3, precisionOut=3)
 }
 
 function Test2(clip input) {

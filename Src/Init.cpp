@@ -75,6 +75,8 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 }
 
 AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
+	int Precision = args[10].AsInt(DefaultPrecision); // precision
+
 	return new ExecuteShader(
 		args[0].AsClip(),			// source clip containing commands
 		args[1].AsClip(),			// clip 1
@@ -86,9 +88,9 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[7].AsClip(),			// clip 7
 		args[8].AsClip(),			// clip 8
 		args[9].AsClip(),			// clip 9
-		args[10].AsInt(DefaultPrecision), // precision
-		args[11].AsInt(DefaultPrecision), // precisionIn
-		args[12].AsInt(DefaultPrecision), // precisionOut
+		Precision,					// precision
+		args[11].AsInt(Precision),	// precisionIn
+		args[12].AsInt(Precision),	// precisionOut
 		env);
 }
 
