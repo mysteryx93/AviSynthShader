@@ -149,7 +149,7 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (clip != NULL) {
 		if (!clip->GetVideoInfo().IsRGB32())
-			env->ThrowError("ExecuteShader: Source must be float-precision RGB");
+			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
 
 		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / precisionIn, clip->GetVideoInfo().height, true, false)))
 			env->ThrowError("ExecuteShader: Failed to create input textures.");

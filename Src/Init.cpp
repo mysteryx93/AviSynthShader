@@ -1,41 +1,28 @@
 #include <windows.h>
 #include "avisynth.h"
-#include "ConvertToFloat.h"
-#include "ConvertFromFloat.h"
+#include "ConvertToShader.h"
+#include "ConvertFromShader.h"
 #include "Shader.h"
 #include "ExecuteShader.h"
 
-const int DefaultPrecision = 2;
 const int DefaultConvertYuv = false;
 
-AVSValue __cdecl Create_ConvertToFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {
+AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	bool ConvertYuv = args[1].AsBool(DefaultConvertYuv);
 	if (input->GetVideoInfo().IsYV12())
 		input = env->Invoke("ConvertToYV24", input).AsClip();
-	// Don't convert YUV to RGB when source format is RGB32.
-	if (input->GetVideoInfo().IsRGB32())
-		ConvertYuv = false;
 
-	return new ConvertToFloat(
+	return new ConvertToShader(
 		input,			// source clip
-		ConvertYuv,		// whether to convert YUV to RGB on the CPU
-		args[2].AsInt(DefaultPrecision), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[1].AsInt(1), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		env);			// env is the link to essential informations, always provide it
 }
 
-AVSValue __cdecl Create_ConvertFromFloat(AVSValue args, void* user_data, IScriptEnvironment* env) {
-	const char* Format = args[1].AsString("YV12");
-	bool ConvertYuv = args[2].AsBool(DefaultConvertYuv);
-	// Don't convert RGB to YUV when destination format is RGB32.
-	if (strcmp(Format, "RGB32") == 0)
-		ConvertYuv = false;
-
-	ConvertFromFloat* Result = new ConvertFromFloat(
+AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
+	ConvertFromShader* Result = new ConvertFromShader(
 		args[0].AsClip(),			// source clip
-		Format,						// destination format
-		ConvertYuv,					// whether to convert RGB to YUV on the CPU
-		args[3].AsInt(DefaultPrecision), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[1].AsString("YV12"),	// destination format
+		args[2].AsInt(1),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		env);						// env is the link to essential informations, always provide it
 
 	if (strcmp(args[1].AsString("YV12"), "YV12") == 0)
@@ -75,8 +62,6 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 }
 
 AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
-	int Precision = args[10].AsInt(DefaultPrecision); // precision
-
 	return new ExecuteShader(
 		args[0].AsClip(),			// source clip containing commands
 		args[1].AsClip(),			// clip 1
@@ -88,9 +73,9 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[7].AsClip(),			// clip 7
 		args[8].AsClip(),			// clip 8
 		args[9].AsClip(),			// clip 9
-		Precision,					// precision
-		args[11].AsInt(Precision),	// precisionIn
-		args[12].AsInt(Precision),	// precisionOut
+		args[10].AsInt(2),			// precision
+		args[11].AsInt(1),			// precisionIn
+		args[12].AsInt(1),			// precisionOut
 		env);
 }
 
@@ -98,9 +83,9 @@ const AVS_Linkage *AVS_linkage = 0;
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	AVS_linkage = vectors;
-	env->AddFunction("ConvertToFloat", "c[convertYuv]b[precision]i", Create_ConvertToFloat, 0);
-	env->AddFunction("ConvertFromFloat", "c[format]s[convertYuv]b[precision]i", Create_ConvertFromFloat, 0);
-	env->AddFunction("Shader", "c[path]s[entryPoint]s[shaderModel]s[param0]s[param1]s[param2]s[param3]s[param4]s[param5]s[param6]s[param7]s[param8]s[clip1]i[clip2]i[clip3]i[clip4]i[clip5]i[clip6]i[clip7]i[clip8]i[clip9]i[output]i[width]i[height]i", Create_Shader, 0);
-	env->AddFunction("ExecuteShader", "c[clip1]c[clip2]c[clip3]c[clip4]c[clip5]c[clip6]c[clip7]c[clip8]c[clip9]c[precision]i[precisionIn]i[precisionOut]i", Create_ExecuteShader, 0);
+	env->AddFunction("ConvertToShader", "c[Precision]i", Create_ConvertToShader, 0);
+	env->AddFunction("ConvertFromShader", "c[Format]s[Precision]i", Create_ConvertFromShader, 0);
+	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i", Create_Shader, 0);
+	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Precision]i[PrecisionIn]i[PrecisionOut]i", Create_ExecuteShader, 0);
 	return "Shader plugin";
 }

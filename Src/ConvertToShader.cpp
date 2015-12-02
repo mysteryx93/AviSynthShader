@@ -1,11 +1,11 @@
-#include "ConvertToFloat.h"
+#include "ConvertToShader.h"
 
-ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), convertYUV(_convertYuv) {
+ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision) {
 	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
-		env->ThrowError("ConvertToFloat: Source must be YV12, YV24, RGB24 or RGB32");
+		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
 	if (precision < 1 && precision > 3)
-		env->ThrowError("ConvertToFloat: Precision must be 1, 2 or 3");
+		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
 
 	viDst = vi;
 	viDst.pixel_type = VideoInfo::CS_BGR32;
@@ -27,14 +27,14 @@ ConvertToFloat::ConvertToFloat(PClip _child, bool _convertYuv, int _precision, I
 	}
 }
 
-ConvertToFloat::~ConvertToFloat() {
+ConvertToShader::~ConvertToShader() {
 	if (precision == 3) {
 		free(floatBuffer);
 		free(halfFloatBuffer);
 	}
 }
 
-PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
+PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame src = child->GetFrame(n, env);
 
 	// Convert from YV24 to half-float RGB
@@ -49,7 +49,7 @@ PVideoFrame __stdcall ConvertToFloat::GetFrame(int n, IScriptEnvironment* env) {
 	return dst;
 }
 
-void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
+void ConvertToShader::convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env)
 {
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
@@ -84,7 +84,7 @@ void ConvertToFloat::convYV24ToFloat(const byte *py, const byte *pu, const byte 
 	}
 }
 
-void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env) {
+void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env) {
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
 	int dstLoopPitch = precision == 3 ? floatBufferPitch : dstPitch;
 
@@ -118,7 +118,7 @@ void ConvertToFloat::convRgbToFloat(const byte *src, unsigned char *dst, int src
 }
 
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-void ConvertToFloat::convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
+void ConvertToShader::convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
 	int r, g, b;
 	if (convertYUV) {
 		b = 1164 * (y - 16) + 2018 * (u - 128);
@@ -197,7 +197,7 @@ void ConvertToFloat::convFloat(unsigned char y, unsigned char u, unsigned char v
 }
 
 // Shortcut to process BYTE or UINT16 values faster when not converting colors
-void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
+void ConvertToShader::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
 	if (precision == 1) {
 		out[0] = v;
 		out[1] = u;
@@ -212,7 +212,7 @@ void ConvertToFloat::convInt(unsigned char y, unsigned char u, unsigned char v, 
 }
 
 // restrictions: src_stride MUST BE a multiple of 8, dst_stride MUST BE a multiple of 64 and 8x src_stride (x4 planes, x2 pixel size)
-void ConvertToFloat::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height)
+void ConvertToShader::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height)
 {
 	assert(srcPitch % 2 == 0);
 	assert(dstPitch % 16 == 0);
@@ -250,7 +250,7 @@ void ConvertToFloat::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* s
 	}
 }
 
-__m128i	ConvertToFloat::load_8_16l(const void *lsb_ptr, __m128i zero)
+__m128i	ConvertToShader::load_8_16l(const void *lsb_ptr, __m128i zero)
 {
 	assert(lsb_ptr != 0);
 
@@ -262,7 +262,7 @@ __m128i	ConvertToFloat::load_8_16l(const void *lsb_ptr, __m128i zero)
 	return (val);
 }
 
-void ConvertToFloat::store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb)
+void ConvertToShader::store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb)
 {
 	assert(lsb_ptr != 0);
 

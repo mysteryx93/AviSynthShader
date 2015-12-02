@@ -7,16 +7,16 @@
 #include "d3dx9.h"
 
 // Converts float-precision RGB data (12-byte per pixel) into YV12 format.
-class ConvertFromFloat : public GenericVideoFilter {
+class ConvertFromShader : public GenericVideoFilter {
 public:
-	ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, int _precision, IScriptEnvironment* env);
-	~ConvertFromFloat();
+	ConvertFromShader(PClip _child, const char* _format, int _precision, IScriptEnvironment* env);
+	~ConvertFromShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	const VideoInfo& __stdcall GetVideoInfo() { return viDst; }
 private:
 	const int precision;
 	int precisionShift;
-	const bool convertYUV;
+	const bool convertYUV = false;
 	unsigned char* floatBuffer;
 	int floatBufferPitch;
 	unsigned char* halfFloatBuffer;

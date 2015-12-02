@@ -1,13 +1,13 @@
-#include "ConvertFromFloat.h"
+#include "ConvertFromShader.h"
 
-ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _convertYuv, int _precision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), format(_format), convertYUV(_convertYuv) {
+ConvertFromShader::ConvertFromShader(PClip _child, const char* _format, int _precision, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), format(_format) {
 	if (!vi.IsRGB32())
-		env->ThrowError("ConvertFromFloat: Source must be float-precision RGB");
+		env->ThrowError("ConvertFromShader: Source must be float-precision RGB");
 	if (strcmp(format, "YV12") != 0 && strcmp(format, "YV24") != 0 && strcmp(format, "RGB24") != 0 && strcmp(format, "RGB32") != 0)
-		env->ThrowError("ConvertFromFloat: Destination format must be YV12, YV24, RGB24 or RGB32");
+		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
 	if (precision < 1 || precision > 3)
-		env->ThrowError("ConvertFromFloat: Precision must be 1, 2 or 3");
+		env->ThrowError("ConvertFromShader: Precision must be 1, 2 or 3");
 
 	viDst = vi;
 	if (strcmp(format, "RGB32") == 0)
@@ -35,7 +35,7 @@ ConvertFromFloat::ConvertFromFloat(PClip _child, const char* _format, bool _conv
 	}
 }
 
-ConvertFromFloat::~ConvertFromFloat() {
+ConvertFromShader::~ConvertFromShader() {
 	if (precision == 3) {
 		free(floatBuffer);
 		free(halfFloatBuffer);
@@ -43,7 +43,7 @@ ConvertFromFloat::~ConvertFromFloat() {
 }
 
 
-PVideoFrame __stdcall ConvertFromFloat::GetFrame(int n, IScriptEnvironment* env) {
+PVideoFrame __stdcall ConvertFromShader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame src = child->GetFrame(n, env);
 
 	// Convert from float-precision RGB to YV24
@@ -57,7 +57,7 @@ PVideoFrame __stdcall ConvertFromFloat::GetFrame(int n, IScriptEnvironment* env)
 	return dst;
 }
 
-void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+void ConvertFromShader::convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 	int pitch1, int pitch2Y, int pitch2UV, int width, int height, IScriptEnvironment* env)
 {
 	const byte* srcLoop = precision == 3 ? floatBuffer : src;
@@ -87,7 +87,7 @@ void ConvertFromFloat::convFloatToYV24(const byte *src, unsigned char *py, unsig
 	}
 }
 
-void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
+void ConvertFromShader::convFloatToRGB32(const byte *src, unsigned char *dst,
 	int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env) {
 
 	const byte* srcLoop = precision == 3 ? floatBuffer : src;
@@ -119,8 +119,8 @@ void ConvertFromFloat::convFloatToRGB32(const byte *src, unsigned char *dst,
 }
 
 // Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-// For ConvertToFloat, it's faster to process in INT, but for ConvertFromFloat, processing with FLOAT is faster
-void ConvertFromFloat::convFloat(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
+// For ConvertToShader, it's faster to process in INT, but for ConvertFromShader, processing with FLOAT is faster
+void ConvertFromShader::convFloat(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
 	float r, g, b;
 	float y2, u2, v2;
 	short y, u, v;
@@ -184,7 +184,7 @@ void ConvertFromFloat::convFloat(const byte* src, unsigned char* outY, unsigned 
 }
 
 // Shortcut to process BYTE or UINT16 values faster when not converting colors
-void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
+void ConvertFromShader::convInt(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
 	if (precision == 1) {
 		outV[0] = src[0];
 		outU[0] = src[1];
@@ -205,7 +205,7 @@ void ConvertFromFloat::convInt(const byte* src, unsigned char* outY, unsigned ch
 	}
 }
 
-uint16_t ConvertFromFloat::sadd16(uint16_t a, uint16_t b)
+uint16_t ConvertFromShader::sadd16(uint16_t a, uint16_t b)
 {
 	return (a > 0xFFFF - b) ? 0xFFFF : a + b;
 }
