@@ -1,48 +1,53 @@
-function SuperRes(clip input, int "passes", float "strength", float "softness", string "upscalecommand", bool "srcMatrix601", bool "convert")
+function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", string "UpscaleCommand", bool "SrcMatrix601", int "PrecisionIn")
 {
-	passes = default(passes, 1)
-	strength = default(strength, 1)
-	softness = default(softness, 0)
-	convert = default(convert, true)
-	srcMatrix601 = default(srcMatrix601, false)
+	Passes = default(Passes, 1)
+	Strength = default(Strength, 1)
+	Softness = default(Softness, 0)
+	SrcMatrix601 = default(SrcMatrix601, false)
+	PrecisionIn = default(PrecisionIn, 0)
+	convert = PrecisionIn==0
 
-	Assert((passes > 0 && passes <= 3) ? true : false, "Passes must be between 1 and 3")
-	Assert((strength >= 0 && strength <= 1) ? true : false, "Strength must be between 0 and 1")
-	Assert((softness >= 0 && softness <= 1) ? true : false, "Softness must be between 0 and 1")
-	Assert(Defined(upscalecommand), "You must specify upscalecommand")
+	Assert((Passes > 0 && Passes <= 3) ? true : false, "Passes must be between 1 and 3")
+	Assert((Strength >= 0 && Strength <= 1) ? true : false, "Strength must be between 0 and 1")
+	Assert((Softness >= 0 && Softness <= 1) ? true : false, "Softness must be between 0 and 1")
+	Assert(Defined(UpscaleCommand), "You must specify UpscaleCommand")
+	Assert(PrecisionIn >= 0 && PrecisionIn <= 3, "PrecisionIn must be between 0 and 3")
 
-	input
+	Input
 
-	convertYuv = convert && !IsRGB()
+	ConvertYuv = convert && !IsRGB()
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	original = convert ? ConvertToFloat(precision=1) : last
-	Eval(upscalecommand)
-	input = convert ? ConvertToFloat(precision=1) : last
-	input.Shader(convertYuv && srcMatrix601 ? "Yuv601ToLinear.cso" : convertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
-	SuperResPass(last, input, original, strength, softness, 1, passes, convertYuv, srcMatrix601)
-	passes > 1 ? SuperResPass(input, original, strength, softness, 2, passes, convertYuv, srcMatrix601) : nop
-	passes > 2 ? SuperResPass(input, original, strength, softness, 3, passes, convertYuv, srcMatrix601) : nop
-	!convert && srcMatrix601 ? Shader("Yuv601ToGamma.cso").Shader("GammaToYuv.cso") : last
+	Original = convert ? ConvertToShader(precision=1) : last
+	Eval(UpscaleCommand)
+	Input = convert ? ConvertToShader(precision=1) : last
+	Input.Shader(ConvertYuv && SrcMatrix601 ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
+	SuperResPass(last, Input, Original, Strength, Softness, 1, Passes, ConvertYuv, SrcMatrix601, PrecisionIn)
+	Passes > 1 ? SuperResPass(Input, Original, Strength, Softness, 2, Passes, ConvertYuv, SrcMatrix601, PrecisionIn) : nop
+	Passes > 2 ? SuperResPass(Input, Original, Strength, Softness, 3, Passes, ConvertYuv, SrcMatrix601, PrecisionIn) : nop
+	!convert && SrcMatrix601 ? Shader("Yuv601ToGamma.cso").Shader("GammaToYuv.cso") : last
 
-	ExecuteShader(last, input, original, precision=3, precisionIn=convert?1:2, precisionOut=convert?1:2)
-	convert ? ConvertFromFloat(format=sourceFormat, precision=1) : last
+	ExecuteShader(last, Input, Original, precision=3, PrecisionIn=convert?1:PrecisionIn, precisionOut=convert?1:PrecisionIn)
+	convert ? ConvertFromShader(format=sourceFormat, precision=1) : last
 }
 
-function SuperResPass(clip cmd, clip input, clip original, float strength, float softness, int pass, int passes, bool convertYuv, bool srcMatrix601)
+function SuperResPass(clip cmd, clip Input, clip Original, float Strength, float Softness, int Pass, int Passes, bool ConvertYuv, bool SrcMatrix601, int PrecisionIn)
 {
-	cmd.Shader("Bicubic.cso", output=3, \
-		param0=string(original.Width) + "," + string(original.Height) + "," + string(1./original.Width,"%.32f") + "," + string(1./original.Height,"%.32f") + "f",\
-		param1=string(input.Width) + "," + string(input.Height) + "," + string(1./input.Width,"%.32f") + "," + string(1./input.Height,"%.32f") + "f",\
-		param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
-		width=original.Width, height=original.Height)
+	InputWidth = Input.Width / ((PrecisionIn==0 || PrecisionIn==1) ? 1 : 2)
+	OriginalWidth = Original.Width / ((PrecisionIn==0 || PrecisionIn==1) ? 1 : 2)
 
-	Shader(convertYuv && srcMatrix601 ? "SuperResDiff601.cso" : convertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", clip1=3, clip2=2, output=4)
+	cmd.Shader("Bicubic.cso", Output=3, \
+		Param0=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./OriginalWidth,"%.32f") + "," + string(1./Original.Height,"%.32f") + "f",\
+		Param1=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f",\
+		Param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
+		Width=OriginalWidth, Height=Original.Height)
 
-	Shader(pass==passes ? (convertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", clip1=1, clip2=4, output=1, \
-		param0=string(input.Width) + "," + string(input.Height) + "f", \
-		param1=string(1./input.Width, "%.32f") + "," + string(1./input.Height, "%.32f") + "f", \
-		param2=string(original.Width) + "," + string(original.Height) + "," + string(1./(original.Width),"%.32f") + "," + string(1./original.Height,"%.32f") + "f", \
-		Param3=string(strength,"%.32f") + "," + string(softness,"%.32f") + "," + string(pass) + "," + string(passes) + "f")
+	Shader(ConvertYuv && SrcMatrix601 ? "SuperResDiff601.cso" : ConvertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", Clip1=3, Clip2=2, Output=4)
+
+	Shader(Pass==Passes ? (ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=4, Output=1, \
+		Param0=string(InputWidth) + "," + string(Input.Height) + "f", \
+		Param1=string(1./InputWidth, "%.32f") + "," + string(1./Input.Height, "%.32f") + "f", \
+		Param2=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./(OriginalWidth),"%.32f") + "," + string(1./Original.Height,"%.32f") + "f", \
+		Param3=string(Strength,"%.32f") + "," + string(Softness,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
 }
