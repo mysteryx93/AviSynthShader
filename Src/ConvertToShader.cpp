@@ -164,9 +164,9 @@ void ConvertToShader::convInt(uint8_t y, uint8_t u, uint8_t v, uint8_t* out) {
 
 void ConvertToShader::convStack16(uint8_t y, uint8_t u, uint8_t v, uint8_t y2, uint8_t u2, uint8_t v2, uint8_t* out) {
 	if (precision == 1) {
-		out[2] = y2 < 128 ? y : y + 1;
-		out[1] = u2 < 128 ? u : u + 1;
-		out[0] = v2 < 128 ? v : v + 1;
+		out[2] = y == 255 || y2 < 128 ? y : y + 1;
+		out[1] = u == 255 || u2 < 128 ? u : u + 1;
+		out[0] = v == 255 || v2 < 128 ? v : v + 1;
 	}
 	else {
 		// Restore 16-bit values
