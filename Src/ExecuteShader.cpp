@@ -98,11 +98,6 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame src = child->GetFrame(n, env);
 	const byte* srcReader = src->GetReadPtr();
 
-	//PVideoFrame dst2 = env->NewVideoFrame(vi);
-	//CopyInputClip(0, n, env);
-	//render->TestCopyMemory(srcReader, src->GetPitch(), dst2->GetWritePtr(), dst2->GetPitch(), vi.width, vi.height, env);
-	//return dst2;
-
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;

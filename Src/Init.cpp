@@ -18,7 +18,7 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 
 	return new ConvertToShader(
 		input,					// source clip
-		args[1].AsInt(1),		// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[1].AsInt(2),		// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		args[2].AsBool(false),	// Stack16
 		env);					// env is the link to essential informations, always provide it
 }
@@ -26,12 +26,12 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	ConvertFromShader* Result = new ConvertFromShader(
 		args[0].AsClip(),			// source clip
-		args[1].AsInt(1),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[1].AsInt(2),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		args[2].AsString("YV12"),	// destination format
 		args[3].AsBool(false),		// Stack16
 		env);						// env is the link to essential informations, always provide it
 
-	if (strcmp(args[1].AsString("YV12"), "YV12") == 0) {
+	if (strcmp(args[2].AsString("YV12"), "YV12") == 0) {
 		if (args[3].AsBool(false)) // Stack16
 			return env->Invoke("Eval", AVSValue("Dither_resize16(Width(),Height()*2, csp=\"YV12\")")).AsClip();
 		else
@@ -84,8 +84,8 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[8].AsClip(),			// clip 8
 		args[9].AsClip(),			// clip 9
 		args[10].AsInt(2),			// precision
-		args[11].AsInt(1),			// precisionIn
-		args[12].AsInt(1),			// precisionOut
+		args[11].AsInt(2),			// precisionIn
+		args[12].AsInt(2),			// precisionOut
 		env);
 }
 
