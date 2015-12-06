@@ -8,7 +8,7 @@
 
 class ExecuteShader : public GenericVideoFilter {
 public:
-	ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _precision, int _precisionIn, int _precisionOut, IScriptEnvironment* env);
+	ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, IScriptEnvironment* env);
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
@@ -17,10 +17,10 @@ private:
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
 	
-	int precision;
-	int precisionIn;
-	int precisionOut;
+	int m_Precision;
+	int m_OutputPrecision;
 	PClip m_clips[9];
+	int m_ClipPrecision[9];
 	HWND dummyHWND;
 	D3D9RenderImpl* render;
 	int srcHeight;

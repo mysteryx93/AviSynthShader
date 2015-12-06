@@ -1,3 +1,16 @@
+Version 1.3.1: December 6th 2015
+- Added support to convert to/from DitherTools' Stack16 format
+- All Precision parameters are now 2 by default to avoid confusion
+- ConvertToShader/ConvertFromShader: now have 'lsb' argument. When true, it converts to/from Stack16 format. Only YV12 and YV24 are supported.
+- ExecuteShader: Added Clip1Precision-Clip9Precision instead of PrecisionIn, allowing input clips with various precisions
+- ExecuteShader: PrecisionOut is now OutputPrecision
+- SuperRes: Added MatrixIn and MatrixOut arguments instead of srcMatrix601 which gives more flexibility for color matrix conversion
+- SuperRes and Super-xBR: Added lsb_in, lsb_upscale and lsb_out to convert to/from Stack16 format
+- SuperRes and Super-xBR: PrecisionIn replaced with Convert. When true, the source must be precision=2
+- ColorMatrix601to709 is now ColorMatrixShader
+- ColorMatrixShader: Added MatrixIn and MatrixOut arguments giving more flexibility for color matrix conversion
+
+
 Version 1.3: December 1st 2015
 - SuperRes distortion problems fixed. Colors should now be accurate.
 - Shaders now use PrecisionIn=1 and convert frames to 16-bit on the GPU

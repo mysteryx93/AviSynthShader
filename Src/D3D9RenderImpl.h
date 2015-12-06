@@ -37,7 +37,7 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl();
 
-	HRESULT Initialize(HWND hDisplayWindow, int precision, int precisionIn, int precisionOut);
+	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision);
 	HRESULT CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory);
 	HRESULT CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env);
@@ -69,12 +69,12 @@ private:
 	RenderTarget m_RenderTargets[maxTextures];
 	RenderTarget* m_pCurrentRenderTarget = NULL;
 
-	int m_precision;
-	int m_precisionIn;
-	int m_precisionOut;
-	D3DFORMAT m_format;
-	D3DFORMAT m_formatIn;
-	D3DFORMAT m_formatOut;
+	int m_Precision;
+	int m_ClipPrecision[9];
+	int m_OutputPrecision;
+	D3DFORMAT m_Format;
+	D3DFORMAT m_ClipFormat[9];
+	D3DFORMAT m_OutputFormat;
 	D3DDISPLAYMODE m_displayMode;
 	D3DPRESENT_PARAMETERS m_presentParams;
 	IScriptEnvironment* m_env;

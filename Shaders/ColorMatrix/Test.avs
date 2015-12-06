@@ -6,4 +6,6 @@ Import("ColorMatrix.avsi")
 
 AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 #ColorMatrix(mode="Rec.601->Rec.709")
-ColorMatrix601to709()
+ColorMatrixShader(MatrixOut="601")
+#ColorMatrix601to709()
+#ColorMatrix709to601()

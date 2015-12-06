@@ -8,17 +8,17 @@ This implementation allows running several shaders in a row. Shader() returns a 
 
 The following example will run Diff1 and Diff2 on the clip before returning a Merge of both results. (these shader names are fictive, you have to use real shaders!)
 
-    ConvertToShader()
+    ConvertToShader(1)
 	Input
     Shader("Diff1.cso", Output=2)
     Shader("Diff2.cso", Output=3)
     Shader("Merge.cso", Clip1=2, Clip2=3, Output=1)
-    ShaderExecute(last, Input, PrecisionIn=1, Precision=3, PrecisionOut=1)
-    ConvertFromShader()
+    ShaderExecute(last, Input, Clip1Precision=1, Precision=3, OutputPrecision=1)
+    ConvertFromShader(1)
 
 ## Syntax:
 
-#### ConvertToShader(Input, Precision)
+#### ConvertToShader(Input, Precision, lsb)
 
 Converts a YV12, YV24 or RGB32 clip into a wider frame containing UINT16 or half-float data. Clips must be converted in such a way before running any shader.
 
@@ -26,17 +26,21 @@ Converts a YV12, YV24 or RGB32 clip into a wider frame containing UINT16 or half
 
 Arguments:
 
-Precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=1 (conversion can be done on the GPU)
+Precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=2
 
-#### ConvertFromShader(Input, Format, Precision)
+lsb: Whether to convert from DitherTools' Stack16 format. Only YV12 and YV24 are supported. Default=false
+
+#### ConvertFromShader(Input, Precision, Format, lsb)
 
 Convert a half-float clip into a standard YV12, YV24 or RGB32 clip.
 
 Arguments:
 
+Precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=2
+
 Format: The video format to convert to. Valid formats are YV12, YV24 and RGB32. Default=YV12.
 
-Precision: 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=1
+lsb: Whether to convert to DitherTools' Stack16 format. Only YV12 and YV24 are supported. Default=false
 
 #### Shader(Input, Path, EntryPoint, ShaderModel, Param1-Param9, Clip1-Clip9, Output, Width, Height)
 
@@ -66,7 +70,7 @@ Output: The clip index where to write the output of this shader, between 1 and 9
 
 Width, Height: The size of the output texture. Default = same as input texture.
 
-#### ExecuteShader(cmd, Clip1-Clip9, Precision)
+#### ExecuteShader(cmd, Clip1-Clip9, Clip1Precision-Clip9Precision, Precision, OutputPrecision)
 
 Executes the chain of commands on specified input clips.
 
@@ -76,14 +80,14 @@ cmd: A clip containing the commands returned by calling Shader.
 
 Clip1-Clip9: The clips on which to run the shaders.
 
+Clip1Precision-Clip9Precision: 1 if input clips is BYTE, 2 if UINT16, 3 if half-float. Default=2 or the value of the previous clip
+
 Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision, 3 to execute with half-float precision. Default=2
 
-PrecisionIn: 1 if input clips are BYTE, 2 if input clips are UINT16, 3 if input clips are half-float. Default=1
-
-PrecisionOut: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=1
+OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2
 
 
-#### SuperRes(Input, Passes, Strength, Softness, Upscalecommand, SrcMatrix601, PrecisionIn)
+#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, Convert, lsb_in, lsb_upscale, lsb_out)
 
 In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
 
@@ -99,14 +103,16 @@ Strength: How agressively we want to run SuperRes, between 0 and 1. Default=1.
 
 Softness: How much smoothness we want to add, between 0 and 1. Default=0.
 
-Upscalecommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
+UpscaleCommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
 
-SrcMatrix601: If true, the color matrix will be changed from Rec.601 to Rec.709 while running SuperRes. This avoids having to apply ColorMatrix separately. Default=false.
+MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
 
-PrecisionIn: 0 to call ConvertToShader and ConvertFromShader within the shader. 1-3 if the source is already converted. Default=0.
+Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
+
+lsb_in, lsb_upscale, lsb_out: Whether the input, result of UpscaleCommand and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
-#### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, Convert)
+#### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, Convert, lsb_in, lsb_out)
 
 In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
 
@@ -122,19 +128,20 @@ Sharpness: Value between 0 and 1.5 specifying the weight. Default=1.
 
 ThirdPass: Whether to run a 3rd pass. Default=true.
 
-PrecisionIn: 0 to call ConvertToShader and ConvertFromShader within the shader. 1-3 if the source is already converted. Default=0.
+Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
+
+lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
-#### ColorMatrix601to709(input)
+#### ColorMatrixShader(input, MatrixIn, MatrixOut)
 
 In Shaders\ColorMatrix\ColorMatrix.avsi
 
-Converts color matrix from Rec.601 to Rec.709 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
+Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
 
+Arguments:
 
-#### ColorMatrix709to601(input)
-
-Converts color matrix from Rec.709 to Rec.601 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
+MatrixIn/MatrixOut: The input and output color matrix (601 or 709). Default="709" for both
 
 
 

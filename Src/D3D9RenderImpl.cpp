@@ -36,10 +36,12 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 	}
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int precision, int precisionIn, int precisionOut) {
-	HR(ApplyPrecision(precision, m_precision, m_format));
-	HR(ApplyPrecision(precisionIn, m_precisionIn, m_formatIn));
-	HR(ApplyPrecision(precisionOut, m_precisionOut, m_formatOut));
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision) {
+	HR(ApplyPrecision(precision, m_Precision, m_Format));
+	for (int i = 0; i < 9; i++) {
+		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecision[i], m_ClipFormat[i]));
+	}
+	HR(ApplyPrecision(outputPrecision, m_OutputPrecision, m_OutputFormat));
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow));
 
@@ -195,13 +197,13 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 	Obj->Height = height;
 
 	if (memoryTexture && !isSystemMemory) {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_formatIn, D3DPOOL_DEFAULT, &Obj->Memory, NULL));
+		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_ClipFormat[index], D3DPOOL_DEFAULT, &Obj->Memory, NULL));
 	}
 	else if (isSystemMemory) {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_formatOut, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
+		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_OutputFormat, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
 	}
 	if (!isSystemMemory) {
-		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_format, D3DPOOL_DEFAULT, &Obj->Texture, NULL));
+		HR(m_pDevice->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, m_Format, D3DPOOL_DEFAULT, &Obj->Texture, NULL));
 		HR(Obj->Texture->GetSurfaceLevel(0, &Obj->Surface));
 	}
 
@@ -232,7 +234,7 @@ void D3D9RenderImpl::ResetTextureClipIndex() {
 HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, IScriptEnvironment* env)
 {
 	HR(m_pDevice->TestCooperativeLevel());
-	HR(SetRenderTarget(width, height, isLast ? m_formatOut : m_format, env));
+	HR(SetRenderTarget(width, height, isLast ? m_OutputFormat : m_Format, env));
 	HR(CreateScene(cmd, env));
 	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
 	return CopyFromRenderTarget(9 + cmd->CommandIndex, cmd->OutputIndex, width, height);
@@ -273,7 +275,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	HR(destSurface->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_precisionIn * 4, height);
+	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_ClipPrecision[index] * 4, height);
 
 	HR(destSurface->UnlockRect());
 
@@ -309,7 +311,7 @@ HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int ds
 	HR(ReadSurface->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
 	BYTE* srcPict = (BYTE*)srcRect.pBits;
 
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_precisionOut * 4, ReadSurface->Height);
+	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_OutputPrecision * 4, ReadSurface->Height);
 
 	return ReadSurface->Memory->UnlockRect();
 }

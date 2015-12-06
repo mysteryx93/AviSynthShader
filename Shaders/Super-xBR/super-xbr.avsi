@@ -1,25 +1,27 @@
-function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "ThirdPass", int "PrecisionIn")
+function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "ThirdPass", bool "Convert", bool "lsb_in", bool "lsb_out")
 {
 	EdgeStrength = default(EdgeStrength, 1)
 	Sharpness = default(Sharpness, 1)
 	ThirdPass = default(ThirdPass, true)
-	PrecisionIn = default(PrecisionIn, 0)	
-	convert = PrecisionIn==0
+	Convert = default(Convert, true)
+	lsb_in = default(lsb_in, false)
+	lsb_out = default(lsb_out, false)
 
 	Assert(EdgeStrength >= 0 && EdgeStrength <= 5, "EdgeStrength must be between 0 and 5")
 	Assert(Sharpness >= 0 && Sharpness <= 1.5, "Sharpness must be between 0 and 1.5")
-	Assert(convert || ThirdPass, "ThirdPass is required when PrecisionIn > 0")
-	Assert(PrecisionIn >= 0 && PrecisionIn <= 3, "PrecisionIn must be between 0 and 3")
+	Assert(Convert || ThirdPass, "ThirdPass is required when PrecisionIn > 0")
+	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
-	Input
-    
+    	Input
 	#convertYuv = convert && !IsRGB()
-	sourceFormat = IsYV12() ? "YV12" : IsYV24() ? "YV24" : IsRGB24() ? "RGB24" : "RGB32"
+	PrecisionIn = Convert && !lsb_in ? 1 : 2
+	PrecisionOut = Convert && !lsb_out ? 1 : 2
+	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
 
-	Input = convert ? ConvertToShader(Precision=2) : last
+	Input = convert ? ConvertToShader(Precision=PrecisionIn, lsb=lsb_in) : last
 	
 	Input
-	InputWidth = Width / (PrecisionIn==0 || PrecisionIn==1 ? 2 : 2)
+	InputWidth = Width / PrecisionIn
 	InputHeight = Height
 	args_string = string(EdgeStrength,"%.32f") + "," + string(Sharpness,"%.32f") + ",0,0f"
 	size0_string = string(InputWidth) + "," + string(InputHeight) + "," + string(1./InputWidth,"%.32f") + "," + string(1./InputHeight,"%.32f") + "f"
@@ -42,9 +44,10 @@ function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "Thi
 		Param3=size1_string) : nop
 
 	#convertYuv ? Shader("GammaToYuv.cso") : nop
-	last.ExecuteShader(Input, Precision=2, PrecisionIn=convert?1:PrecisionIn, PrecisionOut=convert?1:PrecisionIn)
+	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
-	convert ? ConvertFromShader(Format=sourceFormat, Precision=1) : last
+	convert ? ConvertFromShader(Format=sourceFormat, Precision=PrecisionOut, lsb=lsb_out) : last
+	info
 
-	!ThirdPass ? spline36resize(2*InputWidth, 2*InputHeight, -.5, -.5, 2*InputWidth, 2*InputHeight) : last
+	!ThirdPass && convert ? spline36resize(2*InputWidth, 2*InputHeight, -.5, -.5, 2*InputWidth, 2*InputHeight) : last
 }

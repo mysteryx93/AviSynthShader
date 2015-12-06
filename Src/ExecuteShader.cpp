@@ -1,9 +1,10 @@
 #include "ExecuteShader.h"
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _precision, int _precisionIn, int _precisionOut, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), precisionIn(_precisionIn), precisionOut(_precisionOut) {
+ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision) {
 
+	memcpy(m_ClipPrecision, _clipPrecision, sizeof(int) * 9);
 	m_clips[0] = _clip1;
 	m_clips[1] = _clip2;
 	m_clips[2] = _clip3;
@@ -17,7 +18,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	// Validate parameters
 	if (!vi.IsY8())
 		env->ThrowError("ExecuteShader: Source must be a command chain");
-	if (precision < 1 || precision > 3)
+	if (m_Precision < 1 || m_Precision > 3)
 		env->ThrowError("ExecuteShader: Precision must be 1, 2 or 3");
 
 	// Initialize
@@ -37,16 +38,18 @@ ExecuteShader::~ExecuteShader() {
 
 void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, precision, precisionIn, precisionOut)))
+	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// We only need to know the difference between precision 2 and 3 to initialize video buffers. Then, both are 16 bits.
-	if (precision == 3)
-		precision = 2;
-	if (precisionIn == 3)
-		precisionIn = 2;
-	if (precisionOut == 3)
-		precisionOut = 2;
+	if (m_Precision == 3)
+		m_Precision = 2;
+	if (m_OutputPrecision == 3)
+		m_OutputPrecision == 2;
+	for (int i = 0; i < 9; i++) {
+		if (m_ClipPrecision[i] == 3)
+			m_ClipPrecision[i] = 2;
+	}
 
 	CreateInputClip(0, env);
 	CreateInputClip(1, env);
@@ -87,7 +90,7 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 			if (cmd.OutputIndex != 1)
 				env->ThrowError("ExecuteShader: Last command must have Output = 1");
 
-			vi.width = OutputWidth * precisionOut;
+			vi.width = OutputWidth * m_OutputPrecision;
 			vi.height = OutputHeight;
 		}
 	}
@@ -146,7 +149,7 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 		if (!clip->GetVideoInfo().IsRGB32())
 			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
 
-		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / precisionIn, clip->GetVideoInfo().height, true, false)))
+		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipPrecision[index], clip->GetVideoInfo().height, true, false)))
 			env->ThrowError("ExecuteShader: Failed to create input textures.");
 	}
 	else
@@ -158,7 +161,7 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (m_clips[index] != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / precisionIn, clip->GetVideoInfo().height, env)))
+		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipPrecision[index], clip->GetVideoInfo().height, env)))
 			env->ThrowError("ExecuteShader: CopyInputClip failed");
 	}
 }

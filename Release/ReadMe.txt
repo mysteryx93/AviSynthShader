@@ -1,19 +1,18 @@
 AviSynthShader by Etienne Charland
 Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
+http://forum.doom9.org/showthread.php?t=172698
 
 Ex: NNEDI3+SuperRes
 SuperRes(2, .42, 0, """nnedi3_rpow2(2, nns=4, cshift="Spline16Resize", threads=2)""")
 
 Ex: Super-xBR+SuperRes
-ConvertToShader(Precision=2)
-SuperRes(2, 1, 0, """SuperXBR(PrecisionIn=2)""", PrecisionIn=2)
-ConvertFromShader("YV12", Precision=2)
+ConvertToShader(2)
+SuperRes(2, 1, 0, """SuperXBR(Convert=false)""", Convert=false)
+ConvertFromShader(2, "YV12")
 
 
 
-SuperRes(Input, Passes, Strength, Softness, Upscalecommand, SrcMatrix601, PrecisionIn)
-
-In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
+#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, Convert, lsb_in, lsb_upscale, lsb_out)
 
 Enhances upscaling quality.
 
@@ -27,18 +26,16 @@ Strength: How agressively we want to run SuperRes, between 0 and 1. Default=1.
 
 Softness: How much smoothness we want to add, between 0 and 1. Default=0.
 
-Upscalecommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
+UpscaleCommand: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
 
-SrcMatrix601: If true, the color matrix will be changed from Rec.601 to Rec.709 while running SuperRes. This avoids having to apply ColorMatrix separately. Default=false.
+MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
 
-PrecisionIn: 0 to call ConvertToShader and ConvertFromShader within the shader. 1-3 if the source is already converted. Default=0.
+Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
+
+lsb_in, lsb_upscale, lsb_out: Whether the input, result of UpscaleCommand and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
-
-
-Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, Convert)
-
-In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
+#### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, Convert, lsb_in, lsb_out)
 
 Doubles the size of the image. Produces a sharp result, but with severe ringing.
 
@@ -52,23 +49,18 @@ Sharpness: Value between 0 and 1.5 specifying the weight. Default=1.
 
 ThirdPass: Whether to run a 3rd pass. Default=true.
 
-PrecisionIn: 0 to call ConvertToShader and ConvertFromShader within the shader. 1-3 if the source is already converted. Default=0.
+Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
+
+lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
+#### ColorMatrixShader(input, MatrixIn, MatrixOut)
 
+Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
 
-ColorMatrix601to709(input)
+Arguments:
 
-In Shaders\ColorMatrix\ColorMatrix.avsi
-
-Converts color matrix from Rec.601 to Rec.709 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
-
-
-
-
-ColorMatrix709to601(input)
-
-Converts color matrix from Rec.709 to Rec.601 with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
+MatrixIn/MatrixOut: The input and output color matrix (601 or 709). Default="709" for both
 
 
 
