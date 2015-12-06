@@ -162,7 +162,7 @@ void ConvertToShader::convInt(unsigned char y, unsigned char u, unsigned char v,
 	}
 }
 
-void ConvertToShader::convStack16(unsigned char y, unsigned char u, unsigned char v, unsigned char y2, unsigned char u2, unsigned char v2, unsigned char* out) {
+void ConvertToShader::convStack16(uint8_t y, uint8_t u, uint8_t v, uint8_t y2, uint8_t u2, uint8_t v2, uint8_t* out) {
 	if (precision == 1) {
 		out[2] = y;
 		if (y2 >= 128)
@@ -176,7 +176,7 @@ void ConvertToShader::convStack16(unsigned char y, unsigned char u, unsigned cha
 	}
 	else {
 		// Restore 16-bit values
-		char Buffer[6];
+		uint8_t Buffer[6];
 		Buffer[0] = y2;
 		Buffer[1] = y;
 		Buffer[2] = u2;

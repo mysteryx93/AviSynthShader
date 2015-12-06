@@ -24,8 +24,8 @@ private:
 	void convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);
 	void convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env);
-	void convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out);
-	void convStack16(unsigned char y, unsigned char u, unsigned char v, unsigned char y2, unsigned char u2, unsigned char v2, unsigned char* out);
+	void convInt(uint8_t y, uint8_t u, uint8_t v, uint8_t* out);
+	void convStack16(uint8_t y, uint8_t u, uint8_t v, uint8_t y2, uint8_t u2, uint8_t v2, uint8_t* out);
 	void bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height);
 	__m128i	load_8_16l(const void *lsb_ptr, __m128i zero);
 	void store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb);
