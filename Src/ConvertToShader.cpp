@@ -136,17 +136,17 @@ void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int sr
 	}
 }
 
-void ConvertToShader::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
+void ConvertToShader::convInt(uint8_t y, uint8_t u, uint8_t v, uint8_t* out) {
 	if (precision == 1) {
 		out[0] = v;
 		out[1] = u;
 		out[2] = y;
 	}
 	else if (precision == 2) {
-		unsigned short *outS = (unsigned short *)out;
-		outS[0] = (unsigned short)y << 8;
-		outS[1] = (unsigned short)u << 8;
-		outS[2] = (unsigned short)v << 8;
+		uint16_t *outS = (unsigned short *)out;
+		outS[0] = (uint16_t)y << 8;
+		outS[1] = (uint16_t)u << 8;
+		outS[2] = (uint16_t)v << 8;
 	}
 	else { // precision == 3
 		// Half-float, texture shaders expect data between 0 and 1
@@ -164,15 +164,9 @@ void ConvertToShader::convInt(unsigned char y, unsigned char u, unsigned char v,
 
 void ConvertToShader::convStack16(uint8_t y, uint8_t u, uint8_t v, uint8_t y2, uint8_t u2, uint8_t v2, uint8_t* out) {
 	if (precision == 1) {
-		out[2] = y;
-		if (y2 >= 128)
-			out[2]++;
-		out[1] = u;
-		if (u2 >= 128)
-			out[1]++;
-		out[0] = v;
-		if (v2 >= 128)
-			out[0]++;
+		out[2] = y2 < 128 ? y : y + 1;
+		out[1] = u2 < 128 ? u : u + 1;
+		out[0] = v2 < 128 ? v : v + 1;
 	}
 	else {
 		// Restore 16-bit values

@@ -22,15 +22,15 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	Original = convert ? ConvertToShader(precision=UpscaleStack16?2:1) : last
+	Original = convert ? ConvertToShader(precision=UpscaleStack16?1:1) : last
 	Eval(UpscaleCommand)
-	Input = convert ? ConvertToShader(precision=UpscaleStack16?2:1, stack16=UpscaleStack16) : last
+	Input = convert ? ConvertToShader(precision=UpscaleStack16?1:1, stack16=UpscaleStack16) : last
 	Input.Shader(ConvertYuv && MatrixIn=="601" ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
 	SuperResPass(last, Input, Original, Strength, Softness, 1, Passes, ConvertYuv, Convert, MatrixIn, MatrixOut)
 	Passes > 1 ? SuperResPass(Input, Original, Strength, Softness, 2, Passes, ConvertYuv, Convert, MatrixIn, MatrixOut) : nop
 	Passes > 2 ? SuperResPass(Input, Original, Strength, Softness, 3, Passes, ConvertYuv, Convert, MatrixIn, MatrixOut) : nop
 
-	ExecuteShader(last, Input, Original, precision=3, PrecisionIn=convert&&!UpscaleStack16?1:2, precisionOut=convert?1:2)
+	ExecuteShader(last, Input, Original, precision=3, PrecisionIn=convert&&!UpscaleStack16?1:1, precisionOut=convert?1:2)
 	convert ? ConvertFromShader(format=sourceFormat, precision=1) : last
 }
 
