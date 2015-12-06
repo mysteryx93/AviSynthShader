@@ -1,16 +1,20 @@
 #include "ConvertToShader.h"
 
-ConvertToShader::ConvertToShader(PClip _child, int _precision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision) {
+ConvertToShader::ConvertToShader(PClip _child, int _precision, bool _stack16, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), stack16(_stack16) {
 	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
 		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
 	if (precision < 1 && precision > 3)
 		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
+	if (stack16 && !vi.IsYV24())
+		env->ThrowError("Conversion to Stack16 is only supported for YV24");
 
 	viDst = vi;
 	viDst.pixel_type = VideoInfo::CS_BGR32;
 	if (precision > 1) // Half-float frame has its width twice larger than normal
 		viDst.width <<= 1;
+	if (stack16)
+		viDst.height >>= 1;
 
 	if (precision == 1)
 		precisionShift = 2;
@@ -55,18 +59,25 @@ void ConvertToShader::convYV24ToFloat(const byte *py, const byte *pu, const byte
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
 	int dstLoopPitch = precision == 3 ? floatBufferPitch : pitch2;
 
+	if (stack16)
+		height >>= 1;
+
 	// Convert all data to float
-	unsigned char Y, U, V;
+	unsigned char Y, U, V, Y2, U2, V2;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			Y = py[x];
 			U = pu[x];
 			V = pv[x];
 
-			if (!convertYUV && precision < 3)
-				convInt(Y, U, V, dstLoop + (x << precisionShift));
+			if (stack16) {
+				Y2 = Y + pitch1Y * height;
+				U2 = U + pitch1UV * height;
+				V2 = V + pitch1UV * height;
+				convStack16(Y, U, V, Y2, U2, V2, dstLoop + (x << precisionShift));
+			}
 			else
-				convFloat(Y, U, V, dstLoop + (x << precisionShift));
+				convInt(Y, U, V, dstLoop + (x << precisionShift));
 		}
 		py += pitch1Y;
 		pu += pitch1UV;
@@ -88,8 +99,11 @@ void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int sr
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
 	int dstLoopPitch = precision == 3 ? floatBufferPitch : dstPitch;
 
-	const byte* Val;
-	unsigned char B, G, R;
+	if (stack16)
+		height >>= 1;
+
+	const byte *Val, *Val2;
+	unsigned char B, G, R, B2, G2, R2;
 	src += height * srcPitch;
 	for (int y = 0; y < height; ++y) {
 		src -= srcPitch;
@@ -99,10 +113,15 @@ void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int sr
 			G = Val[1];
 			R = Val[2];
 
-			if (!convertYUV && precision < 3)
-				convInt(R, G, B, dstLoop + (x << precisionShift));
+			if (stack16) {
+				Val2 = Val + srcPitch * height;
+				B2 = Val2[0];
+				G2 = Val2[1];
+				R2 = Val2[2];
+				convStack16(R, G, B, R2, G2, B2, dstLoop + (x << precisionShift));
+			}
 			else
-				convFloat(R, G, B, dstLoop + (x << precisionShift));
+				convInt(R, G, B, dstLoop + (x << precisionShift));
 		}
 		if (precision == 3) {
 			// Convert float buffer to half-float
@@ -117,97 +136,73 @@ void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int sr
 	}
 }
 
-// Using Rec601 color space. Can be optimized with MMX assembly or by converting on the GPU with a shader.
-void ConvertToShader::convFloat(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
-	int r, g, b;
-	if (convertYUV) {
-		b = 1164 * (y - 16) + 2018 * (u - 128);
-		g = 1164 * (y - 16) - 813 * (v - 128) - 391 * (u - 128);
-		r = 1164 * (y - 16) + 1596 * (v - 128);
-	}
-
-	if (precision == 1) {
-		unsigned char r2, g2, b2;
-		if (convertYUV) {
-			if (r > 255000) r = 255000;
-			if (g > 255000) g = 255000;
-			if (b > 255000) b = 255000;
-			if (r < 0) r = 0;
-			if (g < 0) g = 0;
-			if (b < 0) b = 0;
-			r2 = unsigned char(r / 1000);
-			g2 = unsigned char(g / 1000);
-			b2 = unsigned char(b / 1000);
-		}
-		else {
-			r2 = y;
-			g2 = u;
-			b2 = v;
-		}
-
-		memcpy(out + 0, &b2, 1);
-		memcpy(out + 1, &g2, 1);
-		memcpy(out + 2, &r2, 1);
-		// out[precision * 3] = 0;
-	}
-	else if (precision == 2) {
-		// UINT16, texture shaders expect data between 0 and UINT16_MAX
-		unsigned short rs, gs, bs;
-		if (convertYUV) {
-			if (r > 255000) r = 255000;
-			if (g > 255000) g = 255000;
-			if (b > 255000) b = 255000;
-			if (r < 0) r = 0;
-			if (g < 0) g = 0;
-			if (b < 0) b = 0;
-			rs = unsigned short(r / (1000 << 8));
-			gs = unsigned short(g / (1000 << 8));
-			bs = unsigned short(b / (1000 << 8));
-		}
-		else {
-			rs = unsigned short(y << 8);
-			gs = unsigned short(u << 8);
-			bs = unsigned short(v << 8);
-		}
-
-		memcpy(out, &rs, 2);
-		memcpy(out + 2, &gs, 2);
-		memcpy(out + 4, &bs, 2);
-		//memcpy(out + 6, &AlphaShort, 2);
-	}
-	else {
-		// Half-float, texture shaders expect data between 0 and 1
-		float rf, gf, bf;
-		if (convertYUV) {
-			rf = float(r) / 255000;
-			gf = float(g) / 255000;
-			bf = float(b) / 255000;
-		}
-		else {
-			rf = float(y) / 255;
-			gf = float(u) / 255;
-			bf = float(v) / 255;
-		}
-
-		memcpy(out, &rf, 4);
-		memcpy(out + 4, &gf, 4);
-		memcpy(out + 8, &bf, 4);
-		//memcpy(out + 12, &AlphaFloat, 4);
-	}
-}
-
-// Shortcut to process BYTE or UINT16 values faster when not converting colors
 void ConvertToShader::convInt(unsigned char y, unsigned char u, unsigned char v, unsigned char* out) {
 	if (precision == 1) {
 		out[0] = v;
 		out[1] = u;
 		out[2] = y;
 	}
-	else { // Precision == 2
+	else if (precision == 2) {
 		unsigned short *outS = (unsigned short *)out;
 		outS[0] = (unsigned short)y << 8;
 		outS[1] = (unsigned short)u << 8;
 		outS[2] = (unsigned short)v << 8;
+	}
+	else { // precision == 3
+		// Half-float, texture shaders expect data between 0 and 1
+		float rf, gf, bf;
+		rf = float(y) / 255;
+		gf = float(u) / 255;
+		bf = float(v) / 255;
+
+		float *outF = (float*)out;
+		outF[0] = rf;
+		outF[1] = gf;
+		outF[2] = bf;
+	}
+}
+
+void ConvertToShader::convStack16(unsigned char y, unsigned char u, unsigned char v, unsigned char y2, unsigned char u2, unsigned char v2, unsigned char* out) {
+	if (precision == 1) {
+		out[2] = y;
+		if (y2 >= 128)
+			out[2]++;
+		out[1] = u;
+		if (u2 >= 128)
+			out[1]++;
+		out[0] = v;
+		if (v2 >= 128)
+			out[0]++;
+	}
+	else {
+		// Restore 16-bit values
+		char Buffer[6];
+		Buffer[0] = y2;
+		Buffer[1] = y;
+		Buffer[2] = u2;
+		Buffer[3] = u;
+		Buffer[4] = v2;
+		Buffer[5] = v;
+		uint16_t* pBuffer = (uint16_t*)Buffer;
+
+		if (precision == 2) {
+			uint16_t *pOut = (uint16_t*)out;
+			pOut[0] = pBuffer[0];
+			pOut[1] = pBuffer[1];
+			pOut[2] = pBuffer[2];
+		}
+		else { // precision == 3
+			// Half-float, texture shaders expect data between 0 and 1
+			float rf, gf, bf;
+			rf = float(pBuffer[0]) / 65535;
+			gf = float(pBuffer[1]) / 65535;
+			bf = float(pBuffer[2]) / 65535;
+
+			float *outF = (float*)out;
+			outF[0] = rf;
+			outF[1] = gf;
+			outF[2] = bf;
+		}
 	}
 }
 

@@ -13,9 +13,10 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 		input = env->Invoke("ConvertToYV24", input).AsClip();
 
 	return new ConvertToShader(
-		input,			// source clip
-		args[1].AsInt(1), // precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		env);			// env is the link to essential informations, always provide it
+		input,					// source clip
+		args[1].AsInt(1),		// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[2].AsBool(false),	// Stack16
+		env);					// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
@@ -23,6 +24,7 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		args[0].AsClip(),			// source clip
 		args[1].AsString("YV12"),	// destination format
 		args[2].AsInt(1),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[3].AsBool(false),		// Stack16
 		env);						// env is the link to essential informations, always provide it
 
 	if (strcmp(args[1].AsString("YV12"), "YV12") == 0)
@@ -83,8 +85,8 @@ const AVS_Linkage *AVS_linkage = 0;
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	AVS_linkage = vectors;
-	env->AddFunction("ConvertToShader", "c[Precision]i", Create_ConvertToShader, 0);
-	env->AddFunction("ConvertFromShader", "c[Format]s[Precision]i", Create_ConvertFromShader, 0);
+	env->AddFunction("ConvertToShader", "c[Precision]i[Stack16]b", Create_ConvertToShader, 0);
+	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[Stack16]b", Create_ConvertFromShader, 0);
 	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Precision]i[PrecisionIn]i[PrecisionOut]i", Create_ExecuteShader, 0);
 	return "Shader plugin";

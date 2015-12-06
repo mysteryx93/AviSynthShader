@@ -10,6 +10,8 @@
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResFinal709.cso" "src\SuperRes\SuperRes709.hlsl" /DFinalPass=1
 
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResFinal601.cso" "src\SuperRes\SuperRes709.hlsl" /DFinalPass=1 /DKb=0.114 /DKr=0.299
+
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YuvToLinear.cso" "src\Common\YuvToLinear.hlsl"
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "Yuv601ToLinear.cso" "src\Common\YuvToLinear.hlsl" /DKb=0.114 /DKr=0.299

@@ -1,15 +1,26 @@
+PluginPath="C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\Encoder\"
 #SetMTMode(3,8)
 LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
-#LoadPlugin("C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\Encoder\Shader.dll")
-#AviSource("F:\AVSMeter\Preview.avi")
-ImageSource("Clown.png").ConvertToYV12()
+#LoadPlugin(PluginPath+"Shader.dll")
+LoadPlugin(PluginPath+"dither.dll")
+LoadPlugin(PluginPath+"nnedi3.dll")
+Import(PluginPath+"edi_rpow2.avsi")
+Import(PluginPath+"ResizeX.avsi")
+Import(PluginPath+"dither.avsi")
+AviSource("F:\AVSMeter\Preview.avi").ConvertToYV12()
+#ImageSource("Clown.png").ConvertToYV12()
+#ConvertToYV24()
+#edi_rpow2(2, nns=4, cshift="Spline16Resize", lsb=true, Threads=2)
+#ConvertToShader(precision=2, stack16=true)
+#DitherPost()
+
 #SetMTMode(2)
 #ConvertToYV24()
-ConvertToFloat(precision=1)
+#ConvertToFloat(precision=1)
 #Shader(path="Shaders\YuvToGamma.cso")
 #Shader(path="Shaders\GammaToYuv.cso")
-Test()
-ConvertFromFloat(precision=3)
+#Test()
+#ConvertFromFloat(precision=3)
 
 function Test(clip input) {
 input

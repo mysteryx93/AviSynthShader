@@ -9,14 +9,14 @@
 // Converts float-precision RGB data (12-byte per pixel) into YV12 format.
 class ConvertFromShader : public GenericVideoFilter {
 public:
-	ConvertFromShader(PClip _child, const char* _format, int _precision, IScriptEnvironment* env);
+	ConvertFromShader(PClip _child, const char* _format, int _precision, bool _stack16, IScriptEnvironment* env);
 	~ConvertFromShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	const VideoInfo& __stdcall GetVideoInfo() { return viDst; }
 private:
 	const int precision;
+	const bool stack16;
 	int precisionShift;
-	const bool convertYUV = false;
 	unsigned char* floatBuffer;
 	int floatBufferPitch;
 	unsigned char* halfFloatBuffer;
@@ -25,8 +25,8 @@ private:
 	void convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 		int pitch1, int pitch2Y, int pitch2UV, int width, int height, IScriptEnvironment* env);
 	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
-	void convFloat(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	void convInt(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
+	void convStack16(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV, unsigned char* outY2, unsigned char* outU2, unsigned char* outV2);
 	uint16_t sadd16(uint16_t a, uint16_t b);
 	VideoInfo viDst;
 };
