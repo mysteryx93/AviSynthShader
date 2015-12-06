@@ -1,15 +1,15 @@
 #include "ConvertFromShader.h"
 
-ConvertFromShader::ConvertFromShader(PClip _child, const char* _format, int _precision, bool _stack16, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), stack16(_stack16), format(_format) {
+ConvertFromShader::ConvertFromShader(PClip _child, int _precision, const char* _format, bool _stack16, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), precision(_precision), format(_format), stack16(_stack16) {
 	if (!vi.IsRGB32())
 		env->ThrowError("ConvertFromShader: Source must be float-precision RGB");
 	if (strcmp(format, "YV12") != 0 && strcmp(format, "YV24") != 0 && strcmp(format, "RGB24") != 0 && strcmp(format, "RGB32") != 0)
 		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
 	if (precision < 1 || precision > 3)
 		env->ThrowError("ConvertFromShader: Precision must be 1, 2 or 3");
-	if (stack16 && strcmp(format, "YV24") != 0)
-		env->ThrowError("Conversion to Stack16 is only supported for YV24 format");
+	if (stack16 && strcmp(format, "YV12") != 0 && strcmp(format, "YV24") != 0)
+		env->ThrowError("Conversion to Stack16 only supports YV12 and YV24");
 
 	viDst = vi;
 	if (strcmp(format, "RGB32") == 0)
@@ -18,10 +18,10 @@ ConvertFromShader::ConvertFromShader(PClip _child, const char* _format, int _pre
 		viDst.pixel_type = VideoInfo::CS_BGR24;
 	else
 		viDst.pixel_type = VideoInfo::CS_YV24;
-	if (stack16)
-		viDst.height <<= 1;
 
-	if (precision > 1) // Half-float frame has its width twice larger than normal
+	if (stack16)		// Stack16 frame has twice the height
+		viDst.height <<= 1;
+	if (precision > 1)	// UINT16 frame has twice the width
 		viDst.width >>= 1;
 
 	if (precision == 1)

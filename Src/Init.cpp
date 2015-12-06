@@ -9,8 +9,12 @@ const int DefaultConvertYuv = false;
 
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	if (input->GetVideoInfo().IsYV12())
-		input = env->Invoke("ConvertToYV24", input).AsClip();
+	if (input->GetVideoInfo().IsYV12()) {
+		if (args[2].AsBool(false)) // Stack16
+			input = env->Invoke("Eval", AVSValue("Dither_resize16(Width(),Height()/2, csp=\"YV24\")")).AsClip();
+		else
+			input = env->Invoke("ConvertToYV24", input).AsClip();
+	}
 
 	return new ConvertToShader(
 		input,					// source clip
@@ -22,13 +26,17 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	ConvertFromShader* Result = new ConvertFromShader(
 		args[0].AsClip(),			// source clip
-		args[1].AsString("YV12"),	// destination format
-		args[2].AsInt(1),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[1].AsInt(1),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		args[2].AsString("YV12"),	// destination format
 		args[3].AsBool(false),		// Stack16
 		env);						// env is the link to essential informations, always provide it
 
-	if (strcmp(args[1].AsString("YV12"), "YV12") == 0)
-		return env->Invoke("ConvertToYV12", Result).AsClip();
+	if (strcmp(args[1].AsString("YV12"), "YV12") == 0) {
+		if (args[3].AsBool(false)) // Stack16
+			return env->Invoke("Eval", AVSValue("Dither_resize16(Width(),Height()*2, csp=\"YV12\")")).AsClip();
+		else
+			return env->Invoke("ConvertToYV12", Result).AsClip();
+	}
 	else
 		return Result;
 }
