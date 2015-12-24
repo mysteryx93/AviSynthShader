@@ -36,7 +36,7 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	Passes > 2 ? SuperResPass(Input, Original, Strength, Softness, 3, Passes, ConvertYuv, Convert, PrecisionIn, PrecisionUpscale, MatrixIn, MatrixOut) : nop
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
-	convert ? ConvertFromShader(1, format=sourceFormat, lsb=lsb_out) : last
+	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
 function SuperResPass(clip cmd, clip Input, clip Original, float Strength, float Softness, int Pass, int Passes, bool ConvertYuv, bool Convert, int PrecisionIn, int PrecisionUpscale, string MatrixIn, string MatrixOut)

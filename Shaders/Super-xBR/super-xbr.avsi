@@ -18,7 +18,7 @@ function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "Thi
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
 	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
 
-	Input = convert ? ConvertToShader(Precision=PrecisionIn, lsb=lsb_in) : last
+	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	
 	Input
 	InputWidth = Width / PrecisionIn
@@ -46,7 +46,7 @@ function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "Thi
 	#convertYuv ? Shader("GammaToYuv.cso") : nop
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
-	convert ? ConvertFromShader(Format=sourceFormat, Precision=PrecisionOut, lsb=lsb_out) : last
+	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 	info
 
 	!ThirdPass && convert ? spline36resize(2*InputWidth, 2*InputHeight, -.5, -.5, 2*InputWidth, 2*InputHeight) : last
