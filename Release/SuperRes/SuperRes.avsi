@@ -1,10 +1,11 @@
-function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", string "UpscaleCommand", string "MatrixIn", string "MatrixOut", bool "Convert", bool "lsb_in", bool "lsb_upscale", bool "lsb_out")
+function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", string "UpscaleCommand", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_upscale", bool "lsb_out")
 {
 	Passes = default(Passes, 1)
 	Strength = default(Strength, 1)
 	Softness = default(Softness, 0)
 	MatrixIn = default(MatrixIn, "709")
 	MatrixOut = default(MatrixOut, "709")
+	FormatOut = default(FormatOut, "")
 	Convert = default(Convert, true)
 	lsb_in = default(lsb_in, false)
 	lsb_upscale = default(lsb_upscale, false)
@@ -24,7 +25,7 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	PrecisionUpscale = Convert && !lsb_upscale ? 1 : 2
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
 	ConvertYuv = convert && !IsRGB()
-	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
+	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
 	Original = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
@@ -36,7 +37,7 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	Passes > 2 ? SuperResPass(Input, Original, Strength, Softness, 3, Passes, ConvertYuv, Convert, PrecisionIn, PrecisionUpscale, MatrixIn, MatrixOut) : nop
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
-	convert ? ConvertFromShader(1, format=sourceFormat, lsb=lsb_out) : last
+	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
 function SuperResPass(clip cmd, clip Input, clip Original, float Strength, float Softness, int Pass, int Passes, bool ConvertYuv, bool Convert, int PrecisionIn, int PrecisionUpscale, string MatrixIn, string MatrixOut)

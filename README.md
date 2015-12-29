@@ -1,4 +1,4 @@
-# AviSynth Shader v1.3
+# AviSynth Shader v1.3.2
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -87,7 +87,7 @@ Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision
 OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2
 
 
-#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, Convert, lsb_in, lsb_upscale, lsb_out)
+#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_upscale, lsb_out)
 
 In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
 
@@ -107,12 +107,14 @@ UpscaleCommand: An upscaling command that must contain offset-correction. Ex: ""
 
 MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
 
+FormatOut: The output format. Default = same as input.
+
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 
 lsb_in, lsb_upscale, lsb_out: Whether the input, result of UpscaleCommand and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
-#### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, Convert, lsb_in, lsb_out)
+#### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, FormatOut, Convert, lsb_in, lsb_out)
 
 In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
 
@@ -128,12 +130,14 @@ Sharpness: Value between 0 and 1.5 specifying the weight. Default=1.
 
 ThirdPass: Whether to run a 3rd pass. Default=true.
 
+FormatOut: The output format. Default = same as input.
+
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 
 lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
-#### ColorMatrixShader(input, MatrixIn, MatrixOut)
+#### ColorMatrixShader(input, MatrixIn, MatrixOut, FormatOut)
 
 In Shaders\ColorMatrix\ColorMatrix.avsi
 
@@ -142,6 +146,8 @@ Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12
 Arguments:
 
 MatrixIn/MatrixOut: The input and output color matrix (601 or 709). Default="709" for both
+
+FormatOut: The output format. Default = same as input.
 
 
 

@@ -1,9 +1,10 @@
-function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "ThirdPass", bool "Convert", bool "lsb_in", bool "lsb_out")
+function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "ThirdPass", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out")
 {
 	EdgeStrength = default(EdgeStrength, 1)
 	Sharpness = default(Sharpness, 1)
 	ThirdPass = default(ThirdPass, true)
 	Convert = default(Convert, true)
+	FormatOut = default(FormatOut, "")
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
 
@@ -16,7 +17,7 @@ function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "Thi
 	#convertYuv = convert && !IsRGB()
 	PrecisionIn = Convert && !lsb_in ? 1 : 2
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
+	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	
@@ -47,7 +48,6 @@ function SuperXBR(clip Input, float "EdgeStrength", float "Sharpness", bool "Thi
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
-	info
 
 	!ThirdPass && convert ? spline36resize(2*InputWidth, 2*InputHeight, -.5, -.5, 2*InputWidth, 2*InputHeight) : last
 }

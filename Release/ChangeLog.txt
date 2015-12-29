@@ -1,3 +1,9 @@
+Version 1.3.2: December 28th 2015
+- Added FormatOut to all scripts to set output format
+- Fixed SuperRes when using lsb_out
+- Removed bogus "info" in Super-xBR
+
+
 Version 1.3.1: December 6th 2015
 - Added support to convert to/from DitherTools' Stack16 format
 - All Precision parameters are now 2 by default to avoid confusion
