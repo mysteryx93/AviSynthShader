@@ -1,4 +1,4 @@
-# AviSynth Shader v1.3.2
+# AviSynth Shader v1.3.3
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -50,7 +50,7 @@ Arguments:
 
 Input: The first input clip.
 
-Path: The path to the HLSL pixel shader file to run.
+Path: The path to the HLSL pixel shader file to run. If not specified, Clip1 will be copied to Output.
 
 EntryPoint: If compiling HLSL source code, specified the code entry point.
 
@@ -87,13 +87,16 @@ Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision
 OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2
 
 
-#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_upscale, lsb_out)
+#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out)
 
-In Shaders\SuperRes\SuperRes.avsi. Thanks to Shiandow for writing this great code!
+Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
+
+Arguments are the same as SuperRes and Super-xBR
+
+
+#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out)
 
 Enhances upscaling quality.
-
-Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 Arguments:
 
@@ -111,16 +114,14 @@ FormatOut: The output format. Default = same as input.
 
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 
+ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
+
 lsb_in, lsb_upscale, lsb_out: Whether the input, result of UpscaleCommand and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
 #### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, FormatOut, Convert, lsb_in, lsb_out)
 
-In Shaders\Super-xBR\super-xbr.avsi. Thanks to Shiandow for writing this great code!
-
 Doubles the size of the image. Produces a sharp result, but with severe ringing.
-
-Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 Arguments:
 
@@ -138,8 +139,6 @@ lsb_in, lsb_out: Whether the input and output are to be converted to/from Dither
 
 
 #### ColorMatrixShader(input, MatrixIn, MatrixOut, FormatOut)
-
-In Shaders\ColorMatrix\ColorMatrix.avsi
 
 Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
 

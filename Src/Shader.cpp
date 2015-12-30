@@ -34,8 +34,8 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	cmd.OutputHeight = _height;
 
 	// Validate parameters
-	if (path == NULL || path[0] == '\0')
-		env->ThrowError("Shader: path to a compiled shader must be specified");
+	//if (path == NULL || path[0] == '\0')
+	//	env->ThrowError("Shader: path to a compiled shader must be specified");
 
 	if (vi.pixel_type != VideoInfo::CS_Y8) {
 		vi.pixel_type = VideoInfo::CS_Y8;
@@ -48,17 +48,19 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	cmd.CommandIndex = vi.height - 1;
 
 	// Configure pixel shader
-	for (int i = 0; i < 9; i++) {
-		ParamStruct* param = &cmd.Param[i];
-		if (param->String && param->String[0] != '\0') {
-			if (!ParseParam(param)) {
-				char* ErrorText = "Shader invalid parameter: Param%d = %s";
-				char* FullText;
-				int FullTextLength = strlen(ErrorText) - 3 + strlen(param->String) + 1;
-				FullText = (char*)malloc(FullTextLength);
-				sprintf_s(FullText, FullTextLength, ErrorText, i + 1, param->String);
-				env->ThrowError(FullText);
-				free(FullText);
+	if (path != NULL && path[0] != '\0') {
+		for (int i = 0; i < 9; i++) {
+			ParamStruct* param = &cmd.Param[i];
+			if (param->String && param->String[0] != '\0') {
+				if (!ParseParam(param)) {
+					char* ErrorText = "Shader invalid parameter: Param%d = %s";
+					char* FullText;
+					int FullTextLength = strlen(ErrorText) - 3 + strlen(param->String) + 1;
+					FullText = (char*)malloc(FullTextLength);
+					sprintf_s(FullText, FullTextLength, ErrorText, i + 1, param->String);
+					env->ThrowError(FullText);
+					free(FullText);
+				}
 			}
 		}
 	}

@@ -39,6 +39,7 @@ public:
 
 	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision);
 	HRESULT CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory);
+	HRESULT CopyBuffer(InputTexture* srcSurface, int commandIndex, int outputIndex, IScriptEnvironment* env);
 	HRESULT CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env);
 	HRESULT ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, IScriptEnvironment* env);

@@ -69,12 +69,21 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
 	bool IsLast;
+	bool Copy;
 	render->ResetTextureClipIndex();
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
 		srcReader += src->GetPitch();
+		IsLast = i == srcHeight - 1; // Only create memory on the CPU side for the last command, as it is the only one that needs to be read back.
 
-		ConfigureShader(&cmd, env);
+		if (cmd.Path != NULL && cmd.Path[0] != '\0')
+			ConfigureShader(&cmd, env);
+		else {
+			if (cmd.ClipIndex[0] == cmd.OutputIndex)
+				env->ThrowError("ExecuteShader: If Path is not specified, Output must be different than Clip1 to copy clip data");
+			if (cmd.OutputWidth != 0 || cmd.OutputHeight != 0)
+				env->ThrowError("ExecuteShader: If Path is not specified, OutputWidth and OutputHeight cannot be set");
+		}
 
 		texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
 		// If clip at output position isn't defined, use dimensions of first clip by default.
@@ -82,7 +91,7 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
 		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
-		IsLast = i == srcHeight - 1; // Only create memory on the CPU side for the last command, as it is the only one that needs to be read back.
+
 		if (FAILED(render->CreateInputTexture(9 + i, cmd.OutputIndex, OutputWidth, OutputHeight, IsLast, IsLast)))
 			env->ThrowError("ExecuteShader: Failed to create input texture.");
 
@@ -107,33 +116,42 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
 	render->ResetTextureClipIndex();
+
+	// Copy input clips from AviSynth
+	for (int j = 0; j < 9; j++) {
+		CopyInputClip(j, n, env);
+	}
+
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
 		srcReader += src->GetPitch();
 		IsLast = i == srcHeight - 1;
 
-		// Copy input clips from AviSynth
-		for (int j = 0; j < 9; j++) {
-			CopyInputClip(j, n, env);
-		}
+		if (cmd.Path != NULL && cmd.Path[0] != '\0') {
+			// If clip at output position isn't defined, use dimensions of first clip by default.
+			texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
+			if (texture->Texture == NULL)
+				texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
+			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
+			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 
-		texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
-		// If clip at output position isn't defined, use dimensions of first clip by default.
-		if (texture->Texture == NULL)
-			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
-		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
-		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
-
-		// Configure pixel shader
-		for (int i = 0; i < 9; i++) {
-			if (cmd.Param[i].Type != ParamType::None) {
-				if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
-					env->ThrowError("ExecuteShader failed to set parameters.");
+			// Configure pixel shader
+			for (int i = 0; i < 9; i++) {
+				if (cmd.Param[i].Type != ParamType::None) {
+					if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
+						env->ThrowError("ExecuteShader failed to set parameters.");
+				}
 			}
-		}
 
-		if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, env))
-			env->ThrowError("ExecuteShader: ProcessFrame failed.");
+			if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, env))
+				env->ThrowError("ExecuteShader: ProcessFrame failed.");
+		}
+		else {
+			// Only copy Clip1 to Output without processing
+			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
+			if FAILED(render->CopyBuffer(texture, cmd.CommandIndex, cmd.OutputIndex, env))
+				env->ThrowError("ExecuteShader: CopyBufferToBuffer failed.");
+		}
 	}
 
 	// After last command, copy result back to AviSynth.

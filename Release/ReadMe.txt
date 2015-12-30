@@ -1,4 +1,6 @@
-AviSynthShader v1.3.2 by Etienne Charland
+AviSynthShader v1.3.3 (December 30th 2015)
+by Etienne Charland
+
 Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
 http://forum.doom9.org/showthread.php?t=172698
 
@@ -10,13 +12,20 @@ ConvertToShader(2)
 SuperRes(2, 1, 0, """SuperXBR(Convert=false)""", Convert=false)
 ConvertFromShader(2, "YV12")
 
+Supported video formats: YV12, YV24, RGB24 and RGB32.
+
+
+
+#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out)
+
+Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
+
+Arguments are the same as SuperRes and Super-xBR
 
 
 #### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_upscale, lsb_out)
 
 Enhances upscaling quality.
-
-Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 Arguments:
 
@@ -34,14 +43,14 @@ FormatOut: The output format. Default = same as input.
 
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 
+ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
+
 lsb_in, lsb_upscale, lsb_out: Whether the input, result of UpscaleCommand and output are to be converted to/from DitherTools' Stack16 format. Default=false
 
 
 #### Super-xBR(Input, EdgeStrength, Sharpness, ThirdPass, FormatOut, Convert, lsb_in, lsb_out)
 
 Doubles the size of the image. Produces a sharp result, but with severe ringing.
-
-Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 Arguments:
 

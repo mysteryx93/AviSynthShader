@@ -1,4 +1,4 @@
-function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", string "UpscaleCommand", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_upscale", bool "lsb_out")
+function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", string "UpscaleCommand", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out")
 {
 	Passes = default(Passes, 1)
 	Strength = default(Strength, 1)
@@ -7,6 +7,7 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	MatrixOut = default(MatrixOut, "709")
 	FormatOut = default(FormatOut, "")
 	Convert = default(Convert, true)
+	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
 	lsb_in = default(lsb_in, false)
 	lsb_upscale = default(lsb_upscale, false)
 	lsb_out = default(lsb_out, false)
@@ -24,7 +25,6 @@ function SuperRes(clip Input, int "Passes", float "Strength", float "Softness", 
 	PrecisionIn = Convert && !lsb_in ? 1 : 2
 	PrecisionUpscale = Convert && !lsb_upscale ? 1 : 2
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	ConvertYuv = convert && !IsRGB()
 	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 

@@ -265,6 +265,15 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
 	return m_pDevice->EndScene();
 }
 
+HRESULT D3D9RenderImpl::CopyBuffer(InputTexture* srcSurface, int commandIndex, int outputIndex, IScriptEnvironment* env) {
+	InputTexture* dstSurface = &m_InputTextures[9 + commandIndex];
+	dstSurface->ClipIndex = outputIndex;
+
+	//HR(m_pDevice->ColorFill(dstSurface->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	HR(m_pDevice->StretchRect(srcSurface->Surface, NULL, dstSurface->Surface, NULL, D3DTEXF_POINT));
+	return S_OK;
+}
+
 HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
 	// Copies source frame into main surface buffer, or into additional input textures
 	CComPtr<IDirect3DSurface9> destSurface = m_InputTextures[index].Memory;
@@ -280,7 +289,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	HR(destSurface->UnlockRect());
 
 	// Copy to GPU
-	HR(m_pDevice->ColorFill(m_InputTextures[index].Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+	//HR(m_pDevice->ColorFill(m_InputTextures[index].Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
 	return (m_pDevice->StretchRect(m_InputTextures[index].Memory, NULL, m_InputTextures[index].Surface, NULL, D3DTEXF_POINT));
 }
 
@@ -294,7 +303,7 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(int dstIndex, int outputIndex, int 
 	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
 	Output->ClipIndex = outputIndex;
 	if (Output->Memory == NULL) {
-		HR(m_pDevice->ColorFill(Output->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
+		//HR(m_pDevice->ColorFill(Output->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
 		HR(m_pDevice->StretchRect(pReadSurfaceGpu, NULL, Output->Surface, NULL, D3DTEXF_POINT));
 	}
 	else {
