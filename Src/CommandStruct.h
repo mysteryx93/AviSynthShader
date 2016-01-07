@@ -14,7 +14,8 @@ enum ParamType {
 
 struct ParamStruct {
 	const char* String;
-	float Value[4]; // Can hold Vector of 4 floats
+	float* Values;	// Array size must be divisible by 4.
+	int Count;		// The quantity of Float4 vectors being set.
 	ParamType Type;
 };
 

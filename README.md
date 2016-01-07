@@ -1,4 +1,4 @@
-# AviSynth Shader v1.3.3
+# AviSynth Shader v1.3.4
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -87,11 +87,15 @@ Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision
 OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2
 
 
-#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out)
+#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, WidthOut, HeightOut, b, c)
 
 Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 
 Arguments are the same as SuperRes and Super-xBR
+
+WidthOut, HeightOut: Allows downscaling output with Bicubic before reading back from GPU
+
+b, c: b and c parameters of Bicubic resize. Default is b=0, c=.75
 
 
 #### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out)

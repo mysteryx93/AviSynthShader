@@ -67,6 +67,10 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 }
 
 Shader::~Shader() {
+	for (int i = 0; i < 9; i++) {
+		if (cmd.Param[i].Count > 0)
+			delete cmd.Param[i].Values;
+	}
 }
 
 
@@ -87,66 +91,64 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 // The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
 // Returns True if parameter was valid, otherwise false.
 bool Shader::ParseParam(ParamStruct* param) {
-	// Count ',' to determine vector size.
-	int Count = 0;
-	int Pos = 0;
-	while (param->String[Pos] != '\0') {
-		if (param->String[Pos++] == ',')
-			Count++;
+	// Get value type
+	char Type = param->String[strlen(param->String) - 1];
+	// Create string with all but last character.
+	std::string StrValue = std::string(param->String);
+	StrValue = StrValue.substr(0, StrValue.size() - 1);
+
+	// Split string on ','
+	std::vector<std::string> StrVal = Split(StrValue, ',');
+
+	param->Type = Type == 'f' ? ParamType::Float : Type == 'i' ? ParamType::Int : Type == 'b' ? ParamType::Bool : ParamType::None;
+	if (param->Type == ParamType::None) // Invalid type
+		return false;
+
+	if (Type == 'b') {
+		// Assign float array and store bool in it.
+		param->Count = StrVal.size();
+		param->Values = new float[param->Count];
+	}
+	else {
+		// Assign blocks of Float4 vectors
+		param->Count = (StrVal.size() + 3) / 4;
+		param->Values = new float[param->Count * 4];
 	}
 
-	// Set parameter value.
-	char Type = param->String[strlen(param->String) - 1];
-	if (Type == 'f') {
-		param->Type = ParamType::Float;
-		if (Count == 0) {
-			if (sscanf_s(param->String, "%ff", &param->Value[0]) < 1)
-				return false;
+	// Convert all values
+	try {
+		for (int i = 0; i < (int)StrVal.size(); i++) {
+			if (Type == 'f')
+				param->Values[i] = std::stof(StrVal[i]);
+			else if (Type == 'i') {
+				int IntVal = std::stoi(StrVal[i]);
+				param->Values[i] = *(float*)&IntVal; // Store int data in float vector
+			}
+			else if (Type == 'b') {
+				bool BoolVal = StrVal[i] == "0" ? false : true;
+				param->Values[i] = *(float*)&BoolVal; // Store bool data in float vector (even if bool size may be smaller than float)
+			}
 		}
-		else if (Count == 1) {
-			if (sscanf_s(param->String, "%f,%ff", &param->Value[0], &param->Value[1]) < 2)
-				return false;
-		}
-		else if (Count == 2) {
-			if (sscanf_s(param->String, "%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2]) < 3)
-				return false;
-		}
-		else if (Count == 3) {
-			if (sscanf_s(param->String, "%f,%f,%f,%ff", &param->Value[0], &param->Value[1], &param->Value[2], &param->Value[3]) < 4)
-				return false;
-		}
-		else
-			return false;
 	}
-	else if (Type == 'i') {
-		param->Type = ParamType::Int;
-		if (Count == 0) {
-			if (sscanf_s(param->String, "%ii", (int*)&param->Value[0]) < 1)
-				return false;
-		}
-		else if (Count == 1) {
-			if (sscanf_s(param->String, "%i,%ii", (int*)&param->Value[0], (int*)&param->Value[1]) < 2)
-				return false;
-		}
-		else if (Count == 2) {
-			if (sscanf_s(param->String, "%i,%i,%ii", (int*)&param->Value[0], (int*)&param->Value[1], (int*)&param->Value[2]) < 3)
-				return false;
-		}
-		else if (Count == 3) {
-			if (sscanf_s(param->String, "%i,%i,%i,%ii", (int*)&param->Value[0], (int*)&param->Value[1], (int*)&param->Value[2], (int*)&param->Value[3]) < 4)
-				return false;
-		}
-		else
-			return false;
-	}
-	else if (Type == 'b') {
-		param->Type = ParamType::Bool;
-		bool* pOut = (bool*)param->Value;
-		pOut[0] = param->String[0] == '0' ? false : true;
-	}
-	else // invalid type
+	catch (...) {
 		return false;
+	}
 
 	// Success
 	return true;
+}
+
+std::vector<std::string> &Shader::Split(const std::string &s, char delim, std::vector<std::string> &elems) {
+	std::stringstream ss(s);
+	std::string item;
+	while (std::getline(ss, item, delim)) {
+		elems.push_back(item);
+	}
+	return elems;
+}
+
+std::vector<std::string> Shader::Split(const std::string &s, char delim) {
+	std::vector<std::string> elems;
+	Split(s, delim, elems);
+	return elems;
 }

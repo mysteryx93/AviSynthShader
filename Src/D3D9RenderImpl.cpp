@@ -402,13 +402,13 @@ HRESULT D3D9RenderImpl::SetDefaults(LPD3DXCONSTANTTABLE table) {
 
 HRESULT D3D9RenderImpl::SetPixelShaderConstant(int index, const ParamStruct* param) {
 	if (param->Type == ParamType::Float) {
-		HR(m_pDevice->SetPixelShaderConstantF(index, (float*)param->Value, 1));
+		HR(m_pDevice->SetPixelShaderConstantF(index, (float*)param->Values, param->Count));
 	}
 	else if (param->Type == ParamType::Int) {
-		HR(m_pDevice->SetPixelShaderConstantI(index, (int*)param->Value, 1));
+		HR(m_pDevice->SetPixelShaderConstantI(index, (int*)param->Values, param->Count));
 	}
 	else if (param->Type == ParamType::Bool) {
-		HR(m_pDevice->SetPixelShaderConstantB(index, (const BOOL*)param->Value, 1));
+		HR(m_pDevice->SetPixelShaderConstantB(index, (const BOOL*)param->Values, param->Count));
 	}
 	return S_OK;
 }

@@ -1,5 +1,5 @@
 PluginPath="C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\Encoder\"
-LoadPlugin("C:\GitHub\AviSynthShader\Src\Release\Shader.dll")
+LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
 LoadPlugin(PluginPath+"dither.dll")
 Import(PluginPath+"dither.avsi")
 Import("super-xbr.avsi")

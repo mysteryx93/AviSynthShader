@@ -5,6 +5,10 @@
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
+#include <string>
+#include <sstream>
+#include <iterator>
+#include <vector>
 
 class Shader : public GenericVideoFilter {
 public:
@@ -15,6 +19,8 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
 	bool ParseParam(ParamStruct* param);
+	std::vector<std::string> &Split(const std::string &s, char delim, std::vector<std::string> &elems);
+	std::vector<std::string> Split(const std::string &s, char delim);
 
 	const char* path;
 	const char* entryPoint;

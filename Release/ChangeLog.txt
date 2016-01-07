@@ -1,3 +1,8 @@
+Version 1.3.4: January 7th 2016
+- Shader.dll: It is now possible to set parameter as vectors with more than 4 values
+- Super-xBR and SuperResXBR: Fixed image distortion.
+- SuperResXBR: Added WidthOut, HeightOut, b and c to do a final Bicubic resize before reading from GPU, reducing memory transfers
+
 Version 1.3.3: December 30th 2015
 - Shader.dll: Added the option to copy clip data without processing by leaving Path empty
 - Shader.dll: Fixed a bug where input textures were unecessarily copied for each command. This slightly increases performance and reduces CPU usage

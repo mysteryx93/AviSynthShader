@@ -1,4 +1,4 @@
-AviSynthShader v1.3.3 (December 30th 2015)
+AviSynthShader v1.3.4 (January 7th 2016)
 by Etienne Charland
 
 Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -7,20 +7,19 @@ http://forum.doom9.org/showthread.php?t=172698
 Ex: NNEDI3+SuperRes
 SuperRes(2, .42, 0, """nnedi3_rpow2(2, nns=4, cshift="Spline16Resize", threads=2)""")
 
-Ex: Super-xBR+SuperRes
-ConvertToShader(2)
-SuperRes(2, 1, 0, """SuperXBR(Convert=false)""", Convert=false)
-ConvertFromShader(2, "YV12")
-
 Supported video formats: YV12, YV24, RGB24 and RGB32.
 
 
 
-#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out)
+#### function SuperResXBR(Input, Passes, Strength, Softness, xbrEdgeStrength, xbrSharpness, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, WidthOut, HeightOut, b, c)
 
 Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 
 Arguments are the same as SuperRes and Super-xBR
+
+WidthOut, HeightOut: Allows downscaling output with Bicubic before reading back from GPU
+
+b, c: b and c parameters of Bicubic resize. Default is b=0, c=.75
 
 
 #### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_upscale, lsb_out)

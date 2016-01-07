@@ -2,31 +2,19 @@ PluginPath="C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\En
 #SetMTMode(3,8)
 LoadPlugin("C:\GitHub\AviSynthShader\Src\Debug\Shader.dll")
 #LoadPlugin(PluginPath+"Shader.dll")
-LoadPlugin(PluginPath+"dither.dll")
-LoadPlugin(PluginPath+"nnedi3.dll")
-Import(PluginPath+"edi_rpow2.avsi")
-Import(PluginPath+"ResizeX.avsi")
-Import(PluginPath+"dither.avsi")
 AviSource("F:\AVSMeter\Preview.avi").ConvertToYV12()
 #ImageSource("Clown.png").ConvertToYV12()
-#ConvertToYV24()
-#edi_rpow2(2, nns=4, cshift="Spline16Resize", lsb=true, Threads=2)
-#ConvertToShader(precision=2, stack16=true)
-#DitherPost()
 
 #SetMTMode(2)
-#ConvertToYV24()
-#ConvertToFloat(precision=1)
-#Shader(path="Shaders\YuvToGamma.cso")
-#Shader(path="Shaders\GammaToYuv.cso")
-#Test()
-#ConvertFromFloat(precision=3)
+ConvertToShader(precision=1)
+Test()
+ConvertFromShader(precision=1)
 
 function Test(clip input) {
 input
 #cmd = input.Shader(path="Test.hlsl", shaderModel="ps_3_0")
-Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", param1=".5f", param2=string(width)+","+string(height)+"f")
-return ExecuteShader(last, input, precisionIn=1, precision=3, precisionOut=3)
+Shader(path="Sharpen.hlsl", shaderModel="ps_3_0", Param0=".5f", Param1=string(width)+","+string(height)+"f")
+return ExecuteShader(last, input, Clip1Precision=1, Precision=3, OutputPrecision=1)
 }
 
 function Test2(clip input) {

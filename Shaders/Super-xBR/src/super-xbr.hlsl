@@ -1,8 +1,6 @@
 #pragma parameter XBR_EDGE_STR "Xbr - Edge Strength p0" 1.0 0.0 5.0 0.2
 #pragma parameter XBR_WEIGHT "Xbr - Filter Weight" 1.0 0.00 1.50 0.01
 
-sampler s0 : register(s0);
-
 #include "super-xbr-params.inc"
 
 /* COMPATIBILITY
@@ -59,11 +57,11 @@ sampler s0 : register(s0);
 #endif
 
 #if Pass == 0
-	#define Get(x,y) (tex2D(s0, max(0,min(1,tex + pixel_size*float2(x,y)))).xyz)
+	#define Get(x,y) (tex2D(s0, VAR.texCoord + pixel_size*float2(x,y)).xyz)
 #elif Pass == 1
-	#define Get(x,y) (tex2D(s0, max(0,min(1,tex + pixel_size*float2((x)+(y) - 1,(y) - (x))))).xyz)
+	#define Get(x,y) (tex2D(s0, VAR.texCoord + pixel_size*float2((x)+(y) - 1,(y) - (x))).xyz)
 #else
-	#define Get(x,y) (tex2D(s0, max(0,min(1,tex - pixel_size*float2(x,y)))).xyz)
+	#define Get(x,y) (tex2D(s0, VAR.texCoord - pixel_size*float2(x,y)).xyz)
 #endif
 
 const static float3 Y = float3(.2126, .7152, .0722);
@@ -96,15 +94,55 @@ float3 max4(float3 a, float3 b, float3 c, float3 d)
 {
 		return max(a, max(b, max(c, d)));
 }
+
+struct input
+{
+		float2 video_size;
+		float2 texture_size;
+		float2 output_size;
+		float  frame_count;
+		float  frame_direction;
+		float frame_rotation;
+};
  
-float4 main(float2 tex : TEXCOORD0) : COLOR
+ 
+struct out_vertex {
+		float4 position : POSITION;
+		float4 color    : COLOR;
+		float2 texCoord : TEXCOORD0;
+};
+ 
+/*    VERTEX_SHADER    */
+out_vertex main_vertex
+(
+		float4 position   : POSITION,
+		float4 color      : COLOR,
+		float2 texCoord1  : TEXCOORD0,
+ 
+		uniform float4x4 modelViewProj,
+		uniform input IN
+)
+
+{
+	float2 tex = texCoord1;
+
+	out_vertex OUT = {
+			mul(modelViewProj, position),
+			color,
+			tex
+	};
+		 
+	return OUT;
+}
+ 
+float4 main(in out_vertex VAR, uniform sampler2D s0 : TEXUNIT0, uniform input IN) : COLOR
 {
 	//Skip pixels on wrong grid
 #if Pass==0
-	if (any(frac(tex*input_size)<(0.5))) return tex2D(s0, tex);
+	if (any(frac(VAR.texCoord*input_size)<(0.5))) return tex2D(s0, VAR.texCoord);
 #elif Pass==1
-	float2 dir = frac(tex*input_size/2.0) - (0.5);
-	if ((dir.x*dir.y)>0.0) return tex2D(s0, tex);
+	float2 dir = frac(VAR.texCoord*input_size/2.0) - (0.5);
+	if ((dir.x*dir.y)>0.0) return tex2D(s0, VAR.texCoord);
 #endif
 
 	float3 P0 = Get(-1,-1);

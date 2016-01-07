@@ -153,7 +153,7 @@ void ConvertFromShader::convInt(const byte* src, unsigned char* outY, unsigned c
 				pIn[i] = 0;
 			else if (pIn[i] > 1)
 				pIn[i] = 1;
-			y[i] = sadd16(pIn[i] * 65535, 128) / 256;
+			y[i] = sadd16(uint16_t(pIn[i] * 65535), 128) / 256;
 		}
 
 		// Store YUV
@@ -187,7 +187,7 @@ void ConvertFromShader::convStack16(const byte* src, unsigned char* outY, unsign
 					pIn[i] = 0;
 				else if (pIn[i] > 1)
 					pIn[i] = 1;
-				y[i] = sadd16(pIn[i] * 65535, 128);
+				y[i] = sadd16(uint16_t(pIn[i] * 65535), 128);
 			}
 
 			// Store YUV

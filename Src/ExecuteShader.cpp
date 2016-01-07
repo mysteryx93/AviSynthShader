@@ -45,7 +45,7 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	if (m_Precision == 3)
 		m_Precision = 2;
 	if (m_OutputPrecision == 3)
-		m_OutputPrecision == 2;
+		m_OutputPrecision = 2;
 	for (int i = 0; i < 9; i++) {
 		if (m_ClipPrecision[i] == 3)
 			m_ClipPrecision[i] = 2;
@@ -69,7 +69,6 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
 	bool IsLast;
-	bool Copy;
 	render->ResetTextureClipIndex();
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
