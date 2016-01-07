@@ -1,7 +1,6 @@
 #pragma once
 #include <windows.h>
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <d3d11.h>
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
@@ -21,7 +20,6 @@ private:
 	int m_OutputPrecision;
 	PClip m_clips[9];
 	int m_ClipPrecision[9];
-	HWND dummyHWND;
 	D3D9RenderImpl* render;
 	int srcHeight;
 };

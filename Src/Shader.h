@@ -1,7 +1,6 @@
 #pragma once
 #include <windows.h>
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <d3d11.h>
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"

@@ -1,5 +1,4 @@
 #pragma once
-#include "d3dx9.h"
 
 template <typename T>
 inline void SafeRelease(T& p)
@@ -12,20 +11,3 @@ inline void SafeRelease(T& p)
 }
 
 #define HR(x) if(FAILED(x)) { return x; }
-
-#define SCENE_HR(hr, m_pDevice) if(FAILED(hr)) { m_pDevice->EndScene(); return hr; }
-
-#define D3DFMT_YV12 (D3DFORMAT)MAKEFOURCC('Y', 'V', '1', '2')
-#define D3DFMT_NV12 (D3DFORMAT)MAKEFOURCC('N', 'V', '1', '2')
-
-enum FillMode
-{
-	KeepAspectRatio = 0,
-	Fill = 1
-};
-
-struct VERTEX
-{
-	float x, y, z, rhw; // the transformed(screen space) position for the vertex
-	float tu, tv; // texture coordinates
-};

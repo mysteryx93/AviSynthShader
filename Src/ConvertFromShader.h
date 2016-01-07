@@ -4,7 +4,6 @@
 #include <limits.h>
 #include <DirectXPackedVector.h>
 #include "avisynth.h"
-#include "d3dx9.h"
 
 // Converts float-precision RGB data (12-byte per pixel) into YV12 format.
 class ConvertFromShader : public GenericVideoFilter {

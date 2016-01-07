@@ -21,9 +21,6 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	if (m_Precision < 1 || m_Precision > 3)
 		env->ThrowError("ExecuteShader: Precision must be 1, 2 or 3");
 
-	// Initialize
-	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
-
 	// We must change pixel type here for the next filter to recognize it properly during its initialization
 	srcHeight = vi.height;
 	vi.pixel_type = VideoInfo::CS_BGR32;
@@ -33,19 +30,18 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 
 ExecuteShader::~ExecuteShader() {
 	delete render;
-	DestroyWindow(dummyHWND);
 }
 
 void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision)))
+	if (FAILED(render->Initialize(m_ClipPrecision, m_Precision, m_OutputPrecision)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// We only need to know the difference between precision 2 and 3 to initialize video buffers. Then, both are 16 bits.
 	if (m_Precision == 3)
 		m_Precision = 2;
 	if (m_OutputPrecision == 3)
-		m_OutputPrecision == 2;
+		m_OutputPrecision = 2;
 	for (int i = 0; i < 9; i++) {
 		if (m_ClipPrecision[i] == 3)
 			m_ClipPrecision[i] = 2;
@@ -69,7 +65,6 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
 	bool IsLast;
-	bool Copy;
 	render->ResetTextureClipIndex();
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
