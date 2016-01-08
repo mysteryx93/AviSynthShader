@@ -1,4 +1,4 @@
-function SuperResXBR(clip Input, int "Passes", float "Strength", float "Softness", float "xbrEdgeStrength", float "xbrSharpness", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out")
+function SuperResXBR(clip Input, int "Passes", float "Strength", float "Softness", float "xbrEdgeStrength", float "xbrSharpness", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", int "WidthOut", int "HeightOut", float "b", float "c")
 {
 	Passes = default(Passes, 1)
 	Strength = default(Strength, 1)
@@ -12,6 +12,10 @@ function SuperResXBR(clip Input, int "Passes", float "Strength", float "Softness
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
+	WidthOut = default(WidthOut, 0)
+	HeightOut = default(HeightOut, 0)
+	b = default(b, 0)
+	c = default(c, .75)
 
 	Assert((Passes > 0 && Passes <= 3) ? true : false, "Passes must be between 1 and 3")
 	Assert((Strength >= 0 && Strength <= 1) ? true : false, "Strength must be between 0 and 1")
@@ -39,23 +43,19 @@ function SuperResXBR(clip Input, int "Passes", float "Strength", float "Softness
 	Shader(Output=2)
 	
 	# Super-xBR
-	Shader("super-xbr-pass0.cso",\
-		Param2 = args_string,\
-		Param3 = size0_string,\
-		Width = 2*InputWidth, Height = 2*InputHeight)
-	Shader("super-xbr-pass1.cso",\
-		Param2=args_string,\
-		Param3=size1_string)
-	Shader("super-xbr-pass2.cso",\
-		Param2=args_string,\
-		Param3=size1_string)
+	Shader("super-xbr-pass0.cso", Param2=args_string, Param3=size0_string, Width=2*InputWidth, Height=2*InputHeight)
+	Shader("super-xbr-pass1.cso", Param2=args_string, Param3=size1_string)
+	Shader("super-xbr-pass2.cso", Param2=args_string, Param3=size1_string)
 
 	Shader(ConvertYuv && MatrixIn=="601" ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
 
 	# SuperRes
 	SuperResPass(last, Input, Strength, Softness, 1, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut)
-	Passes > 1 ? SuperResPass(Input, Strength, Softness, 2, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : nop
-	Passes > 2 ? SuperResPass(Input, Strength, Softness, 3, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : nop
+	Passes > 1 ? SuperResPass(Input, Strength, Softness, 2, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : last
+	Passes > 2 ? SuperResPass(Input, Strength, Softness, 3, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : last
+
+	# Final Resize
+	WidthOut > 0 || HeightOut > 0 ? ResizeFinal(Input, WidthOut, HeightOut, b, c, PrecisionIn) : last
 
 	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
@@ -78,4 +78,17 @@ function SuperResPass(clip cmd, clip Input, float Strength, float Softness, int 
 		Param1=string(1./(InputWidth*2), "%.32f") + "," + string(1./(Input.Height*2), "%.32f") + "f", \
 		Param2=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f", \
 		Param3=string(Strength,"%.32f") + "," + string(Softness,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
+}
+
+function ResizeFinal(clip cmd, clip Input, int WidthOut, int HeightOut, float b, float c, PrecisionIn)
+{
+	InputWidth = Input.Width / PrecisionIn
+	WidthOut = WidthOut > 0 ? WidthOut : InputWidth
+	HeightOut = HeightOut > 0 ? HeightOut : Input.Height
+
+	return cmd.Shader("Bicubic.cso", \
+		Param0=string(WidthOut) + "," + string(HeightOut) + "," + string(1./WidthOut,"%.32f") + "," + string(1./HeightOut,"%.32f") + "f",\
+		Param1=string(InputWidth*2) + "," + string(Input.Height*2) + "," + string(1./(InputWidth*2),"%.32f") + "," + string(1./(Input.Height*2),"%.32f") + "f",\
+		Param2=string(b, "%.32f") + "," + string(c, "%.32f") + "f",\
+		Width=WidthOut, Height=HeightOut)
 }

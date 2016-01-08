@@ -22,7 +22,7 @@ WidthOut, HeightOut: Allows downscaling output with Bicubic before reading back 
 b, c: b and c parameters of Bicubic resize. Default is b=0, c=.75
 
 
-#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_upscale, lsb_out)
+#### SuperRes(Input, Passes, Strength, Softness, UpscaleCommand, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out)
 
 Enhances upscaling quality.
 
