@@ -2,7 +2,7 @@ PluginPath="C:\GitHub\NaturalGroundingPlayer\NaturalGroundingPlayer\bin\Debug\En
 LoadPlugin("C:\GitHub\AviSynthShader\Src\Release\Shader.dll")
 #LoadPlugin(PluginPath+"Shader.dll")
 #LoadPlugin(PluginPath+"ColorMatrix.dll")
-Import("ColorMatrix.avsi")
+Import("Shader.avsi")
 
 AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 #ColorMatrix(mode="Rec.601->Rec.709")

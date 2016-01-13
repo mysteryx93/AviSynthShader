@@ -1,3 +1,9 @@
+Version 1.3.5: January 13th 2016
+- Combined all scripts into one file for simplicity
+- Shortened some of the parameters
+- SuperXBR: Removed ThirdPass argument, added MatrixIn and MatrixOut
+- SuperXBR and SuperResXBR: Now does YUV to RGB color conversion
+
 Version 1.3.4: January 7th 2016
 - Shader.dll: It is now possible to set parameter as vectors with more than 4 values
 - Super-xBR and SuperResXBR: Fixed image distortion.
@@ -10,12 +16,10 @@ Version 1.3.3: December 30th 2015
 - SuperRes: Fixed a bug where YUV-RGB conversion was ignored when Convert=false
 - SuperRes: Added ConvertYuv to specify whether to convert YUV-RGB data or not
 
-
 Version 1.3.2: December 28th 2015
 - Added FormatOut to all scripts to set output format
 - Fixed SuperRes when using lsb_out
 - Removed bogus "info" in Super-xBR
-
 
 Version 1.3.1: December 6th 2015
 - Added support to convert to/from DitherTools' Stack16 format
@@ -28,7 +32,6 @@ Version 1.3.1: December 6th 2015
 - SuperRes and Super-xBR: PrecisionIn replaced with Convert. When true, the source must be precision=2
 - ColorMatrix601to709 is now ColorMatrixShader
 - ColorMatrixShader: Added MatrixIn and MatrixOut arguments giving more flexibility for color matrix conversion
-
 
 Version 1.3: December 1st 2015
 - SuperRes distortion problems fixed. Colors should now be accurate.
