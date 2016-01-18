@@ -17,5 +17,31 @@
     <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="ConvertFromShader.h" />
     <ClInclude Include="ConvertToShader.h" />
+    <ClInclude Include="avs\config.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\capi.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\types.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\cpuid.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\minmax.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\win.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+    <ClInclude Include="avs\alignment.h">
+      <Filter>avs</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="avs">
+      <UniqueIdentifier>{5861a56f-1801-41cc-ad2d-7d3858f62b7b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
