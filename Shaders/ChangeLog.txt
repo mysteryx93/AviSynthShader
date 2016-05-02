@@ -1,3 +1,8 @@
+Version 1.3.6: May 2nd 2016
+- Includes the x64 DLL
+- Updated SuperRes and Super-xBR to the latest version
+- SuperRes is now over 50% faster by using custom downscaler!
+
 Version 1.3.5: January 13th 2016
 - Combined all scripts into one file for simplicity
 - Shortened some of the parameters
