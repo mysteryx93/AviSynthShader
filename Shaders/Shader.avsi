@@ -103,15 +103,9 @@ function SuperResPass(clip cmd, clip Input, clip Original, float Str, float Soft
 	InputWidth = Input.Width / PrecisionIn
 	OriginalWidth = Original.Width / PrecisionIn
 
-	cmd.Shader("Bicubic.cso", Output=3, \
-		Param0=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./OriginalWidth,"%.32f") + "," + string(1./Original.Height,"%.32f") + "f",\
-		Param1=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f",\
-		Param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
-		Width=OriginalWidth, Height=Original.Height)
+	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
 
-	Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDiff601.cso" : ConvertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", Clip1=3, Clip2=2, Output=4)
-
-	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=4, Output=1, \
+	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=3, Output=1, \
 		Param0=string(InputWidth) + "," + string(Input.Height) + "f", \
 		Param1=string(1./InputWidth, "%.32f") + "," + string(1./Input.Height, "%.32f") + "f", \
 		Param2=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./(OriginalWidth),"%.32f") + "," + string(1./Original.Height,"%.32f") + "f", \
@@ -186,15 +180,9 @@ function SuperResXbrPass(clip cmd, clip Input, float Str, float Soft, int Pass, 
 {
 	InputWidth = Input.Width / PrecisionIn
 
-	cmd.Shader("Bicubic.cso", Output=3, \
-		Param0=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f",\
-		Param1=string(InputWidth*2) + "," + string(Input.Height*2) + "," + string(1./(InputWidth*2),"%.32f") + "," + string(1./(Input.Height*2),"%.32f") + "f",\
-		Param2=string(1/3.,"%.32f") + "," + string(1/3.,"%.32f") + "f",\
-		Width=InputWidth, Height=Input.Height)
+	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
 
-	Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDiff601.cso" : ConvertYuv ? "SuperResDiff709.cso" : "SuperResDiff.cso", Clip1=3, Clip2=2, Output=4)
-
-	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=4, Output=1, \
+	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=3, Output=1, \
 		Param0=string(InputWidth*2) + "," + string(Input.Height*2) + "f", \
 		Param1=string(1./(InputWidth*2), "%.32f") + "," + string(1./(Input.Height*2), "%.32f") + "f", \
 		Param2=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f", \

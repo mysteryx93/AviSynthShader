@@ -122,9 +122,6 @@ float4 main(float2 tex : TEXCOORD0) : COLOR{
 
         c0.xyz += softness * soft;
     #endif
-#else
-	// Tweak: Convert back to YUV.
-	c0.xyz = ConvertToYUV(c0.xyz);
 #endif
 
     return c0;
