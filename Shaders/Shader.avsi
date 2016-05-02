@@ -105,7 +105,10 @@ function SuperResPass(clip cmd, clip Input, clip Original, float Str, float Soft
 
 	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
 
-	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=3, Output=1, \
+	Shader(Pass==Passes ? \
+		(MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : \
+		(Soft==0 ? "SuperResSkipSoftening.cso" : "SuperRes.cso"), \
+		Clip1=1, Clip2=3, Output=1, \
 		Param0=string(InputWidth) + "," + string(Input.Height) + "f", \
 		Param1=string(1./InputWidth, "%.32f") + "," + string(1./Input.Height, "%.32f") + "f", \
 		Param2=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./(OriginalWidth),"%.32f") + "," + string(1./Original.Height,"%.32f") + "f", \
@@ -182,7 +185,10 @@ function SuperResXbrPass(clip cmd, clip Input, float Str, float Soft, int Pass, 
 
 	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
 
-	Shader(Pass==Passes ? (MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : "SuperRes.cso", Clip1=1, Clip2=3, Output=1, \
+	Shader(Pass==Passes ? \
+		(MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : \
+		(Soft==0 ? "SuperResSkipSoftening.cso" : "SuperRes.cso"), \
+		Clip1=1, Clip2=3, Output=1, \
 		Param0=string(InputWidth*2) + "," + string(Input.Height*2) + "f", \
 		Param1=string(1./(InputWidth*2), "%.32f") + "," + string(1./(Input.Height*2), "%.32f") + "f", \
 		Param2=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f", \

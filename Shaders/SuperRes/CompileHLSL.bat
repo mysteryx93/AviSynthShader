@@ -6,6 +6,8 @@
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperRes.cso" "SuperRes\SuperRes.hlsl"
 
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResSkipSoftening.cso" "SuperRes\SuperRes.hlsl" /DSkipSoftening=1
+
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResFinal.cso" "SuperRes\SuperRes.hlsl" /DFinalPass=1
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResFinal709.cso" "SuperRes\SuperRes709.hlsl" /DFinalPass=1
