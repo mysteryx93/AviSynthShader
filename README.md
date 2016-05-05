@@ -1,4 +1,4 @@
-# AviSynth Shader v1.3.6
+# AviSynth Shader v1.3.7
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -9,7 +9,7 @@ This implementation allows running several shaders in a row. Shader() returns a 
 The following example will run Diff1 and Diff2 on the clip before returning a Merge of both results. (these shader names are fictive, you have to use real shaders!)
 
     ConvertToShader(1)
-	Input
+    Input
     Shader("Diff1.cso", Output=2)
     Shader("Diff2.cso", Output=3)
     Shader("Merge.cso", Clip1=2, Clip2=3, Output=1)

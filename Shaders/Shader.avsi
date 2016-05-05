@@ -1,4 +1,4 @@
-# AviSynthShader v1.3.5 (January 13th 2016)
+# AviSynthShader v1.3.7 (March 5th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -90,31 +90,13 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Eval(Upscale)
 	Input = convert ? ConvertToShader(PrecisionUpscale, lsb=lsb_upscale) : last
 	Input.Shader(ConvertYuv && MatrixIn=="601" ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
-	SuperResPass(last, Input, Original, Str, Soft, 1, Passes, ConvertYuv, Convert, PrecisionIn, PrecisionUpscale, MatrixIn, MatrixOut)
-	Passes > 1 ? SuperResPass(Input, Original, Str, Soft, 2, Passes, ConvertYuv, Convert, PrecisionIn, PrecisionUpscale, MatrixIn, MatrixOut) : nop
-	Passes > 2 ? SuperResPass(Input, Original, Str, Soft, 3, Passes, ConvertYuv, Convert, PrecisionIn, PrecisionUpscale, MatrixIn, MatrixOut) : nop
+	SuperResPass(Original.Width / PrecisionIn, Original.Height, Input.Width / PrecisionIn, Input.Height, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, MatrixOut)
+	Passes > 1 ? SuperResPass(Original.Width / PrecisionIn, Original.Height, Input.Width / PrecisionIn, Input.Height, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
+	Passes > 2 ? SuperResPass(Original.Width / PrecisionIn, Original.Height, Input.Width / PrecisionIn, Input.Height, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
-
-function SuperResPass(clip cmd, clip Input, clip Original, float Str, float Soft, int Pass, int Passes, bool ConvertYuv, bool Convert, int PrecisionIn, int PrecisionUpscale, string MatrixIn, string MatrixOut)
-{
-	InputWidth = Input.Width / PrecisionIn
-	OriginalWidth = Original.Width / PrecisionIn
-
-	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
-
-	Shader(Pass==Passes ? \
-		(MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : \
-		(Soft==0 ? "SuperResSkipSoftening.cso" : "SuperRes.cso"), \
-		Clip1=1, Clip2=3, Output=1, \
-		Param0=string(InputWidth) + "," + string(Input.Height) + "f", \
-		Param1=string(1./InputWidth, "%.32f") + "," + string(1./Input.Height, "%.32f") + "f", \
-		Param2=string(OriginalWidth) + "," + string(Original.Height) + "," + string(1./(OriginalWidth),"%.32f") + "," + string(1./Original.Height,"%.32f") + "f", \
-		Param3=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
-}
-
 
 function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", int "fWidth", int "fHeight", float "b", float "c")
 {
@@ -168,9 +150,9 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Shader("GammaToLinear.cso")
 
 	# SuperRes
-	SuperResXbrPass(last, Input, Str, Soft, 1, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut)
-	Passes > 1 ? SuperResXbrPass(Input, Str, Soft, 2, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : last
-	Passes > 2 ? SuperResXbrPass(Input, Str, Soft, 3, Passes, ConvertYuv, Convert, PrecisionIn, MatrixIn, MatrixOut) : last
+	SuperResPass(Input.Width / PrecisionIn, Input.Height, Input.Width / PrecisionIn * 2, Input.Height * 2, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, MatrixOut)
+	Passes > 1 ? SuperResPass(Input.Width / PrecisionIn, Input.Height, Input.Width / PrecisionIn * 2, Input.Height * 2, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
+	Passes > 2 ? SuperResPass(Input.Width / PrecisionIn, Input.Height, Input.Width / PrecisionIn * 2, Input.Height * 2, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
 	# Final Resize
 	fWidth > 0 || fHeight > 0 ? SuperResXbrResizeFinal(Input, fWidth, fHeight, b, c, PrecisionIn) : last
@@ -179,20 +161,30 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
-function SuperResXbrPass(clip cmd, clip Input, float Str, float Soft, int Pass, int Passes, bool ConvertYuv, bool Convert, int PrecisionIn, string MatrixIn, string MatrixOut)
+function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth, int LargeHeight, float Str, float Soft, int Pass, int Passes, bool ConvertYuv, string MatrixIn, string MatrixOut)
 {
-	InputWidth = Input.Width / PrecisionIn
+	ScriptVariantIn = ConvertYuv && MatrixIn=="601" ? "601.cso" : ConvertYuv ? "709.cso" : ".cso"
+	ScriptVariantOut = ConvertYuv && MatrixOut=="601" ? "601.cso" : ConvertYuv ? "709.cso" : ".cso"
 
-	cmd.Shader(ConvertYuv && MatrixIn=="601" ? "SuperResDownscaleAndDiff601.cso" : ConvertYuv ? "SuperResDownscaleAndDiff709.cso" : "SuperResDownscaleAndDiff.cso", Clip1=1, Clip2=2, Output=3)
+	cmd.Shader("SuperResDownscaler.cso", Output=3, \
+		Param0=CreateParamXY(SmallWidth, LargeHeight), \
+		Param1=CreateParamDivXY(SmallWidth, LargeHeight), \
+		Param2=CreateParamFloat4(LargeWidth, LargeHeight), \
+		Width=SmallWidth, Height=LargeHeight)
 
-	Shader(Pass==Passes ? \
-		(MatrixOut=="601" ? "SuperResFinal601.cso" : ConvertYuv ? "SuperResFinal709.cso" : "SuperResFinal.cso") : \
+	Shader("SuperResDownscaleAndDiff" + ScriptVariantIn, \
+		Clip1=3, Clip2=2, Output=3, \
+		Param0=CreateParamXY(SmallWidth, SmallHeight), \
+		Param1=CreateParamDivXY(SmallWidth, SmallHeight), \
+		Param2=CreateParamFloat4(SmallWidth, LargeHeight), \
+		Width=SmallWidth, Height=SmallHeight)
+
+	Shader(Pass==Passes ? "SuperResFinal" + ScriptVariantOut : \
 		(Soft==0 ? "SuperResSkipSoftening.cso" : "SuperRes.cso"), \
 		Clip1=1, Clip2=3, Output=1, \
-		Param0=string(InputWidth*2) + "," + string(Input.Height*2) + "f", \
-		Param1=string(1./(InputWidth*2), "%.32f") + "," + string(1./(Input.Height*2), "%.32f") + "f", \
-		Param2=string(InputWidth) + "," + string(Input.Height) + "," + string(1./InputWidth,"%.32f") + "," + string(1./Input.Height,"%.32f") + "f", \
-		Param3=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
+		Param2=CreateParamFloat4(SmallWidth, SmallHeight), \
+		Param3=CreateParamFloat4(LargeWidth, LargeHeight), \
+		Param4=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
 }
 
 function SuperResXbrResizeFinal(clip cmd, clip Input, int fWidth, int fHeight, float b, float c, PrecisionIn)
@@ -207,7 +199,6 @@ function SuperResXbrResizeFinal(clip cmd, clip Input, int fWidth, int fHeight, f
 		Param2=string(b, "%.32f") + "," + string(c, "%.32f") + "f",\
 		Width=fWidth, Height=fHeight)
 }
-
 
 function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out")
 {
@@ -241,7 +232,7 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	size0_string = string(InputWidth) + "," + string(InputHeight) + "," + string(1./InputWidth,"%.32f") + "," + string(1./InputHeight,"%.32f") + "f"
 	size1_string = string(2*InputWidth) + "," + string(2*InputHeight) + "," + string(1./(2*InputWidth),"%.32f") + "," + string(1./(2*InputHeight),"%.32f") + "f"
     
-	ConvertYuv ? Shader(MatrixIn=="601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso") : nop
+	ConvertYuv ? Shader(MatrixIn=="601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso") : last
 
 	Shader("SuperXBR-pass0.cso",\
 		Param2 = args_string,\
@@ -256,7 +247,7 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 		Param2=args_string,\
 		Param3=size1_string)
 
-	ConvertYuv ? Shader(MatrixIn=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : nop
+	ConvertYuv ? Shader(MatrixIn=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
@@ -281,4 +272,16 @@ function ColorMatrixShader(clip input, string "MatrixIn", string "MatrixOut", st
 	Shader(MatrixOut == "601" ? "GammaToYuv601.cso" : "GammaToYuv.cso")
 	ExecuteShader(last, input, Precision=2, Clip1Precision=1, OutputPrecision=1)
 	ConvertFromShader(1, format=sourceFormat)
+}
+
+function CreateParamXY(int width, int height) {
+	return string(width) + "," + string(height) + "f"
+}
+
+function CreateParamDivXY(int width, int height) {
+	return string(1./width, "%.32f") + "," + string(1./height, "%.32f") + "f"
+}
+
+function CreateParamFloat4(int width, int height) {
+	return string(width) + "," + string(height) + "," + string(1./width, "%.32f") + "," + string(1./height, "%.32f") + "f"
 }

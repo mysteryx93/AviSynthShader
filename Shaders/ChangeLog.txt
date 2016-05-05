@@ -1,3 +1,8 @@
+Version 1.3.7: May 5th 2016
+- Fixed SuperRes as the upgrade was broken
+- SuperRes 20-50% faster than previously
+- SuperRes now produces a softer result but with much less ringing and its setting can be increased for extra sharpness
+
 Version 1.3.6: May 2nd 2016
 - Includes the x64 DLL
 - Updated SuperRes and Super-xBR to the latest version

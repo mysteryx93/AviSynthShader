@@ -1,8 +1,10 @@
-"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff.cso" "SuperRes\DownscaleAndDiff.hlsl"
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaler.cso" "SuperRes\SSimDownscaler.hlsl" /Daxis=0
 
-"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff709.cso" "SuperRes\DownscaleAndDiff709.hlsl"
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff.cso" "SuperRes\DownscaleAndDiff.hlsl" /Daxis=1
 
-"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff601.cso" "SuperRes\DownscaleAndDiff709.hlsl" /DKb=0.114 /DKr=0.299
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff709.cso" "SuperRes\DownscaleAndDiff709.hlsl" /Daxis=1
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff601.cso" "SuperRes\DownscaleAndDiff709.hlsl" /Daxis=1 /DKb=0.114 /DKr=0.299
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperRes.cso" "SuperRes\SuperRes.hlsl"
 
