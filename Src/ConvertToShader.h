@@ -5,6 +5,7 @@
 #include <DirectXPackedVector.h>
 #include "avisynth.h"
 #include "d3dx9.h"
+#include <mutex>
 
 // Converts YV12 data into RGB data with float precision, 12-byte per pixel.
 class ConvertToShader : public GenericVideoFilter {
@@ -17,9 +18,7 @@ private:
 	const int precision;
 	const bool stack16;
 	int precisionShift;
-	unsigned char* floatBuffer;
 	int floatBufferPitch;
-	unsigned char* halfFloatBuffer;
 	int halfFloatBufferPitch;
 	void convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 		unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env);

@@ -33,17 +33,11 @@ ConvertFromShader::ConvertFromShader(PClip _child, int _precision, const char* _
 
 	if (precision == 3) {
 		floatBufferPitch = vi.width << 3;
-		floatBuffer = (unsigned char*)malloc(floatBufferPitch);
 		halfFloatBufferPitch = vi.width << 2;
-		halfFloatBuffer = (unsigned char*)malloc(halfFloatBufferPitch);
 	}
 }
 
 ConvertFromShader::~ConvertFromShader() {
-	if (precision == 3) {
-		free(floatBuffer);
-		free(halfFloatBuffer);
-	}
 }
 
 
@@ -64,6 +58,14 @@ PVideoFrame __stdcall ConvertFromShader::GetFrame(int n, IScriptEnvironment* env
 void ConvertFromShader::convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 	int pitch1, int pitch2Y, int pitch2UV, int width, int height, IScriptEnvironment* env)
 {
+	unsigned char *floatBuffer;
+	unsigned char *halfFloatBuffer;
+
+	if (precision == 3) {
+		floatBuffer = new unsigned char[floatBufferPitch]; // local 
+		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
+	}
+
 	const byte* srcLoop = precision == 3 ? floatBuffer : src;
 	int srcLoopPitch = precision == 3 ? floatBufferPitch : pitch1;
 
@@ -80,23 +82,40 @@ void ConvertFromShader::convFloatToYV24(const byte *src, unsigned char *py, unsi
 			src += pitch1;
 		}
 
-		for (int x = 0; x < width; ++x) {
-			if (stack16) {
+		if (stack16) {
+			for (int x = 0; x < width; ++x) {
 				convStack16(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x], &py[x + pitch2Y + height], &pu[x + pitch2UV + height], &pv[x + pitch2UV + height]);
 			}
-			else
-				convInt(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x]);
 		}
+		else {
+			for (int x = 0; x < width; ++x) {
+				convInt(srcLoop + (x << precisionShift), &py[x], &pu[x], &pv[x]);
+			}
+		}
+
 		if (precision < 3)
 			srcLoop += srcLoopPitch;
 		py += pitch2Y;
 		pu += pitch2UV;
 		pv += pitch2UV;
 	}
+
+	if (precision == 3) {
+		delete[] floatBuffer;
+		delete[] halfFloatBuffer;
+	}
 }
 
 void ConvertFromShader::convFloatToRGB32(const byte *src, unsigned char *dst,
 	int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env) {
+
+	unsigned char *floatBuffer;
+	unsigned char *halfFloatBuffer;
+
+	if (precision == 3) {
+		floatBuffer = new unsigned char[floatBufferPitch]; // local 
+		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
+	}
 
 	const byte* srcLoop = precision == 3 ? floatBuffer : src;
 	int srcLoopPitch = precision == 3 ? floatBufferPitch : pitchSrc;
@@ -106,6 +125,7 @@ void ConvertFromShader::convFloatToRGB32(const byte *src, unsigned char *dst,
 
 	dst += height * pitchDst;
 	unsigned char *Val, *Val2;
+
 	for (int y = 0; y < height; ++y) {
 		if (precision == 3) {
 			// Copy frame half-float data into buffer
@@ -117,92 +137,116 @@ void ConvertFromShader::convFloatToRGB32(const byte *src, unsigned char *dst,
 		}
 
 		dst -= pitchDst;
-		for (int x = 0; x < width; ++x) {
-			Val = viDst.IsRGB32() ? &dst[x << 2] : &dst[x * 3];
-			if (stack16) {
+
+		if (viDst.IsRGB32() && stack16) {
+			for (int x = 0; x < width; ++x) {
+				Val = &dst[x << 2];
 				Val2 = Val + pitchDst * height;
 				convStack16(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0], &Val2[2], &Val2[1], &Val2[0]);
 			}
-			else
-				convInt(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0]);
 		}
+		else if (viDst.IsRGB32() && !stack16) {
+			for (int x = 0; x < width; ++x) {
+				Val = &dst[x << 2];
+				convInt(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0]);
+			}
+		}
+		else if (viDst.IsRGB32() && stack16) {
+			for (int x = 0; x < width; ++x) {
+				Val = &dst[x * 3];
+				Val2 = Val + pitchDst * height;
+				convStack16(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0], &Val2[2], &Val2[1], &Val2[0]);
+			}
+		}
+		else if (viDst.IsRGB32() && !stack16) {
+			for (int x = 0; x < width; ++x) {
+				Val = &dst[x * 3];
+				convInt(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0]);
+			}
+		}
+
 		if (precision < 3)
 			srcLoop += srcLoopPitch;
 	}
+	if (precision == 3) {
+		delete[] floatBuffer;
+		delete[] halfFloatBuffer;
+	}
 }
 
+#define clamp(n, lower, upper) max(lower, min(n, upper))
+
 void ConvertFromShader::convInt(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV) {
-	if (precision == 1) {
+	switch (precision) {
+	case 1: {
 		outV[0] = src[0];
 		outU[0] = src[1];
 		outY[0] = src[2];
-	}
-	else if (precision == 2) {
+		break;
+	} case 2: {
 		const uint16_t* pOut = (uint16_t*)src;
 		// Conversion to UINT16 gave values between 0 and 255*256=65280. Add 128 to avoid darkening.
 		outY[0] = sadd16(pOut[0], 128) >> 8;
 		outU[0] = sadd16(pOut[1], 128) >> 8;
 		outV[0] = sadd16(pOut[2], 128) >> 8;
-	}
-	else { // precision == 3
+		break;
+	} case 3: {
 		// colors are in the 0 to 1 range
 		float* pIn = (float*)src;
 		uint16_t y[3];
 		for (int i = 0; i < 3; i++) {
-			if (pIn[i] < 0)
-				pIn[i] = 0;
-			else if (pIn[i] > 1)
-				pIn[i] = 1;
-			y[i] = sadd16(uint16_t(pIn[i] * 65535), 128) / 256;
+			y[i] = sadd16((uint16_t)(clamp(pIn[i], 0.0f, 1.0f) * 65535), 128) / 256;
 		}
 
 		// Store YUV
-		const uint8_t* pOut = (uint8_t*)y;
-		outY[0] = pOut[0];
-		outU[0] = pOut[2];
-		outV[0] = pOut[4];
+		const uint8_t* pOut3 = (uint8_t*)y;
+		outY[0] = pOut3[0];
+		outU[0] = pOut3[2];
+		outV[0] = pOut3[4];
+		break; }
 	}
 }
 
 void ConvertFromShader::convStack16(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV, unsigned char* outY2, unsigned char* outU2, unsigned char* outV2) {
-	if (precision == 1) {
+	const uint8_t* pOut;
+	float* pIn;
+	switch (precision) {
+	case 1: {
 		outV[0] = src[0];
 		outU[0] = src[1];
 		outY[0] = src[2];
 		outV2[0] = 0;
 		outU2[0] = 0;
 		outV2[0] = 0;
-	}
-	else {
-		const uint8_t* pOut;
-		if (precision == 2) {
-			pOut = (uint8_t*)src;
+		return;
+	} case 2: {
+		pOut = (uint8_t*)src;
+		break;
+	} case 3: {
+		// colors are in the 0 to 1 range
+		pIn = (float*)src;
+		uint16_t y[3];
+		for (int i = 0; i < 3; i++) {
+			y[i] = sadd16((uint16_t)(clamp(pIn[i], 0.0f, 1.0f) * 65535), 128);
 		}
-		else { // precision == 3
-			// colors are in the 0 to 1 range
-			float* pIn = (float*)src;
-			uint16_t y[3];
-			for (int i = 0; i < 3; i++) {
-				if (pIn[i] < 0)
-					pIn[i] = 0;
-				else if (pIn[i] > 1)
-					pIn[i] = 1;
-				y[i] = sadd16(uint16_t(pIn[i] * 65535), 128);
-			}
 
-			// Store YUV
-			pOut = (uint8_t*)y;
-		}
-		outY[0] = pOut[1];
-		outY2[0] = pOut[0];
-		outU[0] = pOut[3];
-		outU2[0] = pOut[2];
-		outV[0] = pOut[5];
-		outV2[0] = pOut[4];
+		// Store YUV
+		pOut = (uint8_t*)y;
+		break;
+	} default:
+		return;
+		break;
 	}
+	outY[0] = pOut[1];
+	outY2[0] = pOut[0];
+	outU[0] = pOut[3];
+	outU2[0] = pOut[2];
+	outV[0] = pOut[5];
+	outV2[0] = pOut[4];
 }
 
-uint16_t ConvertFromShader::sadd16(uint16_t a, uint16_t b)
+
+inline uint16_t ConvertFromShader::sadd16(uint16_t a, uint16_t b)
 {
 	return (a > 0xFFFF - b) ? 0xFFFF : a + b;
 }

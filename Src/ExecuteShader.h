@@ -5,6 +5,7 @@
 #include <cstdio>		//needed by OutputDebugString()
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
+#include <mutex>
 
 class ExecuteShader : public GenericVideoFilter {
 public:
@@ -24,4 +25,5 @@ private:
 	HWND dummyHWND;
 	D3D9RenderImpl* render;
 	int srcHeight;
+  std::mutex executeshader_mutex;
 };

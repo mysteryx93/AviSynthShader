@@ -25,17 +25,11 @@ ConvertToShader::ConvertToShader(PClip _child, int _precision, bool _stack16, IS
 
 	if (precision == 3) {
 		floatBufferPitch = vi.width << 4;
-		floatBuffer = (unsigned char*)malloc(floatBufferPitch);
 		halfFloatBufferPitch = vi.width << 3;
-		halfFloatBuffer = (unsigned char*)malloc(halfFloatBufferPitch);
 	}
 }
 
 ConvertToShader::~ConvertToShader() {
-	if (precision == 3) {
-		free(floatBuffer);
-		free(halfFloatBuffer);
-	}
 }
 
 PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) {
@@ -56,6 +50,14 @@ PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) 
 void ConvertToShader::convYV24ToFloat(const byte *py, const byte *pu, const byte *pv,
 	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env)
 {
+	unsigned char *floatBuffer;
+	unsigned char *halfFloatBuffer;
+
+	if (precision == 3) {
+		floatBuffer = new unsigned char[floatBufferPitch]; // C++ 
+		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
+	}
+
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
 	int dstLoopPitch = precision == 3 ? floatBufferPitch : pitch2;
 
@@ -64,6 +66,7 @@ void ConvertToShader::convYV24ToFloat(const byte *py, const byte *pu, const byte
 
 	// Convert all data to float
 	unsigned char Y, U, V, Y2, U2, V2;
+
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			Y = py[x];
@@ -93,9 +96,20 @@ void ConvertToShader::convYV24ToFloat(const byte *py, const byte *pu, const byte
 		else
 			dstLoop += dstLoopPitch;
 	}
+	if (precision == 3) {
+		delete[] floatBuffer;
+		delete[] halfFloatBuffer;
+	}
 }
 
 void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env) {
+	unsigned char *floatBuffer;
+	unsigned char *halfFloatBuffer;
+	if (precision == 3) {
+		floatBuffer = new unsigned char[floatBufferPitch];
+		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
+	}
+
 	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
 	int dstLoopPitch = precision == 3 ? floatBufferPitch : dstPitch;
 
@@ -133,6 +147,10 @@ void ConvertToShader::convRgbToFloat(const byte *src, unsigned char *dst, int sr
 		}
 		else
 			dstLoop += dstLoopPitch;
+	}
+	if (precision == 3) {
+		delete[] floatBuffer;
+		delete[] halfFloatBuffer;
 	}
 }
 
@@ -245,7 +263,7 @@ __m128i	ConvertToShader::load_8_16l(const void *lsb_ptr, __m128i zero)
 
 	const __m128i  val_lsb = _mm_loadl_epi64(
 		reinterpret_cast <const __m128i *> (lsb_ptr)
-		);
+	);
 	const __m128i  val = _mm_unpacklo_epi8(val_lsb, zero);
 
 	return (val);

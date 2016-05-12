@@ -82,17 +82,19 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		ParamClipPrecision[i] = CurrentPrecision;
 	}
 
+	// P.F. IsClip() pre-check, because avisynth debug version give assert if AsClip() is not a clip
+	// preventing happy debugging
 	return new ExecuteShader(
 		args[0].AsClip(),			// source clip containing commands
-		args[1].AsClip(),			// Clip1
-		args[2].AsClip(),			// Clip2
-		args[3].AsClip(),			// Clip3
-		args[4].AsClip(),			// Clip4
-		args[5].AsClip(),			// Clip5
-		args[6].AsClip(),			// Clip6
-		args[7].AsClip(),			// Clip7
-		args[8].AsClip(),			// Clip8
-		args[9].AsClip(),			// Clip9
+		args[1].IsClip() ? args[1].AsClip() : nullptr,			// Clip1
+		args[2].IsClip() ? args[2].AsClip() : nullptr,			// Clip2
+		args[3].IsClip() ? args[3].AsClip() : nullptr,			// Clip3
+		args[4].IsClip() ? args[4].AsClip() : nullptr,			// Clip4
+		args[5].IsClip() ? args[5].AsClip() : nullptr,			// Clip5
+		args[6].IsClip() ? args[6].AsClip() : nullptr,			// Clip6
+		args[7].IsClip() ? args[7].AsClip() : nullptr,			// Clip7
+		args[8].IsClip() ? args[8].AsClip() : nullptr,			// Clip8
+		args[9].IsClip() ? args[9].AsClip() : nullptr,			// Clip9
 		ParamClipPrecision,			// ClipPrecision, 10-18
 		args[19].AsInt(2),			// precision
 		args[20].AsInt(2),			// precisionOut

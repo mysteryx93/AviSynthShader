@@ -114,7 +114,14 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	bool IsLast;
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
-	render->ResetTextureClipIndex();
+  
+  std::unique_lock<std::mutex> my_lock(executeshader_mutex);
+  // P.F. prevent parallel use of the class-global "render"
+  // Mutex will be unlocked when gets out of scope (exit from GetFrame() or {} block )
+  // or my_lock.unlock(), see in ConvertToShader() and ConvertFromShader()
+  // here we guard the 
+
+  render->ResetTextureClipIndex();
 
 	// Copy input clips from AviSynth
 	for (int j = 0; j < 9; j++) {
