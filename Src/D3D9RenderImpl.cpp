@@ -341,7 +341,12 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* 
 	}
 	else {
 		// Compile HLSL shader code
-		HR(D3DXCompileShaderFromFile(cmd->Path, NULL, NULL, cmd->EntryPoint, cmd->ShaderModel, 0, &code, NULL, &Shader->ConstantTable));
+		if (D3DXCompileShaderFromFile(cmd->Path, NULL, NULL, cmd->EntryPoint, cmd->ShaderModel, 0, &code, NULL, &Shader->ConstantTable) != S_OK) {
+			// Try in same folder as DLL file.
+			char path[MAX_PATH];
+			GetDefaultPath(path, MAX_PATH, cmd->Path);
+			HR(D3DXCompileShaderFromFile(path, NULL, NULL, cmd->EntryPoint, cmd->ShaderModel, 0, &code, NULL, &Shader->ConstantTable));
+		}
 		CodeBuffer = (DWORD*)code->GetBufferPointer();
 	}
 
