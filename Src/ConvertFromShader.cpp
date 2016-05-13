@@ -151,14 +151,14 @@ void ConvertFromShader::convFloatToRGB32(const byte *src, unsigned char *dst,
 				convInt(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0]);
 			}
 		}
-		else if (viDst.IsRGB32() && stack16) {
+		else if (!viDst.IsRGB32() && stack16) {
 			for (int x = 0; x < width; ++x) {
 				Val = &dst[x * 3];
 				Val2 = Val + pitchDst * height;
 				convStack16(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0], &Val2[2], &Val2[1], &Val2[0]);
 			}
 		}
-		else if (viDst.IsRGB32() && !stack16) {
+		else if (!viDst.IsRGB32() && !stack16) {
 			for (int x = 0; x < width; ++x) {
 				Val = &dst[x * 3];
 				convInt(srcLoop + (x << precisionShift), &Val[2], &Val[1], &Val[0]);
