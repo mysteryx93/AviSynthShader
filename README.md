@@ -90,7 +90,7 @@ lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output ar
 fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 
 
-#### Super-xBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
+#### SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
 Doubles the size of the image. Produces a sharp result, but with severe ringing.
 
 Arguments:  
