@@ -18,5 +18,5 @@ AviSource("F:\AVSMeter\Preview.avi", audio=false, pixel_type="YV12")
 #ConvertToYV24()
 SuperResXBR(2, 0.6, 0, XbrStr=2, XbrSharp=1.2, MatrixIn="601")
 #ConvertToYV12()
-SuperResXBR(2, 0.6, 0, XbrStr=2, XbrSharp=1.2) #, fWidth=1012, fHeight=778
+SuperResXBR(2, 0.6, 0, XbrStr=2, XbrSharp=1.2, fWidth=600, fHeight=400)
 Prefetch(8)
