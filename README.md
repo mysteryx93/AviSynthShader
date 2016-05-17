@@ -69,8 +69,8 @@ OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-flo
 #### SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
 Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 
-Arguments Passes, Str, Soft are the same as SuperRes.
-Arguments XbrStr, XbrSharp are the same as SuperXBR.
+Arguments Passes, Str, Soft are the same as SuperRes.  
+Arguments XbrStr, XbrSharp are the same as SuperXBR.  
 Arguments fWidth, fHeight, fStr, fSoft are the same as SSimDownscaler and allows downscaling the output before reading back from GPU
 
 
@@ -86,7 +86,7 @@ MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be 
 FormatOut: The output format. Default = same as input.  
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
 ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB  
-lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false
+lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false  
 fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 
 
@@ -98,18 +98,18 @@ Str: Value between 0 and 5 specifying the strength. Default=1.
 Sharp: Value between 0 and 1.5 specifying the weight. Default=1.  
 FormatOut: The output format. Default = same as input.  
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
-lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
+lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false  
 fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 
 
 #### SSimDownscaler(Input, W, H, Str, Soft, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
 Downscales the image in high quality.
 
-Arguments:
-W: The width to resize to.
-H: The height to resize to.
-Str: The algorithm strength to apply.
-Soft: If true, the result will be softer.
+Arguments:  
+W: The width to resize to.  
+H: The height to resize to.  
+Str: The algorithm strength to apply.  
+Soft: If true, the result will be softer.  
 Other arguments are the same as SuperRes.
 
 
