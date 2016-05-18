@@ -11,15 +11,15 @@
 # Supported video formats: YV12, YV24, RGB24 and RGB32.
 # 
 # 
-## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
+## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 # Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 # 
 # Arguments Passes, Str, Soft are the same as SuperRes.
 # Arguments XbrStr, XbrSharp are the same as SuperXBR.
-# Arguments fWidth, fHeight, fStr, fSoft are the same as SSimDownscaler and allows downscaling the output before reading back from GPU
+# Arguments fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC are the same as SSimDownscaler and allows downscaling the output before reading back from GPU
 # 
 # 
-## SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fWidth, fHeight, fStr, fSoft)
+## SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 # Enhances upscaling quality.
 # 
 # Arguments:
@@ -32,10 +32,10 @@
 # Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 # ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
 # lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false
-# fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
+# fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 # 
 # 
-## SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
+## SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 # Doubles the size of the image. Produces a sharp result, but with severe ringing.
 # 
 # Arguments:
@@ -44,17 +44,19 @@
 # FormatOut: The output format. Default = same as input.
 # Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 # lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
-# fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
+# fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 # 
 #
-## SSimDownscaler(Input, W, H, Str, Soft, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
+## SSimDownscaler(Input, Width, Height, Str, Soft, Downscaler, B, C, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
 # Downscales the image in high quality.
 #
 # Arguments:
-# W: The width to resize to.
-# H: The height to resize to.
+# Width: The width to resize to.
+# Height: The height to resize to.
 # Str: The algorithm strength to apply.
 # Soft: If true, the result will be softer.
+# Downscaler: The downscaling algorithm to use: SSim (default) or Bicubic
+# B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75
 # Other arguments are the same as SuperRes.
 #
 #
@@ -69,7 +71,7 @@
 # Shaders are written by Shiandow and are available here
 # https://github.com/zachsaw/MPDN_Extensions/
 
-function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", int "fWidth", int "fHeight", float "fStr", bool "fSoft")
+function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", string "fDownscaler", int "fWidth", int "fHeight", float "fStr", bool "fSoft", float "fB", float "fC")
 {
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
@@ -82,10 +84,13 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	lsb_in = default(lsb_in, false)
 	lsb_upscale = default(lsb_upscale, false)
 	lsb_out = default(lsb_out, false)
+	fDownscaler = default(fDownscaler, "SSim")
 	fWidth = default(fWidth, 0)
 	fHeight = default(fHeight, 0)
 	fStr = default(fStr, .5)
 	fSoft = default(fSoft, false)
+	fB = default(fB, 0)
+	fC = default(fC, .75)
 
 	Assert((Passes > 0 && Passes <= 3) ? true : false, "Passes must be between 1 and 3")
 	Assert((Str >= 0 && Str <= 1) ? true : false, "Str must be between 0 and 1")
@@ -94,7 +99,6 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Assert(MatrixIn == "601" || MatrixIn == "709", "MatrixIn must be 601 or 709")
 	Assert(MatrixOut == "601" || MatrixOut == "709", "MatrixOut must be 601 or 709")
 	Assert((!lsb_in && !lsb_upscale && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
-	Assert(fStr >= 0 && fStr <= 1, "fStr must be between 0 and 1")
 
 	Input
 
@@ -113,18 +117,21 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	SmallHeight = Original.Height
 	LargeWidth = Input.Width / PrecisionIn
 	LargeHeight = Input.Height
-	SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, MatrixOut)
-	Passes > 1 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
-	Passes > 2 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
+	fDownscale = fWidth > 0 || fHeight > 0
+	PassMatrixOut = fDownscale ? "" : MatrixOut
+	SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, PassMatrixOut)
+	Passes > 1 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, PassMatrixOut) : last
+	Passes > 2 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, PassMatrixOut) : last
 
 	# Final Resize
-	fWidth > 0 || fHeight > 0 ? SSimDownscalerInternal(Input, LargeWidth, LargeHeight, fWidth, fHeight, fStr, fSoft) : last
+	fDownscale ? FinalDownscaler(Input, false, LargeWidth, LargeHeight, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC) : last
+	fDownscale && ConvertYuv ? Shader(MatrixOut=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
-function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", int "fWidth", int "fHeight", float "fStr", bool "fSoft")
+function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fDownscaler", int "fWidth", int "fHeight", float "fStr", bool "fSoft", float "fB", float "fC")
 {
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
@@ -138,10 +145,13 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
+	fDownscaler = default(fDownscaler, "SSim")
 	fWidth = default(fWidth, 0)
 	fHeight = default(fHeight, 0)
 	fStr = default(fStr, .5)
 	fSoft = default(fSoft, false)
+	fB = default(fB, 0)
+	fC = default(fC, .75)
 
 	Assert(Passes > 0 && Passes <= 3, "Passes must be between 1 and 3")
 	Assert(Str >= 0 && Str <= 1, "Str must be between 0 and 1")
@@ -151,7 +161,6 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Assert(MatrixIn == "601" || MatrixIn == "709", "MatrixIn must be 601 or 709")
 	Assert(MatrixOut == "601" || MatrixOut == "709", "MatrixOut must be 601 or 709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in or lsb_out")
-	Assert(fStr >= 0 && fStr <= 1, "fStr must be between 0 and 1")
 
 	Input
 
@@ -181,12 +190,15 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	SmallHeight = Input.Height
 	LargeWidth = Input.Width / PrecisionIn * 2
 	LargeHeight = Input.Height * 2
-	SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, MatrixOut)
-	Passes > 1 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
-	Passes > 2 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
+	fDownscale = fWidth > 0 || fHeight > 0
+	PassMatrixOut = fDownscale ? "" : MatrixOut
+	SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 1, Passes, ConvertYuv, MatrixIn, PassMatrixOut)
+	Passes > 1 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 2, Passes, ConvertYuv, MatrixIn, PassMatrixOut) : last
+	Passes > 2 ? SuperResPass(SmallWidth, SmallHeight, LargeWidth, LargeHeight, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, PassMatrixOut) : last
 
 	# Final Resize
-	fWidth > 0 || fHeight > 0 ? SSimDownscalerInternal(Input, LargeWidth, LargeHeight, fWidth, fHeight, fStr, fSoft) : last
+	fDownscale ? FinalDownscaler(Input, false, LargeWidth, LargeHeight, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC) : last
+	fDownscale && ConvertYuv ? Shader(MatrixOut=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 
 	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
@@ -194,8 +206,8 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 
 function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth, int LargeHeight, float Str, float Soft, int Pass, int Passes, bool ConvertYuv, string MatrixIn, string MatrixOut)
 {
-	ScriptVariantIn = ConvertYuv && MatrixIn=="601" ? "601.cso" : ConvertYuv ? "709.cso" : ".cso"
-	ScriptVariantOut = ConvertYuv && MatrixOut=="601" ? "601.cso" : ConvertYuv ? "709.cso" : ".cso"
+	ScriptVariantIn = ConvertYuv && MatrixIn=="601" ? "601.cso" : ConvertYuv && MatrixIn=="709" ? "709.cso" : ".cso"
+	ScriptVariantOut = ConvertYuv && MatrixOut=="601" ? "601.cso" : ConvertYuv && MatrixOut=="709" ? "709.cso" : ".cso"
 
 	cmd.Shader("SuperResDownscaler.cso", Output=3, \
 		Param0=CreateParamXY(SmallWidth, LargeHeight), \
@@ -218,7 +230,7 @@ function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth,
 		Param4=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
 }
 
-function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out", int "fWidth", int "fHeight", float "fStr", bool "fSoft")
+function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out", string "fDownscaler", int "fWidth", int "fHeight", float "fStr", bool "fSoft", float "fB", float "fC")
 {
 	Str = default(Str, 1)
 	Sharp = default(Sharp, 1)
@@ -228,17 +240,19 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	FormatOut = default(FormatOut, "")
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
+	fDownscaler = default(fDownscaler, "SSim")
 	fWidth = default(fWidth, 0)
 	fHeight = default(fHeight, 0)
 	fStr = default(fStr, .5)
 	fSoft = default(fSoft, false)
+	fB = default(fB, 0)
+	fC = default(fC, .75)
 
 	Assert(Str >= 0 && Str <= 5, "Str must be between 0 and 5")
 	Assert(Sharp >= 0 && Sharp <= 1.5, "Sharp must be between 0 and 1.5")
 	Assert(MatrixIn == "601" || MatrixIn == "709", "MatrixIn must be 601 or 709")
 	Assert(MatrixOut == "601" || MatrixOut == "709", "MatrixOut must be 601 or 709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
-	Assert(fStr >= 0 && fStr <= 1, "fStr must be between 0 and 1")
 
 	Input
 	ConvertYuv = convert && !IsRGB()
@@ -262,30 +276,32 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	Shader("SuperXBR-pass2.cso", Param2=args_string, Param3=size1_string)
 
 	# Final Resize
-	fWidth > 0 || fHeight > 0 ? SSimDownscalerInternal(Input, 2*InputWidth, 2*InputHeight, fWidth, fHeight, fStr, fSoft) : last
+	fWidth > 0 || fHeight > 0 ? FinalDownscaler(Input, false, 2*InputWidth, 2*InputHeight, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC) : last
 
-	ConvertYuv ? Shader(MatrixIn=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
+	ConvertYuv ? Shader(MatrixOut=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
 
-function SSimDownscaler(clip Input, int "W", int "H", float "Str", bool "Soft", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out")
+function SSimDownscaler(clip Input, int "Width", int "Height", float "Str", bool "Soft", string "Downscaler", float "B", float "C", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out")
 {
-	W = default(W, Input.Width)
-	H = default(H, Input.Height)
-	Str = default(Str, .5)
-	Soft = default(Soft, false)
+	Width = default(Width, Input.Width)
+	Height = default(Height, Input.Height)
 	Convert = default(Convert, true)
 	MatrixIn = default(MatrixIn, "709")
 	MatrixOut = default(MatrixOut, "709")
 	FormatOut = default(FormatOut, "")
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
+	Downscaler = default(Downscaler, "SSim")
+	Str = default(Str, .5)
+	Soft = default(Soft, false)
+	B = default(B, 0)
+	C = default(C, .75)
 
-	Assert(W > 0, "W must be greater than 0")
-	Assert(H > 0, "H must be greater than 0")
-	Assert(Str >= 0 && Str <= 1, "Str must be between 0 and 1")
+	Assert(Width > 0, "Width must be greater than 0")
+	Assert(Height > 0, "Height must be greater than 0")
 	Assert(MatrixIn == "601" || MatrixIn == "709", "MatrixIn must be 601 or 709")
 	Assert(MatrixOut == "601" || MatrixOut == "709", "MatrixOut must be 601 or 709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
@@ -302,65 +318,82 @@ function SSimDownscaler(clip Input, int "W", int "H", float "Str", bool "Soft", 
 	InputWidth = Width / PrecisionIn    
 	ConvertYuv ? Shader(MatrixIn=="601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso") : last
 
-	SSimDownscalerInternal(Input, Input.Width / PrecisionIn, Input.Height, W, H, Str, Soft)
+	FinalDownscaler(Input, true, Input.Width / PrecisionIn, Input.Height, Downscaler, Width, Height, Str, Soft, B, C)
 
-	ConvertYuv ? Shader(MatrixIn=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
+	ConvertYuv ? Shader(MatrixOut=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 	last.ExecuteShader(Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
 
-function SSimDownscalerInternal(clip cmd, clip Input, int InputWidth, int InputHeight, int W, int H, float Str, bool Soft)
+function FinalDownscaler(clip cmd, clip Input, bool SimpleArgs, int InputWidth, int InputHeight, string Downscaler, int W, int H, float Str, bool Soft, float B, float C)
 {
+	Prefix = SimpleArgs ? "" : "f" # Functions other than DownscalerShader have downscaling arguments starting with 'f'
+	Assert(Downscaler == "SSim" || Downscaler == "Bicubic", Prefix + "Downscaler must be SSim or Bicubic")
+	Assert(W >= 0 && H >= 0, Prefix + "Width and " + Prefix + "Height must be 0 or above")
+	Assert(Str >= 0 && Str <= 1, Prefix + "Str must be between 0 and 1")
+
 	W = W > 0 ? W : InputWidth
 	H = H > 0 ? H : InputHeight
 
-	cmd.Shader(Soft ? "SSimSoftDownscalerX.cso" : "SSimDownscalerX.cso",\
+	cmd
+	UseSSim = Downscaler == "SSim"
+
+	UseSSim ? Shader(Soft ? "SSimSoftDownscalerX.cso" : "SSimDownscalerX.cso",\
 		Clip1=1, Output=2,\
 		Param0=CreateParamXY(W, InputHeight),\
 		Param1=CreateParamDivXY(W, InputHeight),\
 		Param2=CreateParamFloat4(InputWidth, InputHeight),\
-		Width=W, Height=InputHeight)
+		Width=W, Height=InputHeight) : last
 
-	Shader(Soft ? "SSimSoftDownscalerY.cso" : "SSimDownscalerY.cso",\
+	UseSSim ? Shader(Soft ? "SSimSoftDownscalerY.cso" : "SSimDownscalerY.cso",\
 		Clip1=2, Output=3,\
 		Param0=CreateParamXY(W, H),\
 		Param1=CreateParamDivXY(W, H),\
 		Param2=CreateParamFloat4(W, InputHeight),\
-		Width=W, Height=H)
+		Width=W, Height=H) : last
 
-	Shader("SSimDownscaledVarI.cso",\
+	UseSSim ? Shader("SSimDownscaledVarI.cso",\
 		Clip1=1, Clip2=2, Output=4,\
 		Param0=CreateParamXY(W, InputHeight),\
 		Param1=CreateParamDivXY(W, InputHeight),\
 		Param2=CreateParamFloat4(InputWidth, InputHeight),\
-		Width=W, Height=InputHeight)
+		Width=W, Height=InputHeight) : last
 
-	Shader("SSimDownscaledVarII.cso",\
+	UseSSim ? Shader("SSimDownscaledVarII.cso",\
 		Clip1=4, Clip2=2, Clip3=3, Output=5,\
 		Param0=CreateParamXY(W, H),\
 		Param1=CreateParamDivXY(W, H),\
 		Param2=CreateParamFloat4(W, InputHeight),\
-		Width=W, Height=H)
+		Width=W, Height=H) : last
 
-	Shader("SSimSinglePassConvolver.cso",\
+	UseSSim ? Shader("SSimSinglePassConvolver.cso",\
 		Clip1=3, Output=6,\
 		Param0=CreateParamXY(W, H),\
 		Param1=CreateParamDivXY(W, H),\
-		Width=W, Height=H)
+		Width=W, Height=H) : last
 
-	Shader("SSimCalcR.cso",\
+	UseSSim ? Shader("SSimCalcR.cso",\
 		Clip1=3, Clip2=6, Clip3=5, Output=7,\
 		Param0=CreateParamXY(W, H),\
 		Param1=CreateParamDivXY(W, H),\
-		Width=W, Height=H)
+		Width=W, Height=H) : last
 
-	return Shader("SSimCalc.cso",\
+	UseSSim ? Shader("SSimCalc.cso",\
 		Clip1=3, Clip2=6, Clip3=7, Output=1,\
 		Param0=CreateParamXY(W, H),\
 		Param1=CreateParamDivXY(W, H),\
 		Param3=String(Str,"%.32f")+"f",\
-		Width=W,Height=H)
+		Width=W,Height=H) : last
+
+	# Bicubic
+	!UseSSim ? Shader("Bicubic.cso",\
+		Param0=CreateParamFloat4(W, H),\
+		Param1=CreateParamFloat4(InputWidth, InputHeight),\
+		Param2=String(B,"%.32f")+","+String(C,"%.32f")+"f",\
+		Width=W, Height=H) : last
+
+	return last
 }
 
 # Performs color matrix conversion with 16 bit depth to avoid banding

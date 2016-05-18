@@ -1,11 +1,19 @@
+Version 1.4.1: May 18th 2016
+- Bug fix: SuperRes and SuperResXBR were performing downscaling in YUV format which caused quality loss
+- Bug fix: MatrixOut parameter was ignored
+- Both SSim and Bicubic can now be used for downscaling
+- SuperRes, SuperXBR and SuperResXBR now have these parameters: fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC
+- SSimDownscaler now has these parameters: Downscaler, Width, Height, Str, Soft, B, C
+- SSimDownscaler: changed parameter W to Width, H to Height
+
 Version 1.4: May 17th 2016
 - Tweaked DLL for better MT support (thanks to Pinterf)
 - ConvertToShader, ConvertFromShader and Shader now support MT=1. ExecuteShader supports MT=2.
 - Added SSimDownscaler for high-quality downscaling
 - SuperResXBR now uses SSimDownscaler instead of Bicubic for final resize
 - Added fWidth, fHeight, fStr and fSoft to SuperRes, SuperXBR and SuperResXBR
-- Fixed a bug in the DLL where it wouldn't search the DLL's folder to find non-compiled HLSL shaders with relative path.
-- Fixed a bug where CLAMP for out-of-bound pixels was only applied to the first clip.
+- Fixed a bug in the DLL where it wouldn't search the DLL's folder to find non-compiled HLSL shaders with relative path
+- Fixed a bug where CLAMP for out-of-bound pixels was only applied to the first clip
 
 Version 1.3.7: May 5th 2016
 - Fixed SuperRes as the upgrade was broken
