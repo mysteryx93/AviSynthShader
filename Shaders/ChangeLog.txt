@@ -1,3 +1,7 @@
+Version 1.4.2: May 19th 2016
+- SuperRes and SuperResXBR: Final downscaling is now done before processing SuperRes which increases both quality and performance
+- Shader: If not specified Param0 is now set to Width,Height and Param1 is set is 1/Width,1/Height
+
 Version 1.4.1: May 18th 2016
 - Bug fix: SuperRes and SuperResXBR were performing downscaling in YUV format which caused quality loss
 - Bug fix: MatrixOut parameter was ignored
