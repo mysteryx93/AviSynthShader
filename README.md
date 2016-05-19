@@ -1,4 +1,4 @@
-# AviSynth Shader v1.4
+# AviSynth Shader v1.4.2
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -51,6 +51,7 @@ Ex: "float4 p4 : register(c4);" will be set with Param4="1,1,1,1f"
 End each value with 'f'(float), 'i'(int) or 'b'(bool) to specify its type.  
 Param0 corresponds to c0, Param1 corresponds to c1, etc.  
 If setting float or int, you can set a vector or 2, 3 or 4 elements by separating the values with ','.  
+If not specified, Param0 = Width,Height and Param1 = 1/Width, 1/Height by default.  
 Clip1-Clip9: The index of the clips to set into this shader. Input clips are defined when calling ExecuteShader. Clip1 sets 's0' within the shader, while clip2-clip9 set 's1' to 's8'. The order is important.  
 Default for clip1 is 1, for clip2-clip9 is 0 which means no source clip.  
 Output: The clip index where to write the output of this shader, between 1 and 9. Default is 1 which means it will be the output of ExecuteShader. If set to another value, you can use it as the input of another shader. The last shader in the chain must have output=1.  
@@ -66,15 +67,15 @@ Clip1Precision-Clip9Precision: 1 if input clips is BYTE, 2 if UINT16, 3 if half-
 Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision, 3 to execute with half-float precision. Default=2  
 OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2  
 
-#### SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
+#### SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 
 Arguments Passes, Str, Soft are the same as SuperRes.  
 Arguments XbrStr, XbrSharp are the same as SuperXBR.  
-Arguments fWidth, fHeight, fStr, fSoft are the same as SSimDownscaler and allows downscaling the output before reading back from GPU
+Arguments fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC are the same as SSimDownscaler and allows downscaling the output before reading back from GPU
 
 
-#### SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fWidth, fHeight, fStr, fSoft)
+#### SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 Enhances upscaling quality.
 
 Arguments:  
@@ -87,10 +88,10 @@ FormatOut: The output format. Default = same as input.
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
 ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB  
 lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false  
-fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
+fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 
 
-#### SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fWidth, fHeight, fStr, fSoft)
+#### SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC)
 Doubles the size of the image. Produces a sharp result, but with severe ringing.
 
 Arguments:  
@@ -99,17 +100,19 @@ Sharp: Value between 0 and 1.5 specifying the weight. Default=1.
 FormatOut: The output format. Default = same as input.  
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
 lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false  
-fWidth, fHeight, fStr, fSort: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
+fDownscaler, fWidth, fHeight, fStr, fSoft, fB, fC: Allows downscaling the output before reading back from GPU. See SSimDownscaler.
 
 
-#### SSimDownscaler(Input, W, H, Str, Soft, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
+#### SSimDownscaler(Input, Width, Height, Str, Soft, Downscaler, B, C, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
 Downscales the image in high quality.
 
 Arguments:  
-W: The width to resize to.  
-H: The height to resize to.  
-Str: The algorithm strength to apply.  
-Soft: If true, the result will be softer.  
+Width: The width to resize to.  
+Height: The height to resize to.  
+Str: The algorithm strength to apply between 0 and 1. Default=1
+Soft: If true, the result will be softer. Default=false
+Downscaler: The downscaling algorithm to use: SSim (default) or Bicubic  
+B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75  
 Other arguments are the same as SuperRes.
 
 

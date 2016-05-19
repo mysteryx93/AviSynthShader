@@ -45,7 +45,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow));
 
-for (int i = 0; i < 10; i++) {
+for (int i = 0; i < 9; i++) {
 	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
 	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
 	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));

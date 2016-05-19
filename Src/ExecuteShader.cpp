@@ -115,13 +115,13 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
   
-  std::unique_lock<std::mutex> my_lock(executeshader_mutex);
-  // P.F. prevent parallel use of the class-global "render"
-  // Mutex will be unlocked when gets out of scope (exit from GetFrame() or {} block )
-  // or my_lock.unlock(), see in ConvertToShader() and ConvertFromShader()
-  // here we guard the 
+	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
+	// P.F. prevent parallel use of the class-global "render"
+	// Mutex will be unlocked when gets out of scope (exit from GetFrame() or {} block )
+	// or my_lock.unlock(), see in ConvertToShader() and ConvertFromShader()
+	// here we guard the 
 
-  render->ResetTextureClipIndex();
+	render->ResetTextureClipIndex();
 
 	// Copy input clips from AviSynth
 	for (int j = 0; j < 9; j++) {
@@ -140,6 +140,26 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 				texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
+
+			// If not set, Param0 becomes OutputWidth,OutputHeight and Param1 becomes 1/OutputWidth,1/OutputHeight by default.
+			ParamStruct* P0 = &cmd.Param[0];
+			ParamStruct* P1 = &cmd.Param[1];
+			if (P0->Type == ParamType::None) {
+				P0->Type = ParamType::Float;
+				P0->Count = 1;
+				P0->Values = new float[4];
+				ZeroMemory(P0->Values, 16);
+				P0->Values[0] = (float)OutputWidth;
+				P0->Values[1] = (float)OutputHeight;
+			}
+			if (P1->Type == ParamType::None) {
+				P1->Type = ParamType::Float;
+				P1->Count = 1;
+				P1->Values = new float[4];
+				ZeroMemory(P1->Values, 16);
+				P1->Values[0] = 1.0f / OutputWidth;
+				P1->Values[1] = 1.0f / OutputHeight;
+			}
 
 			// Configure pixel shader
 			for (int i = 0; i < 9; i++) {
