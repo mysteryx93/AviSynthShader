@@ -1,4 +1,4 @@
-# AviSynth Shader v1.4.2
+# AviSynth Shader v1.4.3
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -109,7 +109,7 @@ Downscales the image in high quality.
 Arguments:  
 Width: The width to resize to.  
 Height: The height to resize to.  
-Str: The algorithm strength to apply between 0 and 1. Default=1
+Str: The algorithm strength to apply between 0 and 1. Default=.5
 Soft: If true, the result will be softer. Default=false
 Downscaler: The downscaling algorithm to use: SSim (default) or Bicubic  
 B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75  

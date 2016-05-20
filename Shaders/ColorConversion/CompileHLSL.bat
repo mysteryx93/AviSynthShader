@@ -10,6 +10,14 @@
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "LinearToGamma.cso" "LinearToGamma.hlsl"
 
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YuvToLinear.cso" "YuvToLinear.hlsl"
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "Yuv601ToLinear.cso" "YuvToLinear.hlsl" /DKb=0.114 /DKr=0.299
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "LinearToYuv.cso" "LinearToYuv.hlsl"
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "LinearToYuv601.cso" "LinearToYuv.hlsl" /DKb=0.114 /DKr=0.299
+
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "GammaToLab.cso" "GammaToLab.hlsl"
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "LabToGamma.cso" "LabToGamma.hlsl"
