@@ -1,3 +1,10 @@
+Version 1.4.4: May 25th 2016
+- Renamed SSimDownscaler to ResizeShader
+- Removed fStr and fSoft arguments. With SSim, fB = Strength (0 to 1), fC = Soft (0 or 1)
+- Renamed fDownscaler argument to fKernel and Downscaler to Kernel
+- fKernel and Kernel default value is now Bicubic
+- DLL now specifies its supported MT modes to AviSynth+ so SetFilterMTMode is no longer necessary
+
 version 1.4.3: May 20th 2016
 - Fixed a bug introduced in SuperRes
 - SuperResXBR now performs downscaling in Linear Light

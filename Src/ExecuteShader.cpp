@@ -118,8 +118,6 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
 	// P.F. prevent parallel use of the class-global "render"
 	// Mutex will be unlocked when gets out of scope (exit from GetFrame() or {} block )
-	// or my_lock.unlock(), see in ConvertToShader() and ConvertFromShader()
-	// here we guard the 
 
 	render->ResetTextureClipIndex();
 
@@ -141,25 +139,9 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 
-			// If not set, Param0 becomes OutputWidth,OutputHeight and Param1 becomes 1/OutputWidth,1/OutputHeight by default.
-			ParamStruct* P0 = &cmd.Param[0];
-			ParamStruct* P1 = &cmd.Param[1];
-			if (P0->Type == ParamType::None) {
-				P0->Type = ParamType::Float;
-				P0->Count = 1;
-				P0->Values = new float[4];
-				ZeroMemory(P0->Values, 16);
-				P0->Values[0] = (float)OutputWidth;
-				P0->Values[1] = (float)OutputHeight;
-			}
-			if (P1->Type == ParamType::None) {
-				P1->Type = ParamType::Float;
-				P1->Count = 1;
-				P1->Values = new float[4];
-				ZeroMemory(P1->Values, 16);
-				P1->Values[0] = 1.0f / OutputWidth;
-				P1->Values[1] = 1.0f / OutputHeight;
-			}
+			// Set Param0 and Param1 default values.
+			SetDefaultParamValue(&cmd.Param[0], (float)OutputWidth, (float)OutputHeight, 0, 0);
+			SetDefaultParamValue(&cmd.Param[1], 1.0f / OutputWidth, 1.0f / OutputHeight, 0, 0);
 
 			// Configure pixel shader
 			for (int i = 0; i < 9; i++) {
@@ -184,6 +166,19 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	render->CopyBufferToAviSynth(srcHeight - 1, dst->GetWritePtr(), dst->GetPitch(), env);
 	return dst;
+}
+
+// Sets the default parameter value if it is not already defined.
+void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3) {
+	if (p->Type == ParamType::None) {
+		p->Type = ParamType::Float;
+		p->Count = 1;
+		p->Values = new float[4];
+		p->Values[0] = value0;
+		p->Values[1] = value1;
+		p->Values[2] = value2;
+		p->Values[3] = value3;
+	}
 }
 
 void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
@@ -214,7 +209,7 @@ void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env)
 	if FAILED(render->InitPixelShader(cmd, env)) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
-		int TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;
+		size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;
 		FullText = (char*)malloc(TextLength);
 		strcpy_s(FullText, TextLength, ErrorText);
 		strcat_s(FullText, TextLength, cmd->Path);

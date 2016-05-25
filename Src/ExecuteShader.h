@@ -17,7 +17,7 @@ private:
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
-	
+	void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3);
 	int m_Precision;
 	int m_OutputPrecision;
 	PClip m_clips[9];
@@ -25,5 +25,5 @@ private:
 	HWND dummyHWND;
 	D3D9RenderImpl* render;
 	int srcHeight;
-  std::mutex executeshader_mutex;
+	std::mutex executeshader_mutex;
 };
