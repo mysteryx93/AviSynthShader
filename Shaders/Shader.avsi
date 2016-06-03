@@ -83,7 +83,7 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Convert = default(Convert, true)
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
 	lsb_in = default(lsb_in, false)
-	lsb_upscale = default(lsb_upscale, false)
+	lsb_upscale = default(lsb_upscale, lsb_in)
 	lsb_out = default(lsb_out, false)
 	fKernel = default(fKernel, "Bicubic")
 	fWidth = default(fWidth, 0)
@@ -101,22 +101,24 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 
 	Input
 
-	PrecisionIn = Convert && !lsb_in ? 1 : 2
-	PrecisionUpscale = Convert && !lsb_upscale ? 1 : 2
+	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionInW = lsb_in || Convert ? 1 : 2
+	PrecisionInH = lsb_in ? 2 : 1
+	PrecisionUpscale = lsb_upscale || !Convert ? 2 : 1
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
 	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
+	SmallWidth = Input.Width / PrecisionInW
+	SmallHeight = Input.Height / PrecisionInH
+
 	# Upscale
 	Original = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	Eval(Upscale)
+	LargeWidth = Width
+	LargeHeight = lsb_upscale ? Height / 2 : Height
 	Input = convert ? ConvertToShader(PrecisionUpscale, lsb=lsb_upscale) : last
 	Input.Shader(ConvertYuv && MatrixIn=="601" ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
-
-	SmallWidth = Original.Width / PrecisionIn
-	SmallHeight = Original.Height
-	LargeWidth = Input.Width / PrecisionIn
-	LargeHeight = Input.Height
 
 	# Downscale (optional)
 	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
@@ -132,6 +134,9 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
+
+	#Subtitle(string(PrecisionIn) + "," + string(PrecisionInW) + "," + string(PrecisionInH) + "    " + string(PrecisionIn) + "," + string(PrecisionInW) + "," + string(PrecisionInH))
+	Subtitle(string(SmallWidth) + "," + string(SmallHeight) + "," + string(LargeWidth) + "," + string(LargeHeight))
 }
 
 function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC")
@@ -165,31 +170,30 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 
 	Input
 
-	PrecisionIn = Convert && !lsb_in ? 1 : 2
+	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionInW = lsb_in || Convert ? 1 : 2
+	PrecisionInH = lsb_in ? 2 : 1
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
 	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
-	InputWidth = Width / PrecisionIn
-	InputHeight = Height
+	SmallWidth = Input.Width / PrecisionInW
+	SmallHeight = Input.Height / PrecisionInH
+	LargeWidth = SmallWidth * 2
+	LargeHeight = SmallHeight * 2
 	args_string = string(XbrStr,"%.32f") + "," + string(XbrSharp,"%.32f") + ",0,0f"
-	size0_string = string(InputWidth) + "," + string(InputHeight) + "," + string(1./InputWidth,"%.32f") + "," + string(1./InputHeight,"%.32f") + "f"
-	size1_string = string(2*InputWidth) + "," + string(2*InputHeight) + "," + string(1./(2*InputWidth),"%.32f") + "," + string(1./(2*InputHeight),"%.32f") + "f"
+	size0_string = CreateParamFloat4(SmallWidth, SmallHeight)
+	size1_string = CreateParamFloat4(LargeWidth, LargeHeight)
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	Shader(Output=2)
 	
 	# Upscale with Super-xBR
 	ConvertYuv ? Shader(MatrixIn=="601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso") : last
-	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=2*InputWidth, Height=2*InputHeight)
+	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
 	Shader("SuperXBR-pass1.cso", Param2=args_string, Param3=size1_string)
 	Shader("SuperXBR-pass2.cso", Param2=args_string, Param3=size1_string)
 	Shader("GammaToLinear.cso")
-
-	SmallWidth = Input.Width / PrecisionIn
-	SmallHeight = Input.Height
-	LargeWidth = Input.Width / PrecisionIn * 2
-	LargeHeight = Input.Height * 2
 
 	# Downscale (optional)
 	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
@@ -253,27 +257,33 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 
 	Input
 	ConvertYuv = convert && !IsRGB()
-	PrecisionIn = Convert && !lsb_in ? 1 : 2
+	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionInW = lsb_in || Convert ? 1 : 2
+	PrecisionInH = lsb_in ? 2 : 1
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
+	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
+	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+
+	SmallWidth = Input.Width / PrecisionInW
+	SmallHeight = Input.Height / PrecisionInH
+	LargeWidth = SmallWidth * 2
+	LargeHeight = SmallHeight * 2
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	
 	Input
-	InputWidth = Width / PrecisionIn
-	InputHeight = Height
 	args_string = string(Str,"%.32f") + "," + string(Sharp,"%.32f") + "f"
-	size0_string = CreateParamFloat4(InputWidth, InputHeight)
-	size1_string = CreateParamFloat4(2*InputWidth, 2*InputHeight)
+	size0_string = CreateParamFloat4(SmallWidth, SmallHeight)
+	size1_string = CreateParamFloat4(LargeWidth, LargeHeight)
 
 	ConvertYuv ? Shader(MatrixIn=="601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso") : last
 
-	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=2*InputWidth, Height=2*InputHeight)
+	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
 	Shader("SuperXBR-pass1.cso", Param2=args_string, Param3=size1_string)
 	Shader("SuperXBR-pass2.cso", Param2=args_string, Param3=size1_string)
 
 	# Final Resize
-	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, 2*InputWidth, 2*InputHeight, fKernel, fWidth, fHeight, fB, fC) : last
+	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
 
 	ConvertYuv ? Shader(MatrixOut=="601" ? "GammaToYuv601.cso" : "GammaToYuv.cso") : last
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)
@@ -303,17 +313,22 @@ function ResizeShader(clip Input, int "Width", int "Height", float "B", float "C
 
 	Input
 	ConvertYuv = convert && !IsRGB()
-	PrecisionIn = Convert && !lsb_in ? 1 : 2
+	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionInW = lsb_in || Convert ? 1 : 2
+	PrecisionInH = lsb_in ? 2 : 1
 	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : "RGB32"
+	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
+	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+
+	InputWidth = Input.Width / PrecisionInW
+	InputHeight = Input.Height / PrecisionInH
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in) : last
 	
 	Input
-	InputWidth = Width / PrecisionIn    
 	Shader(ConvertYuv && MatrixIn=="601" ? "Yuv601ToLinear.cso" : ConvertYuv ? "YuvToLinear.cso" : "GammaToLinear.cso")
 
-	ResizeInternal(Input, true, Input.Width / PrecisionIn, Input.Height, Kernel, Width, Height, B, C)
+	ResizeInternal(Input, true, InputWidth, InputHeight, Kernel, Width, Height, B, C)
 
 	Shader(ConvertYuv && MatrixOut=="601" ? "LinearToYuv601.cso" : ConvertYuv ? "LinearToYuv.cso" : "LinearToGamma.cso")
 	last.ExecuteShader(Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut)

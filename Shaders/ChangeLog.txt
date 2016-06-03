@@ -1,3 +1,8 @@
+Version 1.4.5: June 3rd 2016
+- ConvertToShader and ConvertFromShader now use Bicubic for chroma resizing when lsb=true
+- ConvertToShader and ConvertFromShader now give an error if lsb=true and Precision=1
+- There is still an issue where the x64 version takes over twice as much memory
+
 Version 1.4.4: May 25th 2016
 - Renamed SSimDownscaler to ResizeShader
 - Removed fStr and fSoft arguments. With SSim, fB = Strength (0 to 1), fC = Soft (0 or 1)

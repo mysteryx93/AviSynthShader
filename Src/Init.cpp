@@ -10,8 +10,11 @@ const int DefaultConvertYuv = false;
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
 	if (input->GetVideoInfo().IsYV12()) {
-		if (args[2].AsBool(false)) // Stack16
-			input = env->Invoke("Eval", AVSValue("Dither_resize16(Width(),Height()/2, csp=\"YV24\")")).AsClip();
+		if (args[2].AsBool(false)) { // Stack16
+			AVSValue sargs[5] = { input, input->GetVideoInfo().width, input->GetVideoInfo().height / 2, "Bicubic", "YV24" };
+			const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
+			input = env->Invoke("Dither_resize16", AVSValue(sargs, 5), nargs).AsClip();
+		}
 		else
 			input = env->Invoke("ConvertToYV24", input).AsClip();
 	}
@@ -33,9 +36,9 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 
 	if (strcmp(args[2].AsString("YV12"), "YV12") == 0) {
 		if (args[3].AsBool(false)) {// Stack16
-			AVSValue sargs[4] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "YV12" };
-			const char *nargs[4] = { 0, 0, 0, "csp" };
-			return env->Invoke("Dither_resize16", AVSValue(sargs, 4), nargs).AsClip();
+			AVSValue sargs[5] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Bicubic", "YV12" };
+			const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
+			return env->Invoke("Dither_resize16", AVSValue(sargs, 5), nargs).AsClip();
 		}
 		else
 			return env->Invoke("ConvertToYV12", Result).AsClip();

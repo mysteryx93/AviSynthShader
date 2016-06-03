@@ -7,7 +7,9 @@ ConvertToShader::ConvertToShader(PClip _child, int _precision, bool _stack16, IS
 	if (precision < 1 && precision > 3)
 		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
 	if (stack16 && vi.IsRGB())
-		env->ThrowError("Conversion from Stack16 only supports YV12 and YV24");
+		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
+	if (stack16 && precision == 1)
+		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 
 	viDst = vi;
 	viDst.pixel_type = VideoInfo::CS_BGR32;

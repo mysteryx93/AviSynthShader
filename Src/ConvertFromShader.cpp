@@ -9,7 +9,9 @@ ConvertFromShader::ConvertFromShader(PClip _child, int _precision, const char* _
 	if (precision < 1 || precision > 3)
 		env->ThrowError("ConvertFromShader: Precision must be 1, 2 or 3");
 	if (stack16 && strcmp(format, "YV12") != 0 && strcmp(format, "YV24") != 0)
-		env->ThrowError("Conversion to Stack16 only supports YV12 and YV24");
+		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
+	if (stack16 && precision == 1)
+		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
 
 	viDst = vi;
 	if (strcmp(format, "RGB32") == 0)
