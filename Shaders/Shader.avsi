@@ -134,9 +134,6 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 
 	ExecuteShader(last, Input, Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
-
-	#Subtitle(string(PrecisionIn) + "," + string(PrecisionInW) + "," + string(PrecisionInH) + "    " + string(PrecisionIn) + "," + string(PrecisionInW) + "," + string(PrecisionInH))
-	Subtitle(string(SmallWidth) + "," + string(SmallHeight) + "," + string(LargeWidth) + "," + string(LargeHeight))
 }
 
 function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC")
