@@ -1,4 +1,5 @@
 Version 1.4.5: June 3rd 2016
+- DitherTools (lsb_in/lsb_out) support was broken for the various functions and has been fixed
 - ConvertToShader and ConvertFromShader now use Bicubic for chroma resizing when lsb=true
 - ConvertToShader and ConvertFromShader now give an error if lsb=true and Precision=1
 - There is still an issue where the x64 version takes over twice as much memory
