@@ -1,4 +1,4 @@
-# AviSynthShader v1.4.4 (March 25th 2016)
+# AviSynthShader v1.4.5 (June 3rd 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -383,7 +383,7 @@ function ResizeInternal(clip cmd, clip Input, bool SimpleArgs, int InputWidth, i
 }
 
 # Performs color matrix conversion with 16 bit depth to avoid banding
-function ColorMatrixShader(clip input, string "MatrixIn", string "MatrixOut", string "FormatOut") {
+function ColorMatrixShader(clip input, string "MatrixIn", string "MatrixOut", string "FormatOut", bool "lsb") {
 	MatrixIn = default(MatrixIn, "709")
 	MatrixOut = default(MatrixOut, "709")
 	FormatOut = default(FormatOut, "")
@@ -396,11 +396,12 @@ function ColorMatrixShader(clip input, string "MatrixIn", string "MatrixOut", st
 	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12 or YV24" + chr(10))
 
-	input = ConvertToShader(1)
+	Prec = lsb ? 2 : 1
+	input = ConvertToShader(Prec, lsb=lsb)
 	Shader(MatrixIn == "601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso")
 	Shader(MatrixOut == "601" ? "GammaToYuv601.cso" : "GammaToYuv.cso")
-	ExecuteShader(last, input, Precision=2, Clip1Precision=1, OutputPrecision=1)
-	ConvertFromShader(1, format=sourceFormat)
+	ExecuteShader(last, input, Precision=2, Clip1Precision=Prec, OutputPrecision=Prec)
+	ConvertFromShader(Prec, format=sourceFormat, lsb=lsb)
 }
 
 function CreateParamXY(int width, int height) {
