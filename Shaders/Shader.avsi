@@ -1,4 +1,4 @@
-# AviSynthShader v1.4.5 (June 3rd 2016)
+# AviSynthShader v1.4.6 (June 6th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -61,14 +61,6 @@
 # Other arguments are the same as SuperRes.
 #
 #
-## ColorMatrixShader(input, MatrixIn, MatrixOut, FormatOut)
-# Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
-# 
-# Arguments:
-# MatrixIn/MatrixOut: The input and output color matrix (601 or 709). Default="709" for both
-# FormatOut: The output format. Default = same as input.
-# 
-# 
 # Shaders are written by Shiandow and are available here
 # https://github.com/zachsaw/MPDN_Extensions/
 
@@ -380,28 +372,6 @@ function ResizeInternal(clip cmd, clip Input, bool SimpleArgs, int InputWidth, i
 		Width=W, Height=H) : last
 
 	return last
-}
-
-# Performs color matrix conversion with 16 bit depth to avoid banding
-function ColorMatrixShader(clip input, string "MatrixIn", string "MatrixOut", string "FormatOut", bool "lsb") {
-	MatrixIn = default(MatrixIn, "709")
-	MatrixOut = default(MatrixOut, "709")
-	FormatOut = default(FormatOut, "")
-
-	Assert(MatrixIn == "601" || MatrixIn == "709", "MatrixIn must be 601 or 709")
-	Assert(MatrixOut == "601" || MatrixOut == "709", "MatrixOut must be 601 or 709")
-	Assert(MatrixIn != MatrixOut, "MatrixIn and MatrixOut must be different")
-
-	input
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be YV12 or YV24" + chr(10))
-
-	Prec = lsb ? 2 : 1
-	input = ConvertToShader(Prec, lsb=lsb)
-	Shader(MatrixIn == "601" ? "Yuv601ToGamma.cso" : "YuvToGamma.cso")
-	Shader(MatrixOut == "601" ? "GammaToYuv601.cso" : "GammaToYuv.cso")
-	ExecuteShader(last, input, Precision=2, Clip1Precision=Prec, OutputPrecision=Prec)
-	ConvertFromShader(Prec, format=sourceFormat, lsb=lsb)
 }
 
 function CreateParamXY(int width, int height) {

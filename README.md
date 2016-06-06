@@ -1,4 +1,4 @@
-# AviSynth Shader v1.4.5
+# AviSynth Shader v1.4.6
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -124,14 +124,6 @@ Kernel: The resize algorithm to use: SSim or Bicubic (default)
 B, C: When using SSim, B sets the Strength (0 to 1, default=.5) and C sets whether to use a soft algorithm (0 or 1, default=0)  
 B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75 (useful for downscaling)  
 Other arguments are the same as SuperRes.  
-
-
-#### ColorMatrixShader(input, MatrixIn, MatrixOut, FormatOut)
-Converts the color matrix with 16 bit depth to avoid banding. Source can be YV12, YV24, RGB24 or RGB32.
-
-Arguments:  
-MatrixIn/MatrixOut: The input and output color matrix (601 or 709). Default="709" for both  
-FormatOut: The output format. Default = same as input.  
 
 
 Shiandow provides many other HLSL shaders available here that can be integrated into AviSynth.  

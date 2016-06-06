@@ -1,3 +1,8 @@
+Version 1.4.6: June 6th 2016
+- Minor performance improvements
+- Removed ColorMatrixShader
+- ConvertFromShader no longer uses 'invks' when converting to YV12 using DitherTools
+
 Version 1.4.5: June 3rd 2016
 - DitherTools (lsb_in/lsb_out) support was broken for the various functions and has been fixed
 - ConvertToShader and ConvertFromShader now use Bicubic for chroma resizing when lsb=true
