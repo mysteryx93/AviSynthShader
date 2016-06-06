@@ -13,15 +13,19 @@ public:
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
+	int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision);
 	void InitializeDevice(IScriptEnvironment* env);
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
 	void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3);
 	int m_Precision;
+	int m_PrecisionMultiplier;
 	int m_OutputPrecision;
+	int m_OutputMultiplier;
 	PClip m_clips[9];
 	int m_ClipPrecision[9];
+	int m_ClipMultiplier[9];
 	HWND dummyHWND;
 	D3D9RenderImpl* render;
 	int srcHeight;

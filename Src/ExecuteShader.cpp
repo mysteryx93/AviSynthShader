@@ -4,6 +4,10 @@
 ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision) {
 
+	// Validate parameters
+	if (!vi.IsY8())
+		env->ThrowError("ExecuteShader: Source must be a command chain");
+
 	memcpy(m_ClipPrecision, _clipPrecision, sizeof(int) * 9);
 	m_clips[0] = _clip1;
 	m_clips[1] = _clip2;
@@ -15,11 +19,11 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	m_clips[7] = _clip8;
 	m_clips[8] = _clip9;
 
-	// Validate parameters
-	if (!vi.IsY8())
-		env->ThrowError("ExecuteShader: Source must be a command chain");
-	if (m_Precision < 1 || m_Precision > 3)
-		env->ThrowError("ExecuteShader: Precision must be 1, 2 or 3");
+	m_PrecisionMultiplier = AdjustPrecision(env, m_Precision);
+	m_OutputMultiplier = AdjustPrecision(env, m_OutputPrecision);
+	for (int i = 0; i < 9; i++) {
+		m_ClipMultiplier[i] = AdjustPrecision(env, m_ClipPrecision[i]);
+	}
 
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
@@ -40,16 +44,6 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
 	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
-
-	// We only need to know the difference between precision 2 and 3 to initialize video buffers. Then, both are 16 bits.
-	if (m_Precision == 3)
-		m_Precision = 2;
-	if (m_OutputPrecision == 3)
-		m_OutputPrecision = 2;
-	for (int i = 0; i < 9; i++) {
-		if (m_ClipPrecision[i] == 3)
-			m_ClipPrecision[i] = 2;
-	}
 
 	CreateInputClip(0, env);
 	CreateInputClip(1, env);
@@ -98,7 +92,7 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 			if (cmd.OutputIndex != 1)
 				env->ThrowError("ExecuteShader: Last command must have Output = 1");
 
-			vi.width = OutputWidth * m_OutputPrecision;
+			vi.width = OutputWidth * m_OutputMultiplier;
 			vi.height = OutputHeight;
 		}
 	}
@@ -168,6 +162,20 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	return dst;
 }
 
+// Returns how to multiply the AviSynth frame format's width based on the precision.
+int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision) {
+	//if (precision == 0)
+	//	return 1; // Same width as Y8
+	if (precision == 1)
+		return 1; // Same width as RGB24
+	else if (precision == 2)
+		return 2; // Double width as RGB32
+	else if (precision == 3)
+		return 2; // Double width as RGB32
+	else
+		env->ThrowError("ExecuteShader: Precision must be 0, 1, 2 or 3");
+}
+
 // Sets the default parameter value if it is not already defined.
 void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3) {
 	if (p->Type == ParamType::None) {
@@ -187,8 +195,10 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 	if (clip != NULL) {
 		if (!clip->GetVideoInfo().IsRGB32())
 			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
+		else if (m_ClipPrecision[index] == 0 && !clip->GetVideoInfo().IsY8())
+			env->ThrowError("ExecuteShader: Clip with Precision=0 must be in Y8 format");
 
-		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipPrecision[index], clip->GetVideoInfo().height, true, false)))
+		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, true, false)))
 			env->ThrowError("ExecuteShader: Failed to create input textures.");
 	}
 	else
@@ -200,7 +210,7 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (m_clips[index] != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipPrecision[index], clip->GetVideoInfo().height, env)))
+		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, env)))
 			env->ThrowError("ExecuteShader: CopyInputClip failed");
 	}
 }

@@ -21,9 +21,9 @@ private:
 	int floatBufferPitch;
 	int halfFloatBufferPitch;
 	const char* format;
-	void convFloatToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+	void convShaderToYV24(const byte *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
 		int pitch1, int pitch2Y, int pitch2UV, int width, int height, IScriptEnvironment* env);
-	void convFloatToRGB32(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
+	void convShaderToRGB(const byte *src, unsigned char *dst, int pitchSrc, int pitchDst, int width, int height, IScriptEnvironment* env);
 	void convInt(const byte* rgb, unsigned char* outY, unsigned char* outU, unsigned char* outV);
 	void convStack16(const byte* src, unsigned char* outY, unsigned char* outU, unsigned char* outV, unsigned char* outY2, unsigned char* outU2, unsigned char* outV2);
 	uint16_t ConvertFromShader::sadd16(uint16_t a, uint16_t b);

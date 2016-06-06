@@ -45,30 +45,35 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow));
 
-for (int i = 0; i < 9; i++) {
-	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
-	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
-	HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
-}
+	for (int i = 0; i < 9; i++) {
+		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
+		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
+		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
+	}
 
 	return S_OK;
 }
 
 // Applies the video format corresponding to specified pixel precision.
 HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionOut, D3DFORMAT &formatOut) {
-	if (precision == 1)
-		formatOut = D3DFMT_X8R8G8B8;
-	else if (precision == 2)
+	//if (precision == 0) {
+	//	formatOut = D3DFMT_L8;
+	//	precisionOut = 1;
+	//}
+	if (precision == 1) {
+		formatOut = D3DFMT_A8R8G8B8;
+		precisionOut = 4;
+	}
+	else if (precision == 2) {
 		formatOut = D3DFMT_A16B16G16R16;
-	else if (precision == 3)
+		precisionOut = 8;
+	}
+	else if (precision == 3) {
 		formatOut = D3DFMT_A16B16G16R16F;
+		precisionOut = 8;
+	}
 	else
 		return E_FAIL;
-
-	if (precision == 3)
-		precisionOut = 2;
-	else
-		precisionOut = precision;
 
 	return S_OK;
 }
@@ -286,7 +291,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	HR(destSurface->LockRect(&d3drect, NULL, 0));
 	BYTE* pict = (BYTE*)d3drect.pBits;
 
-	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_ClipPrecision[index] * 4, height);
+	env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_ClipPrecision[index], height);
 
 	HR(destSurface->UnlockRect());
 
@@ -322,7 +327,7 @@ HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int ds
 	HR(ReadSurface->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
 	BYTE* srcPict = (BYTE*)srcRect.pBits;
 
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_OutputPrecision * 4, ReadSurface->Height);
+	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_OutputPrecision, ReadSurface->Height);
 
 	return ReadSurface->Memory->UnlockRect();
 }
