@@ -1,5 +1,3 @@
-#include <windows.h>
-#include "avisynth.h"
 #include "ConvertToShader.h"
 #include "ConvertFromShader.h"
 #include "Shader.h"

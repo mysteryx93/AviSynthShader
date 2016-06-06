@@ -1,352 +1,272 @@
+#include <DirectXPackedVector.h>
+#include <d3dx9.h>
 #include "ConvertToShader.h"
 
-ConvertToShader::ConvertToShader(PClip _child, int _precision, bool _stack16, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), precision(_precision), stack16(_stack16) {
-	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
-		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
-	if (precision < 1 && precision > 3)
-		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
-	if (stack16 && vi.IsRGB())
-		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
-	if (stack16 && precision == 1)
-		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 
-	viDst = vi;
-	viDst.pixel_type = VideoInfo::CS_BGR32;
+static void __stdcall
+yuv_to_shader_1_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
+                  const int spitch, const int width, const int height, float*) noexcept
+{
+    const uint8_t* sy = srcp[0];
+    const uint8_t* su = srcp[1];
+    const uint8_t* sv = srcp[2];
 
-	if (precision > 1) // Half-float frame has its width twice larger than normal
-		viDst.width <<= 1;
-	if (stack16)
-		viDst.height >>= 1;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            dstp[4 * x + 0] = sv[x];
+            dstp[4 * x + 1] = su[x];
+            dstp[4 * x + 2] = sy[x];
+            dstp[4 * x + 3] = 0;
+        }
+        sy += spitch;
+        su += spitch;
+        sv += spitch;
+        dstp += dpitch;
+    }
+}
 
-	if (precision == 1)
-		precisionShift = 2;
-	else if (precision == 2)
-		precisionShift = 3;
-	else
-		precisionShift = 4;
 
-	if (precision == 3) {
-		floatBufferPitch = vi.width << 4;
-		halfFloatBufferPitch = vi.width << 3;
-	}
+template <bool STACK16>
+static void __stdcall
+yuv_to_shader_2_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, float*) noexcept
+{
+    const uint8_t* sy = srcp[0];
+    const uint8_t* su = srcp[1];
+    const uint8_t* sv = srcp[2];
+
+    const uint8_t *ylsb, *ulsb, *vlsb;
+    if (STACK16) {
+        ylsb = sy + height * spitch;
+        ulsb = su + height * spitch;
+        vlsb = sv + height * spitch;
+    }
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (!STACK16) {
+                dstp[8 * x + 0] = 0;
+                dstp[8 * x + 1] = sv[x];
+                dstp[8 * x + 2] = 0;
+                dstp[8 * x + 3] = su[x];
+                dstp[8 * x + 4] = 0;
+                dstp[8 * x + 5] = sy[x];
+            } else {
+                dstp[8 * x + 0] = vlsb[x];
+                dstp[8 * x + 1] = sv[x];
+                dstp[8 * x + 2] = ulsb[x];
+                dstp[8 * x + 3] = su[x];
+                dstp[8 * x + 4] = ylsb[x];
+                dstp[8 * x + 5] = sy[x];
+                dstp[8 * x + 6] = dstp[8 * x + 7] = 0;
+            }
+            dstp[8 * x + 6] = dstp[8 * x + 7] = 0;
+        }
+        dstp += dpitch;
+        sy += spitch;
+        su += spitch;
+        sv += spitch;
+        if (STACK16) {
+            ylsb += spitch;
+            ulsb += spitch;
+            vlsb += spitch;
+        }
+    }
+}
+
+
+template <bool STACK16>
+static void __stdcall
+yuv_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, float* buff) noexcept
+{
+    using namespace DirectX::PackedVector;
+
+    const uint8_t* sy = srcp[0];
+    const uint8_t* su = srcp[1];
+    const uint8_t* sv = srcp[2];
+
+    const uint8_t *ylsb, *ulsb, *vlsb;
+    if (STACK16) {
+        ylsb = sy + height * spitch;
+        ulsb = su + height * spitch;
+        vlsb = sv + height * spitch;
+    }
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (!STACK16) {
+                constexpr float rcp8 = 1.0f / 255;
+                buff[4 * x + 0] = sv[x] * rcp8;
+                buff[4 * x + 1] = su[x] * rcp8;
+                buff[4 * x + 2] = sy[x] * rcp8;
+            } else {
+                constexpr float rcp16 = 1.0f / 65535;
+                buff[4 * x + 0] = (sv[x] << 8 | vlsb[x]) * rcp16;
+                buff[4 * x + 1] = (su[x] << 8 | ulsb[x]) * rcp16;
+                buff[4 * x + 2] = (sy[x] << 8 | ylsb[x]) * rcp16;
+            }
+            buff[4 * x + 3] = 0.0f;
+        }
+        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
+                                   buff, sizeof(float), width * 4);
+        dstp += dpitch;
+        sy += spitch;
+        su += spitch;
+        sv += spitch;
+        if (STACK16) {
+            ylsb += spitch;
+            ulsb += spitch;
+            vlsb += spitch;
+        }
+    }
+}
+
+
+template <bool IS_RGB32>
+static void __stdcall
+rgb_to_shader_2_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, float*) noexcept
+{
+    constexpr size_t step = IS_RGB32 ? 4 : 3;
+
+    const uint8_t* s = srcp[0];
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            dstp[8 * x + 0] = 0;
+            dstp[8 * x + 1] = s[step * x + 0];
+            dstp[8 * x + 2] = 0;
+            dstp[8 * x + 3] = s[step * x + 1];
+            dstp[8 * x + 4] = 0;
+            dstp[8 * x + 5] = s[step * x + 2];
+            dstp[8 * x + 6] = 0;
+            dstp[8 * x + 7] = IS_RGB32 ? s[4 * x + 3] : 0;
+        }
+        dstp += dpitch;
+        s += spitch;
+    }
+}
+
+
+template <bool IS_RGB32>
+static void __stdcall
+rgb_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, float* buff) noexcept
+{
+    using namespace DirectX::PackedVector;
+
+    constexpr size_t step = IS_RGB32 ? 4 : 3;
+
+    const uint8_t* s = srcp[0];
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            constexpr float rcp = 1.0f / 255;
+            buff[4 * x + 0] = s[step * x + 0] * rcp;
+            buff[4 * x + 1] = s[step * x + 1] * rcp;
+            buff[4 * x + 2] = s[step * x + 2] * rcp;
+            buff[4 * x + 3] = IS_RGB32 ? s[4 * x + 3] * rcp : 0.0f;
+        }
+        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
+                                   buff, sizeof(float), width * 4);
+        dstp += dpitch;
+        s += spitch;
+    }
+}
+
+
+
+ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, IScriptEnvironment* env) :
+    GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
+{
+    if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
+        env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
+    if (precision < 1 && precision > 3)
+        env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
+    if (stack16 && vi.IsRGB())
+        env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
+    if (stack16 && precision == 1)
+        env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
+
+    viSrc = vi;
+    vi.pixel_type = VideoInfo::CS_BGR32;
+    if (precision > 1) // Half-float frame has its width twice larger than normal
+        vi.width *= 2;
+    if (stack16)
+        vi.height /= 2;
+    if (precision == 3) {
+        floatBufferPitch = vi.width << 4;
+        isPlusMt = env->FunctionExists("SetFilterMTMode");
+        if (!isPlusMt) {
+            buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 16));
+            if (!buff) {
+                env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
+            }
+        }
+    }
+
+    switch (precision) {
+    case 1:
+        mainProc = yuv_to_shader_1_c;
+        break;
+    case 2:
+        if (viSrc.IsRGB32()) {
+            mainProc = rgb_to_shader_2_c<true>;
+        } else if (viSrc.IsRGB24()) {
+            mainProc = rgb_to_shader_2_c<false>;
+        } else if (stack16) {
+            mainProc = yuv_to_shader_2_c<true>;
+        } else {
+            mainProc = yuv_to_shader_2_c<false>;
+        }
+        break;
+    default:
+        if (viSrc.IsRGB32()) {
+            mainProc = rgb_to_shader_3_c<true>;
+        } else if (viSrc.IsRGB24()) {
+            mainProc = rgb_to_shader_3_c<false>;
+        } else if (stack16) {
+            mainProc = yuv_to_shader_3_c<true>;
+        } else {
+            mainProc = yuv_to_shader_3_c<false>;
+        }
+    }
+
+
 }
 
 ConvertToShader::~ConvertToShader() {
+    _aligned_free(buff);
 }
 
 PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) {
-	PVideoFrame src = child->GetFrame(n, env);
+    PVideoFrame src = child->GetFrame(n, env);
 
-	// Convert from YV24 to half-float RGB
-	PVideoFrame dst = env->NewVideoFrame(viDst);
-	if (vi.IsRGB())
-		convRgbToShader(src->GetReadPtr(), dst->GetWritePtr(), src->GetPitch(), dst->GetPitch(), vi.width, vi.height, env);
-	//else if (precision == 2 && !convertYUV)
-	//	bitblt_i8_to_i16_sse2((uint8_t*)src->GetReadPtr(PLANAR_Y), (uint8_t*)src->GetReadPtr(PLANAR_U), (uint8_t*)src->GetReadPtr(PLANAR_V), src->GetPitch(PLANAR_Y), (uint16_t*)dst->GetWritePtr(), dst->GetPitch(), srcHeight);
-	else
-		convYV24ToShader(src->GetReadPtr(PLANAR_Y), src->GetReadPtr(PLANAR_U), src->GetReadPtr(PLANAR_V), dst->GetWritePtr(), src->GetPitch(PLANAR_Y), src->GetPitch(PLANAR_U), dst->GetPitch(), vi.width, vi.height, env);
+    // Convert from YV24 to half-float RGB
+    PVideoFrame dst = env->NewVideoFrame(vi);
 
-	return dst;
+    const uint8_t* srcp[] = {
+        src->GetReadPtr(),
+        viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_U),
+        viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_V),
+    };
+
+    float* b = buff;
+    if (isPlusMt) {
+        void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 16, AVS_POOLED_ALLOC);
+        if (!t) {
+            env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
+        }
+        b = reinterpret_cast<float*>(t);
+    }
+
+    mainProc(dst->GetWritePtr(), srcp, dst->GetPitch(), src->GetPitch(), viSrc.width, vi.height, b);
+
+    if (isPlusMt) {
+        static_cast<IScriptEnvironment2*>(env)->Free(b);
+    }
+
+    return dst;
 }
 
-void ConvertToShader::convYV24ToShader(const byte *py, const byte *pu, const byte *pv,
-	unsigned char *dst, int pitch1Y, int pitch1UV, int pitch2, int width, int height, IScriptEnvironment* env)
-{
-	unsigned char *floatBuffer;
-	unsigned char *halfFloatBuffer;
-
-	if (precision == 3) {
-		floatBuffer = new unsigned char[floatBufferPitch]; // C++ 
-		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
-	}
-
-	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
-	int dstLoopPitch = precision == 3 ? floatBufferPitch : pitch2;
-
-	if (stack16)
-		height >>= 1;
-
-	// Convert all data to float
-	unsigned char Y, U, V, Y2, U2, V2;
-
-	for (int y = 0; y < height; ++y) {
-		//if (precision == 1) { // DX9 cannot take RGB24
-		//	for (int x = 0; x < width; ++x) {
-		//		Y = py[x];
-		//		U = pu[x];
-		//		V = pv[x];
-		//		convInt(Y, U, V, dstLoop + (x * 3));
-		//	}
-		//}
-		if (!stack16) {
-			for (int x = 0; x < width; ++x) {
-				Y = py[x];
-				U = pu[x];
-				V = pv[x];
-				convInt(Y, U, V, dstLoop + (x << precisionShift));
-			}
-		}
-		else { // Stack16
-			for (int x = 0; x < width; ++x) {
-				Y = py[x];
-				U = pu[x];
-				V = pv[x];
-
-				Y2 = Y + pitch1Y * height;
-				U2 = U + pitch1UV * height;
-				V2 = V + pitch1UV * height;
-				convStack16(Y, U, V, Y2, U2, V2, dstLoop + (x << precisionShift));
-			}
-		}
-
-		py += pitch1Y;
-		pu += pitch1UV;
-		pv += pitch1UV;
-		if (precision == 3) {
-			// Convert float buffer to half-float
-			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width << 2);
-
-			// Copy half-float data back into frame
-			env->BitBlt(dst, pitch2, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, 1);
-			dst += pitch2;
-		}
-		else
-			dstLoop += dstLoopPitch;
-	}
-	if (precision == 3) {
-		delete[] floatBuffer;
-		delete[] halfFloatBuffer;
-	}
-}
-
-void ConvertToShader::convRgbToShader(const byte *src, unsigned char *dst, int srcPitch, int dstPitch, int width, int height, IScriptEnvironment* env) {
-	unsigned char *floatBuffer;
-	unsigned char *halfFloatBuffer;
-	if (precision == 3) {
-		floatBuffer = new unsigned char[floatBufferPitch];
-		halfFloatBuffer = new unsigned char[halfFloatBufferPitch];
-	}
-
-	unsigned char* dstLoop = precision == 3 ? floatBuffer : dst;
-	int dstLoopPitch = precision == 3 ? floatBufferPitch : dstPitch;
-
-	if (stack16)
-		height >>= 1;
-
-	const byte *Val, *Val2;
-	unsigned char B, G, R, B2, G2, R2;
-	bool IsSrcRgb32 = vi.IsRGB32();
-	src += height * srcPitch;
-	for (int y = 0; y < height; ++y) {
-		src -= srcPitch;
-
-		//if (precision == 1) {
-		//	if (IsSrcRgb32) {
-		//		for (int x = 0; x < width; ++x) {
-		//			Val = &src[x << 2];
-		//			B = Val[0];
-		//			G = Val[1];
-		//			R = Val[2];
-		//			convInt(R, G, B, dstLoop + (x * 3));
-		//		}
-		//	}
-		//	else {
-		//		for (int x = 0; x < width; ++x) {
-		//			Val = &src[x * 3];
-		//			B = Val[0];
-		//			G = Val[1];
-		//			R = Val[2];
-		//			convInt(R, G, B, dstLoop + (x * 3));
-		//		}
-		//	}
-		//}
-		if (!stack16) {
-			if (IsSrcRgb32) {
-				for (int x = 0; x < width; ++x) {
-					Val = &src[x << 2];
-					B = Val[0];
-					G = Val[1];
-					R = Val[2];
-					convInt(R, G, B, dstLoop + (x << precisionShift));
-				}
-			}
-			else {
-				for (int x = 0; x < width; ++x) {
-					Val = &src[x * 3];
-					B = Val[0];
-					G = Val[1];
-					R = Val[2];
-					convInt(R, G, B, dstLoop + (x << precisionShift));
-				}
-			}
-		}
-		else { // stack16
-			if (IsSrcRgb32) {
-				for (int x = 0; x < width; ++x) {
-					Val = &src[x << 2];
-					B = Val[0];
-					G = Val[1];
-					R = Val[2];
-					Val2 = Val + srcPitch * height;
-					B2 = Val2[0];
-					G2 = Val2[1];
-					R2 = Val2[2];
-					convStack16(R, G, B, R2, G2, B2, dstLoop + (x << precisionShift));
-				}
-			}
-			else {
-				for (int x = 0; x < width; ++x) {
-					Val = &src[x * 3];
-					B = Val[0];
-					G = Val[1];
-					R = Val[2];
-					Val2 = Val + srcPitch * height;
-					B2 = Val2[0];
-					G2 = Val2[1];
-					R2 = Val2[2];
-					convStack16(R, G, B, R2, G2, B2, dstLoop + (x << precisionShift));
-				}
-			}
-		}
-
-		if (precision == 3) {
-			// Convert float buffer to half-float
-			DirectX::PackedVector::XMConvertFloatToHalfStream((DirectX::PackedVector::HALF*)halfFloatBuffer, 2, (float*)floatBuffer, 4, width << 2);
-
-			// Copy half-float data back into frame
-			env->BitBlt(dst, dstPitch, halfFloatBuffer, halfFloatBufferPitch, halfFloatBufferPitch, 1);
-			dst += dstPitch;
-		}
-		else
-			dstLoop += dstLoopPitch;
-	}
-	if (precision == 3) {
-		delete[] floatBuffer;
-		delete[] halfFloatBuffer;
-	}
-}
-
-void ConvertToShader::convInt(uint8_t y, uint8_t u, uint8_t v, uint8_t* out) {
-	if (precision == 1) {
-		out[0] = v;
-		out[1] = u;
-		out[2] = y;
-	}
-	else if (precision == 2) {
-		uint16_t *outS = (unsigned short *)out;
-		outS[0] = (uint16_t)y << 8;
-		outS[1] = (uint16_t)u << 8;
-		outS[2] = (uint16_t)v << 8;
-	}
-	else { // precision == 3
-		// Half-float, texture shaders expect data between 0 and 1
-		float rf, gf, bf;
-		rf = float(y) / 255;
-		gf = float(u) / 255;
-		bf = float(v) / 255;
-
-		float *outF = (float*)out;
-		outF[0] = rf;
-		outF[1] = gf;
-		outF[2] = bf;
-	}
-}
-
-void ConvertToShader::convStack16(uint8_t y, uint8_t u, uint8_t v, uint8_t y2, uint8_t u2, uint8_t v2, uint8_t* out) {
-	if (precision == 1) {
-		out[2] = y == 255 || y2 < 128 ? y : y + 1;
-		out[1] = u == 255 || u2 < 128 ? u : u + 1;
-		out[0] = v == 255 || v2 < 128 ? v : v + 1;
-	}
-	else {
-		// Restore 16-bit values
-		uint8_t Buffer[6];
-		Buffer[0] = y2;
-		Buffer[1] = y;
-		Buffer[2] = u2;
-		Buffer[3] = u;
-		Buffer[4] = v2;
-		Buffer[5] = v;
-		uint16_t* pBuffer = (uint16_t*)Buffer;
-
-		if (precision == 2) {
-			uint16_t *pOut = (uint16_t*)out;
-			pOut[0] = pBuffer[0];
-			pOut[1] = pBuffer[1];
-			pOut[2] = pBuffer[2];
-		}
-		else { // precision == 3
-			// Half-float, texture shaders expect data between 0 and 1
-			float rf, gf, bf;
-			rf = float(pBuffer[0]) / 65535;
-			gf = float(pBuffer[1]) / 65535;
-			bf = float(pBuffer[2]) / 65535;
-
-			float *outF = (float*)out;
-			outF[0] = rf;
-			outF[1] = gf;
-			outF[2] = bf;
-		}
-	}
-}
-
-// restrictions: src_stride MUST BE a multiple of 8, dst_stride MUST BE a multiple of 64 and 8x src_stride (x4 planes, x2 pixel size)
-//void ConvertToShader::bitblt_i8_to_i16_sse2(const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV, int srcPitch, uint16_t* dst, int dstPitch, int height)
-//{
-//	assert(srcPitch % 2 == 0);
-//	assert(dstPitch % 16 == 0);
-//	assert(dstPitch / srcPitch == 8);
-//
-//	const __m128i  zero = _mm_setzero_si128();
-//	const __m128i  val_ma = _mm_set1_epi16(0);
-//	const __m128i  mask_lsb = _mm_set1_epi16(0x00FF);
-//
-//	uint8_t        convBuffer[8];
-//	convBuffer[3] = 255;
-//	convBuffer[7] = 255;
-//
-//	for (int y = 0; y < height; ++y) {
-//		for (int x = 0; x < srcPitch; x += 2) {
-//			// 1. Merge 2 pixels from 3 planes into buffer.
-//			convBuffer[0] = srcY[0];
-//			convBuffer[1] = srcU[0];
-//			convBuffer[2] = srcV[0];
-//			convBuffer[4] = srcY[1];
-//			convBuffer[5] = srcU[1];
-//			convBuffer[6] = srcV[1];
-//
-//			// 2. Convert 8 bytes from UINT8 buffer into UINT16 dest
-//			__m128i val = load_8_16l(convBuffer, zero);
-//			val = _mm_slli_epi16(val, 8);
-//			store_8_16l(dst, val, mask_lsb);
-//
-//			// 3. Move to the next stride
-//			srcY += 2;
-//			srcU += 2;
-//			srcV += 2;
-//			dst += 8; // dst is uint16_t so this moves 16 bytes
-//		}
-//	}
-//}
-//
-//__m128i	ConvertToShader::load_8_16l(const void *lsb_ptr, __m128i zero)
-//{
-//	assert(lsb_ptr != 0);
-//
-//	const __m128i  val_lsb = _mm_loadl_epi64(
-//		reinterpret_cast <const __m128i *> (lsb_ptr)
-//	);
-//	const __m128i  val = _mm_unpacklo_epi8(val_lsb, zero);
-//
-//	return (val);
-//}
-//
-//void ConvertToShader::store_8_16l(void *lsb_ptr, __m128i val, __m128i mask_lsb)
-//{
-//	assert(lsb_ptr != 0);
-//
-//	__m128i        lsb = _mm_and_si128(mask_lsb, val);
-//	lsb = _mm_packus_epi16(lsb, lsb);
-//	_mm_storel_epi64(reinterpret_cast <__m128i *> (lsb_ptr), lsb);
-//}
