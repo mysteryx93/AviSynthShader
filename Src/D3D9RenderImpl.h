@@ -13,6 +13,12 @@ struct InputTexture {
 	CComPtr<IDirect3DSurface9> Memory;
 	CComPtr<IDirect3DTexture9> Texture;
 	CComPtr<IDirect3DSurface9> Surface;
+	CComPtr<IDirect3DTexture9> TextureY;
+	CComPtr<IDirect3DSurface9> SurfaceY;
+	CComPtr<IDirect3DTexture9> TextureU;
+	CComPtr<IDirect3DSurface9> SurfaceU;
+	CComPtr<IDirect3DTexture9> TextureV;
+	CComPtr<IDirect3DSurface9> SurfaceV;
 };
 
 struct RenderTarget {
@@ -61,6 +67,7 @@ private:
 	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow);
 	HRESULT SetupMatrices(RenderTarget* target, float width, float height);
 	HRESULT CreateScene(CommandStruct* cmd, IScriptEnvironment* env);
+	HRESULT D3D9RenderImpl::CreateSurface(int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface);
 	HRESULT CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height);
 	HRESULT SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env);
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);

@@ -146,6 +146,7 @@ void ConvertFromShader::convShaderToRGB(const byte *src, unsigned char *dst,
 
 		dst -= pitchDst;
 
+		// DX9 cannot take RGB24
 		//if (precision == 1) { // stack16 must be false
 		//	if (IsDstRgb32) {
 		//		for (int x = 0; x < width; ++x) {

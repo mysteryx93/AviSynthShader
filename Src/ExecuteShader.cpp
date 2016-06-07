@@ -152,7 +152,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 			// Only copy Clip1 to Output without processing
 			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
 			if FAILED(render->CopyBuffer(texture, cmd.CommandIndex, cmd.OutputIndex, env))
-				env->ThrowError("ExecuteShader: CopyBufferToBuffer failed.");
+				env->ThrowError("ExecuteShader: CopyBuffer failed.");
 		}
 	}
 
@@ -164,8 +164,8 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 
 // Returns how to multiply the AviSynth frame format's width based on the precision.
 int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision) {
-	//if (precision == 0)
-	//	return 1; // Same width as Y8
+	if (precision == 0)
+		return 1; // Same width as Y8
 	if (precision == 1)
 		return 1; // Same width as RGB24
 	else if (precision == 2)

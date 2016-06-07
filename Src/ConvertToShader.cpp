@@ -71,7 +71,7 @@ void ConvertToShader::convYV24ToShader(const byte *py, const byte *pu, const byt
 	unsigned char Y, U, V, Y2, U2, V2;
 
 	for (int y = 0; y < height; ++y) {
-		//if (precision == 1) {
+		//if (precision == 1) { // DX9 cannot take RGB24
 		//	for (int x = 0; x < width; ++x) {
 		//		Y = py[x];
 		//		U = pu[x];
