@@ -23,5 +23,14 @@ public:
     ~ConvertToShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 
-
 };
+
+extern bool has_sse2() noexcept;
+extern bool has_f16c() noexcept;
+
+enum arch_t {
+    NO_SIMD,
+    USE_SSE2,
+    USE_F16C,
+};
+

@@ -140,7 +140,7 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <StringPooling>true</StringPooling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -199,6 +199,7 @@
   <ItemGroup>
     <ClCompile Include="ConvertFromShader.cpp" />
     <ClCompile Include="ConvertToShader.cpp" />
+    <ClCompile Include="cpu_check.cpp" />
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="Shader.cpp" />

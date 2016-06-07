@@ -7,6 +7,7 @@
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="ConvertFromShader.cpp" />
     <ClCompile Include="ConvertToShader.cpp" />
+    <ClCompile Include="cpu_check.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
