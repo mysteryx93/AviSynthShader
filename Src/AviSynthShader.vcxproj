@@ -140,8 +140,11 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <StringPooling>true</StringPooling>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -186,8 +189,7 @@
     <ClInclude Include="avs\types.h" />
     <ClInclude Include="avs\win.h" />
     <ClInclude Include="CommandStruct.h" />
-    <ClInclude Include="ConvertFromShader.h" />
-    <ClInclude Include="ConvertToShader.h" />
+    <ClInclude Include="ConvertShader.h" />
     <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="D3D9RenderImpl.h" />
@@ -196,6 +198,7 @@
   <ItemGroup>
     <ClCompile Include="ConvertFromShader.cpp" />
     <ClCompile Include="ConvertToShader.cpp" />
+    <ClCompile Include="cpu_check.cpp" />
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="Shader.cpp" />

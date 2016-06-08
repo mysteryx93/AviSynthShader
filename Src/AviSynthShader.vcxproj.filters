@@ -7,6 +7,7 @@
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="ConvertFromShader.cpp" />
     <ClCompile Include="ConvertToShader.cpp" />
+    <ClCompile Include="cpu_check.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -15,8 +16,6 @@
     <ClInclude Include="D3D9Macros.h" />
     <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ExecuteShader.h" />
-    <ClInclude Include="ConvertFromShader.h" />
-    <ClInclude Include="ConvertToShader.h" />
     <ClInclude Include="avs\config.h">
       <Filter>avs</Filter>
     </ClInclude>
@@ -38,6 +37,7 @@
     <ClInclude Include="avs\alignment.h">
       <Filter>avs</Filter>
     </ClInclude>
+    <ClInclude Include="ConvertShader.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

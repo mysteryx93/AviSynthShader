@@ -1,7 +1,5 @@
-#include <windows.h>
-#include "avisynth.h"
-#include "ConvertToShader.h"
-#include "ConvertFromShader.h"
+#include <algorithm>
+#include "ConvertShader.h"
 #include "Shader.h"
 #include "ExecuteShader.h"
 
@@ -23,18 +21,23 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 		input,					// source clip
 		args[1].AsInt(2),		// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		args[2].AsBool(false),	// lsb / Stack16
+        args[3].AsInt(-1),      // 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);					// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
+    auto dst_format = std::string(args[2].AsString("YV12"));
+    std::transform(dst_format.begin(), dst_format.end(), dst_format.begin(), toupper); // convert lower to UPPER
+
 	ConvertFromShader* Result = new ConvertFromShader(
 		args[0].AsClip(),			// source clip
 		args[1].AsInt(2),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		args[2].AsString("YV12"),	// destination format
+		dst_format,	// destination format
 		args[3].AsBool(false),		// lsb / Stack16
+        args[4].AsInt(-1),          // 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);						// env is the link to essential informations, always provide it
 
-	if (strcmp(args[2].AsString("YV12"), "YV12") == 0) {
+	if (dst_format == "YV12") {
 		if (args[3].AsBool(false)) {// Stack16
 			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", "YV12", true };
 			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks"};
@@ -108,8 +111,8 @@ const AVS_Linkage *AVS_linkage = 0;
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	AVS_linkage = vectors;
-	env->AddFunction("ConvertToShader", "c[Precision]i[lsb]b", Create_ConvertToShader, 0);
-	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b", Create_ConvertFromShader, 0);
+	env->AddFunction("ConvertToShader", "c[Precision]i[lsb]b[opt]i", Create_ConvertToShader, 0);
+	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[opt]i", Create_ConvertFromShader, 0);
 	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i", Create_ExecuteShader, 0);
 
