@@ -189,8 +189,7 @@
     <ClInclude Include="avs\types.h" />
     <ClInclude Include="avs\win.h" />
     <ClInclude Include="CommandStruct.h" />
-    <ClInclude Include="ConvertFromShader.h" />
-    <ClInclude Include="ConvertToShader.h" />
+    <ClInclude Include="ConvertShader.h" />
     <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="D3D9RenderImpl.h" />

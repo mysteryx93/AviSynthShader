@@ -1,13 +1,12 @@
 #include <map>
 #include <tuple>
 #include <DirectXPackedVector.h>
-#include <d3dx9.h>
 #if defined(__AVX__)
 #include <immintrin.h>
 #else
 #include <emmintrin.h>
 #endif
-#include "ConvertToShader.h"
+#include "ConvertShader.h"
 
 static __forceinline __m128i loadl(const uint8_t* p)
 {
@@ -408,22 +407,6 @@ rgb32_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
         dstp += dpitch;
         s += spitch;
     }
-}
-
-
-static arch_t get_arch()
-{
-    if (!has_sse2()) {
-        return NO_SIMD;
-    }
-#if !defined(__AVX__)
-    return USE_SSE2;
-#else
-    if (!has_f16c()) {
-        return USE_SSE2;
-    }
-    return USE_F16C;
-#endif
 }
 
 
