@@ -261,8 +261,8 @@ yuv_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             __m128i y, u, v;
             if (!STACK16) {
                 y = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sy + x), zero), zero);
-                u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sy + x), zero), zero);
-                v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sy + x), zero), zero);
+                u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(su + x), zero), zero);
+                v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sv + x), zero), zero);
             } else {
                 y = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sy + x), loadl(ylsb + x)), zero);
                 u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(su + x), loadl(ulsb + x)), zero);
@@ -272,15 +272,15 @@ yuv_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             __m128i ya = _mm_unpacklo_epi32(y, zero);
             __m128 vuya0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(vu, ya));
             __m128 vuya1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(vu, ya));
-            _mm_store_ps(buff + 4 * x + 0, vuya0);
-            _mm_store_ps(buff + 4 * x + 4, vuya1);
+            _mm_store_ps(buff + 4 * x + 0, _mm_mul_ps(vuya0, rcp));
+            _mm_store_ps(buff + 4 * x + 4, _mm_mul_ps(vuya1, rcp));
 
             vu = _mm_unpackhi_epi32(v, u);
             ya = _mm_unpackhi_epi32(y, zero);
             vuya0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(vu, ya));
             vuya1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(vu, ya));
-            _mm_store_ps(buff + 4 * x +  8, vuya0);
-            _mm_store_ps(buff + 4 * x + 12, vuya1);
+            _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(vuya0, rcp));
+            _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(vuya1, rcp));
         }
 #if defined(__AVX__)
         if (ARCH == USE_F16C) {
