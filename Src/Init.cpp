@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "ConvertShader.h"
 #include "Shader.h"
 #include "ExecuteShader.h"
@@ -25,15 +26,18 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
+    auto dst_format = std::string(args[2].AsString("YV12"));
+    std::transform(dst_format.begin(), dst_format.end(), dst_format.begin(), toupper); // convert lower to UPPER
+
 	ConvertFromShader* Result = new ConvertFromShader(
 		args[0].AsClip(),			// source clip
 		args[1].AsInt(2),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		args[2].AsString("YV12"),	// destination format
+		dst_format,	// destination format
 		args[3].AsBool(false),		// lsb / Stack16
         args[4].AsInt(-1),          // 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);						// env is the link to essential informations, always provide it
 
-	if (strcmp(args[2].AsString("YV12"), "YV12") == 0) {
+	if (dst_format == "YV12") {
 		if (args[3].AsBool(false)) {// Stack16
 			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", "YV12", true };
 			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks"};
