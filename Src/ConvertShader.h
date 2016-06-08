@@ -1,6 +1,11 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#if defined(__AVX__)
+#include <immintrin.h>
+#else
+#include <emmintrin.h>
+#endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
@@ -20,7 +25,7 @@ class ConvertToShader : public GenericVideoFilter {
     void(__stdcall* mainProc)(uint8_t* dstp, const uint8_t** srcp, const int dpitch, const int spitch, const int width, const int height, float* buff);
 
 public:
-    ConvertToShader(PClip _child, int _precision, bool stack16, IScriptEnvironment* env);
+    ConvertToShader(PClip _child, int _precision, bool stack16, int opt, IScriptEnvironment* env);
     ~ConvertToShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 
@@ -38,7 +43,7 @@ class ConvertFromShader : public GenericVideoFilter {
         uint8_t** dstp, const uint8_t* srcp, const int dpitch, const int spitch, const int width, const int height, float* buff);
 
 public:
-    ConvertFromShader(PClip _child, int _precision, std::string format, bool stack16, IScriptEnvironment* env);
+    ConvertFromShader(PClip _child, int _precision, std::string format, bool stack16, int opt, IScriptEnvironment* env);
     ~ConvertFromShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 
@@ -55,22 +60,43 @@ enum arch_t {
     USE_F16C,
 };
 
-<<<<<<< a4d4e92ab5395c9a766964e34c59c3bb380d3c75:Src/ConvertToShader.h
-=======
 
-static inline arch_t get_arch()
+static inline arch_t get_arch(int opt)
 {
-    if (!has_sse2()) {
+    if (opt == 0 || !has_sse2()) {
         return NO_SIMD;
     }
 #if !defined(__AVX__)
     return USE_SSE2;
 #else
-    if (!has_f16c()) {
+    if (opt == 1 || !has_f16c()) {
         return USE_SSE2;
     }
     return USE_F16C;
 #endif
 }
 
->>>>>>> ConvertFromShader: optimized.:Src/ConvertShader.h
+
+static __forceinline __m128i loadl(const uint8_t* p)
+{
+    return _mm_loadl_epi64(reinterpret_cast<const __m128i*>(p));
+}
+
+
+static __forceinline __m128i load(const uint8_t* p)
+{
+    return _mm_load_si128(reinterpret_cast<const __m128i*>(p));
+}
+
+
+static __forceinline void storel(uint8_t* p, const __m128i& x)
+{
+    _mm_storel_epi64(reinterpret_cast<__m128i*>(p), x);
+}
+
+
+static __forceinline void stream(uint8_t* p, const __m128i& x)
+{
+    _mm_stream_si128(reinterpret_cast<__m128i*>(p), x);
+}
+

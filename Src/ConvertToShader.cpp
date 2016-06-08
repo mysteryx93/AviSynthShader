@@ -419,7 +419,7 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, arch_t arch
 }
 
 
-ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, IScriptEnvironment* env) :
+ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, int opt, IScriptEnvironment* env) :
     GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
 {
     if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
@@ -431,7 +431,7 @@ ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, IScr
     if (stack16 && precision == 1)
         env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 
-    arch_t arch = get_arch();
+    arch_t arch = get_arch(opt);
     if (precision != 3 && arch > USE_SSE2) {
         arch = USE_SSE2;
     }
