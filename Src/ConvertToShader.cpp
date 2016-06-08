@@ -1,35 +1,28 @@
 #include <map>
 #include <tuple>
 #include <DirectXPackedVector.h>
-#if defined(__AVX__)
-#include <immintrin.h>
-#else
-#include <emmintrin.h>
-#endif
 #include "ConvertShader.h"
 
-static __forceinline __m128i loadl(const uint8_t* p)
-{
-    return _mm_loadl_epi64(reinterpret_cast<const __m128i*>(p));
-}
 
-static __forceinline void stream(uint8_t* p, const __m128i& x)
-{
-    _mm_stream_si128(reinterpret_cast<__m128i*>(p), x);
-}
-
-#if defined(__AVX__)
+template <arch_t ARCH>
 static __forceinline void
-convert_float_to_half_f16c(float* srcp, uint8_t* dstp, size_t count)
+convert_float_to_half(uint8_t* dstp, const float* srcp, size_t count)
 {
-    for (size_t x = 0; x < count; x += 8) {
-        __m256 s = _mm256_load_ps(srcp + x);
-        __m128i d = _mm256_cvtps_ph(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        stream(dstp + 2 * x, d);
+    using namespace DirectX::PackedVector;
+#if defined(__AVX__)
+    if (ARCH == USE_F16C) {
+        for (size_t x = 0; x < count; x += 8) {
+            __m256 s = _mm256_load_ps(srcp + x);
+            __m128i d = _mm256_cvtps_ph(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            stream(dstp + 2 * x, d);
+        }
+    } else {
+        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF), srcp, sizeof(float), count);
     }
-}
+#else
+    XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF), srcp, sizeof(float), count);
 #endif
-
+}
 
 static void __stdcall
 yuv_to_shader_1_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
@@ -191,8 +184,6 @@ static void __stdcall
 yuv_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
 {
-    using namespace DirectX::PackedVector;
-
     const uint8_t* sy = srcp[0];
     const uint8_t* su = srcp[1];
     const uint8_t* sv = srcp[2];
@@ -219,8 +210,7 @@ yuv_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             }
             buff[4 * x + 3] = 0.0f;
         }
-        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-            buff, sizeof(float), width * 4);
+        convert_float_to_half<NO_SIMD>(dstp, buff, width * 4);
         dstp += dpitch;
         sy += spitch;
         su += spitch;
@@ -234,7 +224,7 @@ yuv_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-template <bool STACK16, int ARCH>
+template <bool STACK16, arch_t ARCH>
 static void __stdcall
 yuv_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
@@ -281,17 +271,7 @@ yuv_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(vuya0, rcp));
             _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(vuya1, rcp));
         }
-#if defined(__AVX__)
-        if (ARCH == USE_F16C) {
-            convert_float_to_half_f16c(buff, dstp, width * 4);
-        } else {
-            XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-                buff, sizeof(float), width * 4);
-        }
-#else
-        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-            buff, sizeof(float), width * 4);
-#endif
+        convert_float_to_half<ARCH>(dstp, buff, width * 4);
         dstp += dpitch;
         sy += spitch;
         su += spitch;
@@ -353,8 +333,6 @@ static void __stdcall
 rgb_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
 {
-    using namespace DirectX::PackedVector;
-
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
     const uint8_t* s = srcp[0];
@@ -367,8 +345,7 @@ rgb_to_shader_3_c(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             buff[4 * x + 2] = s[step * x + 2] * rcp;
             buff[4 * x + 3] = IS_RGB32 ? s[4 * x + 3] * rcp : 0.0f;
         }
-        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-                                   buff, sizeof(float), width * 4);
+        convert_float_to_half<NO_SIMD>(dstp, buff, width * 4);
         dstp += dpitch;
         s += spitch;
     }
@@ -380,8 +357,6 @@ static void __stdcall
 rgb32_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
 {
-    using namespace DirectX::PackedVector;
-
     const uint8_t* s = srcp[0];
 
     const __m128i zero = _mm_setzero_si128();
@@ -393,17 +368,7 @@ rgb32_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
             __m128 f32 = _mm_mul_ps(_mm_cvtepi32_ps(i32), rcp);
             _mm_store_ps(buff + x, f32);
         }
-#if defined(__AVX__)
-        if (ARCH == USE_F16C) {
-            convert_float_to_half_f16c(buff, dstp, width * 4);
-        } else {
-            XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-                buff, sizeof(float), width * 4);
-        }
-#else
-        XMConvertFloatToHalfStream(reinterpret_cast<HALF*>(dstp), sizeof(HALF),
-            buff, sizeof(float), width * 4);
-#endif
+        convert_float_to_half<ARCH>(dstp, buff, width * 4);
         dstp += dpitch;
         s += spitch;
     }
@@ -489,10 +454,10 @@ ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, IScr
     }
 
     if (precision == 3) {
-        floatBufferPitch = (vi.width * 4 * 4 + 63) & ~63;
+        floatBufferPitch = (vi.width * 4 * 4 + 63) & ~63; // must be mod64
         isPlusMt = env->FunctionExists("SetFilterMTMode");
-        if (!isPlusMt) {
-            buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 16));
+        if (!isPlusMt) { // if not avs+MT, allocate buffer at constructor.
+            buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 32));
             if (!buff) {
                 env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
             }
@@ -521,8 +486,8 @@ PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) 
     };
 
     float* b = buff;
-    if (isPlusMt) {
-        void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 16, AVS_POOLED_ALLOC);
+    if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
+        void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
         if (!t) {
             env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
         }
