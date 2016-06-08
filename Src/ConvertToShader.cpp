@@ -157,13 +157,13 @@ yuv_to_shader_2_sse2(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
         for (int x = 0; x < width; x += 8) {
             __m128i y, u, v;
             if (!STACK16) {
-                y = _mm_unpacklo_epi8(loadl(sy + x), zero);
-                u = _mm_unpacklo_epi8(loadl(su + x), zero);
-                v = _mm_unpacklo_epi8(loadl(sv + x), zero);
+                y = _mm_unpacklo_epi8(zero, loadl(sy + x));
+                u = _mm_unpacklo_epi8(zero, loadl(su + x));
+                v = _mm_unpacklo_epi8(zero, loadl(sv + x));
             } else {
-                y = _mm_unpacklo_epi8(loadl(sy + x), loadl(ylsb + x));
-                u = _mm_unpacklo_epi8(loadl(su + x), loadl(ulsb + x));
-                v = _mm_unpacklo_epi8(loadl(sv + x), loadl(vlsb + x));
+                y = _mm_unpacklo_epi8(loadl(ylsb + x), loadl(sy + x));
+                u = _mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x));
+                v = _mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x));
             }
             __m128i vu = _mm_unpacklo_epi16(v, u);
             __m128i ya = _mm_unpacklo_epi16(y, zero);
@@ -341,7 +341,7 @@ rgb32_to_shader_2_sse2(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width * 4; x += 8) {
-            stream(dstp + 2 * x, _mm_unpacklo_epi8(loadl(s + x), zero));
+            stream(dstp + 2 * x, _mm_unpacklo_epi8(zero, loadl(s + x)));
         }
         dstp += dpitch;
         s += spitch;
