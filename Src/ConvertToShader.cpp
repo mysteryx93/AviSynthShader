@@ -30,7 +30,7 @@ ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, bool
     mainProc = planar ? get_to_shader_planar(precision, viSrc.pixel_type, stack16, arch)
         : get_to_shader_packed(precision, viSrc.pixel_type, stack16, arch);
     if (!mainProc) {
-        env->ThrowError("ConvertFromShader: not impplemented yet.");
+        env->ThrowError("ConvertToShader: not impplemented yet.");
     }
 
     if (precision == 3) {

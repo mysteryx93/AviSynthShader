@@ -15,6 +15,7 @@
 #include <DirectXPackedVector.h>
 #include "avisynth.h"
 
+#pragma warning(disable: 4556)
 
 enum arch_t {
     NO_SIMD,
