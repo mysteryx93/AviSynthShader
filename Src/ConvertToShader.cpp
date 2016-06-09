@@ -408,9 +408,9 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar
     func[make_tuple(3, rgb32, false, false, USE_SSE2)] = rgb32_to_shader_3_simd<USE_SSE2>;
 
 #if defined(__AVX__)
-    func[make_tuple(3, yv24, false, USE_F16C)] = yuv_to_shader_3_simd<false, USE_F16C>;
-    func[make_tuple(3, yv24, true, USE_F16C)] = yuv_to_shader_3_simd<true, USE_F16C>;
-    func[make_tuple(3, rgb32, false, USE_F16C)] = rgb32_to_shader_3_simd<USE_F16C>;
+    func[make_tuple(3, yv24, false, false, USE_F16C)] = yuv_to_shader_3_simd<false, USE_F16C>;
+    func[make_tuple(3, yv24, true, false, USE_F16C)] = yuv_to_shader_3_simd<true, USE_F16C>;
+    func[make_tuple(3, rgb32, false, false, USE_F16C)] = rgb32_to_shader_3_simd<USE_F16C>;
 #endif
 
 

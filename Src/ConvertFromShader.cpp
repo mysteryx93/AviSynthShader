@@ -200,13 +200,6 @@ shader_to_yuv_1_sse2(uint8_t** dstp, const uint8_t* srcp, const int dpitch,
 }
 
 
-static void __stdcall
-shader_to_yuv_planar_1_c(uint8_t** dstp, const uint8_t* srcp, const int dpitch,
-	const int spitch, const int width, const int height, float*) noexcept
-{
-}
-
-
 template <bool STACK16>
 static void __stdcall
 shader_to_yuv_2_c(uint8_t** dstp, const uint8_t* srcp, const int dpitch,
@@ -324,51 +317,6 @@ shader_to_yuv_2_sse2(uint8_t** dstp, const uint8_t* srcp, const int dpitch,
             lv += dpitch;
         }
     }
-}
-
-
-template <bool STACK16>
-static void __stdcall
-shader_to_yuv_planar_2_c(uint8_t** dstp, const uint8_t* srcp, const int dpitch,
-	const int spitch, const int width, const int height, float*) noexcept
-{
-	//uint8_t* dy = dstp[0];
-	//uint8_t* du = dstp[1];
-	//uint8_t* dv = dstp[2];
-
-	//uint8_t *ly, *lu, *lv;
-	//if (STACK16) {
-	//	ly = dy + height * dpitch;
-	//	lu = du + height * dpitch;
-	//	lv = dv + height * dpitch;
-	//}
-
-	//for (int y = 0; y < height; ++y) {
-	//	for (int x = 0; x < width; ++x) {
-	//		if (!STACK16) {
-	//			dv[x] = std::min((srcp[8 * x + 0] >> 7) + srcp[8 * x + 1], 255);
-	//			du[x] = std::min((srcp[8 * x + 2] >> 7) + srcp[8 * x + 3], 255);
-	//			dy[x] = std::min((srcp[8 * x + 4] >> 7) + srcp[8 * x + 5], 255);
-	//		}
-	//		else {
-	//			lv[x] = srcp[8 * x + 0];
-	//			dv[x] = srcp[8 * x + 1];
-	//			lu[x] = srcp[8 * x + 2];
-	//			du[x] = srcp[8 * x + 3];
-	//			ly[x] = srcp[8 * x + 4];
-	//			dy[x] = srcp[8 * x + 5];
-	//		}
-	//	}
-	//	srcp += spitch;
-	//	dy += dpitch;
-	//	du += dpitch;
-	//	dv += dpitch;
-	//	if (STACK16) {
-	//		ly += dpitch;
-	//		lu += dpitch;
-	//		lv += dpitch;
-	//	}
-	//}
 }
 
 
@@ -505,15 +453,11 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar
 
     func[make_tuple(1, yv24, false, false, NO_SIMD)] = shader_to_yuv_1_c;
     func[make_tuple(1, yv24, false, false, USE_SSE2)] = shader_to_yuv_1_sse2;
-	func[make_tuple(1, yv24, false, true, NO_SIMD)] = shader_to_yuv_planar_1_c; // No conversion required
-	func[make_tuple(1, yv24, false, true, USE_SSE2)] = shader_to_yuv_planar_1_c;
 
     func[make_tuple(2, yv24, false, false, NO_SIMD)] = shader_to_yuv_2_c<false>;
     func[make_tuple(2, yv24, true, false, NO_SIMD)] = shader_to_yuv_2_c<true>;
     func[make_tuple(2, yv24, false, false, USE_SSE2)] = shader_to_yuv_2_sse2<false>;
     func[make_tuple(2, yv24, true, false, USE_SSE2)] = shader_to_yuv_2_sse2<true>;
-	func[make_tuple(2, yv24, false, true, NO_SIMD)] = shader_to_yuv_planar_2_c<false>;
-	func[make_tuple(2, yv24, true, true, NO_SIMD)] = shader_to_yuv_planar_2_c<true>;
 
     func[make_tuple(2, rgb24, false, false, NO_SIMD)] = shader_to_rgb_2_c<false>;
     func[make_tuple(2, rgb32, false, false, NO_SIMD)] = shader_to_rgb_2_c<true>;
@@ -529,9 +473,9 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar
     func[make_tuple(3, rgb32, false, false, USE_SSE2)] = shader_to_rgb32_3_simd<USE_SSE2>;
 
 #if defined(__AVX__)
-    func[make_tuple(3, yv24, false, USE_F16C)] = shader_to_yuv_3_simd<false, USE_F16C>;
-    func[make_tuple(3, yv24, true, USE_F16C)] = shader_to_yuv_3_simd<true, USE_F16C>;
-    func[make_tuple(3, rgb32, false, USE_F16C)] = shader_to_rgb32_3_simd<USE_F16C>;
+    func[make_tuple(3, yv24, false, false, USE_F16C)] = shader_to_yuv_3_simd<false, USE_F16C>;
+    func[make_tuple(3, yv24, true, false, USE_F16C)] = shader_to_yuv_3_simd<true, USE_F16C>;
+    func[make_tuple(3, rgb32, false, false, USE_F16C)] = shader_to_rgb32_3_simd<USE_F16C>;
 #endif
 
 
