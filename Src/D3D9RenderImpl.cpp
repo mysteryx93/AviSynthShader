@@ -28,6 +28,8 @@
 
 #include "D3D9RenderImpl.h"
 
+#pragma warning(disable: 4996)
+
 D3D9RenderImpl::D3D9RenderImpl() {
 	ZeroMemory(m_InputTextures, sizeof(InputTexture) * maxTextures);
 	ZeroMemory(m_RenderTargets, sizeof(RenderTarget) * maxTextures);
