@@ -488,17 +488,6 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar
 ConvertFromShader::ConvertFromShader(PClip _child, int precision, std::string format, bool stack16, bool planar, int opt, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), buff(nullptr), isPlusMt(false)
 {
-	if (!vi.IsRGB32() && !(planar && vi.IsYV24()))
-		env->ThrowError("ConvertFromShader: Source must be RGB32 or Planar YV24");
-	if (format == "YV12" && format == "YV24" && format == "RGB24" && format == "RGB32")
-		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
-	if (precision < 1 || precision > 3)
-		env->ThrowError("ConvertFromShader: Precision must be 1, 2 or 3");
-	if (stack16 && (format != "YV12" && format != "YV24"))
-		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
-	if (stack16 && precision == 1)
-		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
-
 	arch_t arch = get_arch(opt);
 	if (precision != 3 && arch > USE_SSE2) {
 		arch = USE_SSE2;
