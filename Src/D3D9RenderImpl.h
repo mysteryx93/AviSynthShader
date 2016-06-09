@@ -47,7 +47,7 @@ public:
 	HRESULT CreateInputTexture(int index, int clipIndex, int width, int height, bool isInput, bool IsPlanar, bool isLast, int shaderPrecision);
 	HRESULT CopyBuffer(InputTexture* srcSurface, int commandIndex, int outputIndex, IScriptEnvironment* env);
 	HRESULT CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
-	HRESULT CopyAviSynthToPlanarBuffer(PVideoFrame frame, int index, int width, int height, IScriptEnvironment* env);
+	HRESULT CopyAviSynthToPlanarBuffer(const byte* srcY, const byte* srcU, const byte* srcV, int srcPitch, int index, int width, int height, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env);
 	HRESULT CopyBufferToAviSynthPlanar(int commandIndex, byte* dstY, byte* dstU, byte* dstV, int dstPitch, IScriptEnvironment* env);
 	HRESULT ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);

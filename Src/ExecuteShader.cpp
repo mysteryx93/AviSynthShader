@@ -227,9 +227,9 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (m_clips[index] != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (m_ClipPrecision[index] == 1 && clip->GetVideoInfo().IsYV24()) {
+		if (clip->GetVideoInfo().IsYV24()) {
 			// Copy planar data from YV24.
-			if (FAILED(render->CopyAviSynthToPlanarBuffer(frame, index, clip->GetVideoInfo().width, clip->GetVideoInfo().height, env)))
+			if (FAILED(render->CopyAviSynthToPlanarBuffer(frame->GetReadPtr(PLANAR_Y), frame->GetReadPtr(PLANAR_U), frame->GetReadPtr(PLANAR_V), frame->GetPitch(PLANAR_Y), index, clip->GetVideoInfo().width, clip->GetVideoInfo().height, env)))
 				env->ThrowError("ExecuteShader: CopyInputClip failed");
 		}
 		else {

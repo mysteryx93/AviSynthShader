@@ -230,9 +230,9 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 	Obj->Height = height;
 
 	if (isPlanar) {
-		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureY, &Obj->SurfaceY));
-		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureU, &Obj->SurfaceU));
-		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureV, &Obj->SurfaceV));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[clipIndex], true), &Obj->TextureY, &Obj->SurfaceY));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[clipIndex], true), &Obj->TextureU, &Obj->SurfaceU));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[clipIndex], true), &Obj->TextureV, &Obj->SurfaceV));
 	}
 
 	if (isLast) {
@@ -246,7 +246,7 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(m_OutputPrecision, false), D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
 		}
 	} else {
-		D3DFORMAT Format = GetD3DFormat(isInput ? m_ClipPrecision[index] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
+		D3DFORMAT Format = GetD3DFormat(isInput ? m_ClipPrecision[clipIndex] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
 		HR(CreateSurface(width, height, true, Format, &Obj->Texture, &Obj->Surface));
 	}
 
@@ -297,6 +297,11 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, int planeOut, IScriptEnv
 	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex - 1 + planeOut].Shader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pCurrentRenderTarget->VertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
+	// Clear samplers
+	for (int i = 0; i < 9; i++) {
+		SCENE_HR(m_pDevice->SetTexture(i, NULL), m_pDevice);
+	}
+
 	// Set input clips.
 	InputTexture* Input;
 	for (int i = 0; i < 9; i++) {
@@ -315,8 +320,7 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, int planeOut, IScriptEnv
 			}
 			else
 				env->ThrowError("Shader: Invalid clip index.");
-		} else 
-			SCENE_HR(m_pDevice->SetTexture(i, NULL), m_pDevice)
+		}
 	}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
@@ -399,7 +403,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(PVideoFrame frame, int index, int width, int height, IScriptEnvironment* env) {
+HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(const byte* srcY, const byte* srcU, const byte* srcV, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
 	// Copies source frame into main surface buffer, or into additional input textures
 	if (index < 0 || index >= maxTextures)
 		return E_FAIL;
@@ -409,9 +413,10 @@ HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(PVideoFrame frame, int index,
 	SrcRect.left = 0;
 	SrcRect.right = width;
 	SrcRect.bottom = height;
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceY, NULL, NULL, frame->GetReadPtr(PLANAR_Y), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_Y), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceU, NULL, NULL, frame->GetReadPtr(PLANAR_U), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_U), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceV, NULL, NULL, frame->GetReadPtr(PLANAR_V), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_V), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	D3DFORMAT fmt = GetD3DFormat(m_ClipPrecision[index], true);
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceY, NULL, NULL, srcY, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceU, NULL, NULL, srcU, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceV, NULL, NULL, srcV, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
 	return S_OK;
 }
 
