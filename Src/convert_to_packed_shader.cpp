@@ -219,8 +219,6 @@ static void __stdcall
 yuv_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
 {
-    using namespace DirectX::PackedVector;
-
     const uint8_t* sy = srcp[0];
     const uint8_t* su = srcp[1];
     const uint8_t* sv = srcp[2];
