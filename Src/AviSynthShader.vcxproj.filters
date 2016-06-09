@@ -5,13 +5,12 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
     <ClCompile Include="ExecuteShader.cpp" />
-    <ClCompile Include="ConvertFromShader.cpp" />
-    <ClCompile Include="ConvertToShader.cpp" />
     <ClCompile Include="cpu_check.cpp" />
     <ClCompile Include="convert_to_packed_shader.cpp" />
     <ClCompile Include="convert_to_planar_shader.cpp" />
     <ClCompile Include="convert_from_packed_shader.cpp" />
     <ClCompile Include="convert_from_planar_shader.cpp" />
+    <ClCompile Include="ConvertShader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />

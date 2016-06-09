@@ -120,7 +120,7 @@ ConvertShader::~ConvertShader() {
 PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
     PVideoFrame src = child->GetFrame(n, env);
 
-    PVideoFrame dst = env->NewVideoFrame(vi);
+    PVideoFrame dst = env->NewVideoFrame(vi, 32);
 
     const uint8_t* srcp[] = {
         src->GetReadPtr(),
