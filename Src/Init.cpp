@@ -7,40 +7,96 @@ const int DefaultConvertYuv = false;
 
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	if (input->GetVideoInfo().IsYV12()) {
-		if (args[2].AsBool(false)) { // Stack16
-			AVSValue sargs[5] = { input, input->GetVideoInfo().width, input->GetVideoInfo().height / 2, "Spline36", "YV24" };
+	const VideoInfo& vi = input->GetVideoInfo();
+	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
+		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
+
+	int precision = args[1].AsInt(2);
+	if (precision < 1 && precision > 3)
+		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
+
+	bool stack16 = args[2].AsBool(false);
+	if (stack16 && precision == 1)
+		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
+	if (stack16 && vi.IsRGB())
+		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
+
+	bool planar = args[3].AsBool(false);
+	if (precision == 1 && !planar && vi.IsRGB()) {
+		input = env->Invoke("FlipVertical", input).AsClip();
+		if (vi.IsRGB24())
+			input = env->Invoke("ConvertToRGB32", input).AsClip();
+		return input;
+	}
+
+	if (vi.IsYV12()) {
+		if (stack16) { // Stack16
+			if (!env->FunctionExists("Dither_resize16nr"))
+				env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
+			AVSValue sargs[5] = { input, vi.width, vi.height / 2, "Spline36", "YV24" };
 			const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
 			input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 5), nargs).AsClip();
-		}
-		else
+		} else
 			input = env->Invoke("ConvertToYV24", input).AsClip();
 	}
 
 	return new ConvertToShader(
 		input,					// source clip
-		args[1].AsInt(2),		// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		args[2].AsBool(false),	// lsb / Stack16
-		args[3].AsBool(false),	// Planar
+		precision,				// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		stack16,				// lsb / Stack16
+		planar,					// Planar
 		args[4].AsInt(-1),		// 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);					// env is the link to essential informations, always provide it
+
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
-	auto dst_format = std::string(args[2].AsString("YV12"));
-	std::transform(dst_format.begin(), dst_format.end(), dst_format.begin(), toupper); // convert lower to UPPER
-	
-	ConvertFromShader* Result = new ConvertFromShader(
-		args[0].AsClip(),			// source clip
-		args[1].AsInt(2),			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		dst_format,					// destination format
-		args[3].AsBool(false),		// lsb / Stack16
-		args[4].AsBool(false),		// Planar
-		args[5].AsInt(-1),			// 0 for C++ only, 1 for use SSE2 and others for use F16C.
-		env);						// env is the link to essential informations, always provide it
+	PClip input = args[0].AsClip();
+	const VideoInfo& vi = input->GetVideoInfo();
 
-	if (dst_format == "YV12") {
+	bool planar = args[4].AsBool(false);
+	if (!vi.IsRGB32() && !(planar && vi.IsYV24()))
+		env->ThrowError("ConvertFromShader: Source must be RGB32 or Planar YV24");
+
+	auto format = std::string(args[2].AsString("YV12"));
+	std::transform(format.begin(), format.end(), format.begin(), toupper); // convert lower to UPPER
+	if (format == "YV12" && format == "YV24" && format == "RGB24" && format == "RGB32")
+		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
+
+	int precision = args[1].AsInt(2);
+	if (precision < 1 || precision > 3)
+		env->ThrowError("ConvertFromShader: Precision must be 1, 2 or 3");
+
+	bool stack16 = args[3].AsBool(false);
+	if (stack16 && precision == 1)
+		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
+
+	bool rgb_dst = (format == "RGB24" || format == "RGB32");
+	if (stack16 && rgb_dst)
+		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
+
+	if (precision == 1 && vi.IsRGB32() && rgb_dst) {
+		input = env->Invoke("FlipVertical", input).AsClip();
+		if (format == "RGB24")
+			input = env->Invoke("ConvertToRGB24", input).AsClip();
+		return input;
+	}
+
+	ConvertFromShader* Result = new ConvertFromShader(
+		input,				// source clip
+		precision,			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+		format,				// destination format
+		stack16,			// lsb / Stack16
+		planar,				// Planar
+		args[5].AsInt(-1),	// 0 for C++ only, 1 for use SSE2 and others for use F16C.
+		env);				// env is the link to essential informations, always provide it
+
+	if (format == "YV12") {
 		if (args[3].AsBool(false)) {// Stack16
+			if (!env->FunctionExists("Dither_resize16nr")) {
+				delete Result;
+				env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
+			}
 			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", "YV12", true };
 			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks" };
 			return env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs).AsClip();

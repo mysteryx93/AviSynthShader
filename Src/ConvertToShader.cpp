@@ -422,21 +422,12 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar
 ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, bool planar, int opt, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
 {
-	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
-		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
-	if (precision < 1 && precision > 3)
-		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
-	if (stack16 && vi.IsRGB())
-		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
-	if (stack16 && precision == 1)
-		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
-
 	arch_t arch = get_arch(opt);
 	if (precision != 3 && arch > USE_SSE2) {
 		arch = USE_SSE2;
 	}
 
-	if (vi.IsRGB24() && arch != NO_SIMD) {
+	if (vi.IsRGB24() && !planar && arch != NO_SIMD) {	// precision must be 2 or 3
 		child = env->Invoke("ConvertToRGB32", child).AsClip();
 		vi = child->GetVideoInfo();
 	}
