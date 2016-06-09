@@ -8,7 +8,7 @@ const int DefaultConvertYuv = false;
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
 	const VideoInfo& vi = input->GetVideoInfo();
-	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
+	if (!vi.IsYV12() && !vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
 		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
 
 	int precision = args[1].AsInt(2);
