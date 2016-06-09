@@ -77,6 +77,12 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
 	}
 
+	if (vi.IsYV24() && precision == 1 && (format == "YV12" || format == "YV24")) {
+		if (format == "YV12")
+			input = env->Invoke("ConvertToYV12", input).AsClip();
+		return input;
+	}
+
 	bool rgb_dst = (format == "RGB24" || format == "RGB32");
 	if (stack16 && rgb_dst)
 		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
