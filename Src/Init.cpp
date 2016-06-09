@@ -21,16 +21,8 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 	if (stack16 && vi.IsRGB())
 		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
 
-	bool planar = args[3].AsBool(false);
-	if (precision == 1 && !planar && vi.IsRGB()) {
-		input = env->Invoke("FlipVertical", input).AsClip();
-		if (vi.IsRGB24())
-			input = env->Invoke("ConvertToRGB32", input).AsClip();
-		return input;
-	}
-
 	if (vi.IsYV12()) {
-		if (stack16) { // Stack16
+		if (stack16) {
 			if (!env->FunctionExists("Dither_resize16nr"))
 				env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
 			AVSValue sargs[5] = { input, vi.width, vi.height / 2, "Spline36", "YV24" };
@@ -38,6 +30,18 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 			input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 5), nargs).AsClip();
 		} else
 			input = env->Invoke("ConvertToYV24", input).AsClip();
+	}
+
+	bool planar = args[3].AsBool(false);
+	if (precision == 1 && planar && vi.IsYUV()) {
+		return input;
+	}
+
+	if (precision == 1 && !planar && vi.IsRGB()) {
+		input = env->Invoke("FlipVertical", input).AsClip();
+		if (vi.IsRGB24())
+			input = env->Invoke("ConvertToRGB32", input).AsClip();
+		return input;
 	}
 
 	return new ConvertToShader(
@@ -54,8 +58,7 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 	PClip input = args[0].AsClip();
 	const VideoInfo& vi = input->GetVideoInfo();
 
-	bool planar = args[4].AsBool(false);
-	if (!vi.IsRGB32() && !(planar && vi.IsYV24()))
+	if (!vi.IsRGB32() && !vi.IsYV24())
 		env->ThrowError("ConvertFromShader: Source must be RGB32 or Planar YV24");
 
 	auto format = std::string(args[2].AsString("YV12"));
@@ -70,6 +73,9 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 	bool stack16 = args[3].AsBool(false);
 	if (stack16 && precision == 1)
 		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
+	if (stack16 && format == "YV12" && !env->FunctionExists("Dither_resize16nr")) {
+		env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
+	}
 
 	bool rgb_dst = (format == "RGB24" || format == "RGB32");
 	if (stack16 && rgb_dst)
@@ -87,25 +93,20 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		precision,			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		format,				// destination format
 		stack16,			// lsb / Stack16
-		planar,				// Planar
-		args[5].AsInt(-1),	// 0 for C++ only, 1 for use SSE2 and others for use F16C.
+		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);				// env is the link to essential informations, always provide it
 
 	if (format == "YV12") {
-		if (args[3].AsBool(false)) {// Stack16
-			if (!env->FunctionExists("Dither_resize16nr")) {
-				delete Result;
-				env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
-			}
+		if (stack16) {
 			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", "YV12", true };
 			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks" };
-			return env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs).AsClip();
+			return env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs);
 		}
 		else
-			return env->Invoke("ConvertToYV12", Result).AsClip();
+			return env->Invoke("ConvertToYV12", Result);
 	}
-	else
-		return Result;
+
+	return Result;
 }
 
 AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironment* env) {
@@ -172,7 +173,7 @@ const AVS_Linkage *AVS_linkage = 0;
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	AVS_linkage = vectors;
 	env->AddFunction("ConvertToShader", "c[Precision]i[lsb]b[planar]b[opt]i", Create_ConvertToShader, 0);
-	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[planar]b[opt]i", Create_ConvertFromShader, 0);
+	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[opt]i", Create_ConvertFromShader, 0);
 	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i[Precision]i", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i[PlanarOut]b", Create_ExecuteShader, 0);
 
