@@ -10,9 +10,9 @@
 // GPU = D3DPOOL_DEFAULT, CPU = D3DPOOL_SYSTEMMEM
 //
 // m_InputTextures
-// Index  0 1 2 3 4 5 6 7 8 ... 19 20 21
-// CPU                                X
-// GPU      X X                 X  X  X
+// Index  0 1 2 3 4 5 6 7 8 9 10 11
+// CPU                            X
+// GPU      X X             X  X  X
 // YUV    X                           
 //
 // Planar allows transfering the data in and out as 3 planes which reduces transfers by 25% (no Alpha plane)
@@ -47,13 +47,13 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut) {
 	m_PlanarOut = planarOut;
 	m_Precision = precision;
-	HR(ApplyPrecision(precision, m_PrecisionSize, m_Format));
+	HR(ApplyPrecision(precision, m_PrecisionSize));
 	for (int i = 0; i < 9; i++) {
 		m_ClipPrecision[i] = clipPrecision[i];
-		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecisionSize[i], m_ClipFormat[i]));
+		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecisionSize[i]));
 	}
 	m_OutputPrecision = outputPrecision;
-	HR(ApplyPrecision(outputPrecision, m_OutputPrecisionSize, m_OutputFormat));
+	HR(ApplyPrecision(outputPrecision, m_OutputPrecisionSize));
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow));
 
@@ -67,9 +67,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 }
 
 // Applies the video format corresponding to specified pixel precision.
-HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionSizeOut, D3DFORMAT &formatOut) {
-	formatOut = GetD3DFormat(precision);
-	formatOut = GetD3DFormat(precision);
+HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionSizeOut) {
 	if (precision == 0)
 		precisionSizeOut = 1;
 	else if (precision == 1)
@@ -84,15 +82,26 @@ HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionSizeOut, D3D
 	return S_OK;
 }
 
-D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision) {
+D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision, bool planar) {
 	if (precision == 0)
 		return D3DFMT_L8;
-	else if (precision == 1)
-		return D3DFMT_A8R8G8B8;
-	else if (precision == 2)
-		return D3DFMT_A16B16G16R16;
+	else if (precision == 1) {
+		if (planar)
+			return D3DFMT_L8;
+		else
+			return D3DFMT_A8R8G8B8;
+	}
+	else if (precision == 2) {
+		if (planar)
+			return D3DFMT_L16;
+		else
+			return D3DFMT_A16B16G16R16;
+	}
 	else if (precision == 3)
-		return D3DFMT_A16B16G16R16F;
+		if (planar)
+			return D3DFMT_R16F;
+		else
+			return D3DFMT_A16B16G16R16F;
 	else
 		return D3DFMT_UNKNOWN;
 }
@@ -220,25 +229,24 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 	Obj->Width = width;
 	Obj->Height = height;
 
-	D3DFORMAT OutputFormat = m_Format;
 	if (isPlanar) {
-		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureY, &Obj->SurfaceY));
-		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureU, &Obj->SurfaceU));
-		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureV, &Obj->SurfaceV));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureY, &Obj->SurfaceY));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureU, &Obj->SurfaceU));
+		HR(CreateSurface(width, height, false, GetD3DFormat(m_ClipPrecision[index], true), &Obj->TextureV, &Obj->SurfaceV));
 	}
 
 	if (isLast) {
 		if (m_PlanarOut) {
-			HR(CreateSurface(width, height, true, GetD3DFormat(1), &Obj->Texture, &Obj->Surface));
-			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceY, NULL));
-			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceU, NULL));
-			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceV, NULL));
+			HR(CreateSurface(width, height, true, GetD3DFormat(m_OutputPrecision, false), &Obj->Texture, &Obj->Surface));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(m_OutputPrecision, true), D3DPOOL_SYSTEMMEM, &Obj->SurfaceY, NULL));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(m_OutputPrecision, true), D3DPOOL_SYSTEMMEM, &Obj->SurfaceU, NULL));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(m_OutputPrecision, true), D3DPOOL_SYSTEMMEM, &Obj->SurfaceV, NULL));
 		}
 		else {
-			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_OutputFormat, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(m_OutputPrecision, false), D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
 		}
 	} else {
-		D3DFORMAT Format = isInput ? m_ClipFormat[index] : shaderPrecision > -1 ? GetD3DFormat(shaderPrecision) : m_Format;
+		D3DFORMAT Format = GetD3DFormat(isInput ? m_ClipPrecision[index] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
 		HR(CreateSurface(width, height, true, Format, &Obj->Texture, &Obj->Surface));
 	}
 
@@ -275,7 +283,7 @@ void D3D9RenderImpl::ResetTextureClipIndex() {
 HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {
 	HR(m_pDevice->TestCooperativeLevel());
-	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(0) : isLast ? m_OutputFormat : m_Format;
+	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(m_OutputPrecision, true) : GetD3DFormat(isLast ? m_OutputPrecision : m_Precision, false);
 	HR(SetRenderTarget(width, height, fmt, env));
 	HR(CreateScene(cmd, planeOut,  env));
 	return CopyFromRenderTarget(maxClips + cmd->CommandIndex, cmd->OutputIndex, width, height, isLast, planeOut, env);
@@ -294,7 +302,7 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, int planeOut, IScriptEnv
 	for (int i = 0; i < 9; i++) {
 		if (cmd->ClipIndex[i] > 0) {
 			Input = FindTextureByClipIndex(cmd->ClipIndex[i], env);
-			if (Input != NULL) {
+			if (Input != NULL && (Input->Texture != NULL || Input->TextureY != NULL)) {
 				if (Input->TextureY == NULL) {
 					SCENE_HR(m_pDevice->SetTexture(i, Input->Texture), m_pDevice);
 				}
@@ -307,7 +315,8 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, int planeOut, IScriptEnv
 			}
 			else
 				env->ThrowError("Shader: Invalid clip index.");
-		}
+		} else 
+			SCENE_HR(m_pDevice->SetTexture(i, NULL), m_pDevice)
 	}
 
 	SCENE_HR(m_pDevice->DrawPrimitive(D3DPT_TRIANGLEFAN, 0, 2), m_pDevice);
@@ -386,7 +395,7 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	SrcRect.left = 0;
 	SrcRect.right = width;
 	SrcRect.bottom = height;
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].Surface, NULL, NULL, src, m_ClipFormat[index], srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].Surface, NULL, NULL, src, GetD3DFormat(m_ClipPrecision[index], false), srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
 	return S_OK;
 }
 
@@ -400,9 +409,9 @@ HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(PVideoFrame frame, int index,
 	SrcRect.left = 0;
 	SrcRect.right = width;
 	SrcRect.bottom = height;
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceY, NULL, NULL, frame->GetReadPtr(PLANAR_Y), GetD3DFormat(0), frame->GetPitch(PLANAR_Y), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceU, NULL, NULL, frame->GetReadPtr(PLANAR_U), GetD3DFormat(0), frame->GetPitch(PLANAR_U), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceV, NULL, NULL, frame->GetReadPtr(PLANAR_V), GetD3DFormat(0), frame->GetPitch(PLANAR_V), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceY, NULL, NULL, frame->GetReadPtr(PLANAR_Y), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_Y), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceU, NULL, NULL, frame->GetReadPtr(PLANAR_U), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_U), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceV, NULL, NULL, frame->GetReadPtr(PLANAR_V), GetD3DFormat(m_ClipPrecision[index], true), frame->GetPitch(PLANAR_V), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
 	return S_OK;
 }
 

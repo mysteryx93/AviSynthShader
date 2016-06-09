@@ -36,11 +36,11 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 
 	// Validate parameters
 	for (int i = 0; i < 9; i++) {
-		if (cmd.ClipIndex[i] < 0 || cmd.ClipIndex[i] > 20)
-			env->ThrowError("Shader: Clip index must be between 1 and 20");
+		if (cmd.ClipIndex[i] < 0 || cmd.ClipIndex[i] > 100)
+			env->ThrowError("Shader: Clip index must be between 0 and 100");
 	}
-	if (cmd.OutputIndex < 0 || cmd.OutputIndex > 20)
-		env->ThrowError("Shader: Output index must be between 1 and 20");
+	if (cmd.OutputIndex < 0 || cmd.OutputIndex > 100)
+		env->ThrowError("Shader: Output index must be between 0 and 100");
 	if (_precision < -1 || _precision > 3)
 		env->ThrowError("Shader: Invalid precision");
 

@@ -3,7 +3,6 @@
 #include <DirectXPackedVector.h>
 #include "ConvertShader.h"
 
-
 template <arch_t ARCH>
 static __forceinline void
 convert_float_to_half(uint8_t* dstp, const float* srcp, size_t count)
@@ -377,7 +376,7 @@ rgb32_to_shader_3_simd(uint8_t* dstp, const uint8_t** srcp, const int dpitch,
 
 using main_proc_t = decltype(yuv_to_shader_1_c)*;
 
-main_proc_t get_main_proc(int precision, int pix_type, bool stack16, arch_t arch)
+main_proc_t get_main_proc(int precision, int pix_type, bool stack16, bool planar, arch_t arch)
 {
     using std::make_tuple;
 
@@ -385,28 +384,28 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, arch_t arch
     constexpr int rgb32 = VideoInfo::CS_BGR32;
     constexpr int yv24 = VideoInfo::CS_YV24;
 
-    std::map<std::tuple<int, int, bool, arch_t>, main_proc_t> func;
+    std::map<std::tuple<int, int, bool, bool, arch_t>, main_proc_t> func;
 
-    func[make_tuple(1, yv24, false, NO_SIMD)] = yuv_to_shader_1_c;
-    func[make_tuple(1, yv24, false, USE_SSE2)] = yuv_to_shader_1_sse2;
+    func[make_tuple(1, yv24, false, false, NO_SIMD)] = yuv_to_shader_1_c;
+    func[make_tuple(1, yv24, false, false, USE_SSE2)] = yuv_to_shader_1_sse2;
 
-    func[make_tuple(2, yv24, false, NO_SIMD)] = yuv_to_shader_2_c<false>;
-    func[make_tuple(2, yv24, true, NO_SIMD)] = yuv_to_shader_2_c<true>;
-    func[make_tuple(2, yv24, false, USE_SSE2)] = yuv_to_shader_2_sse2<false>;
-    func[make_tuple(2, yv24, true, USE_SSE2)] = yuv_to_shader_2_sse2<true>;
+    func[make_tuple(2, yv24, false, false, NO_SIMD)] = yuv_to_shader_2_c<false>;
+    func[make_tuple(2, yv24, true, false, NO_SIMD)] = yuv_to_shader_2_c<true>;
+    func[make_tuple(2, yv24, false, false, USE_SSE2)] = yuv_to_shader_2_sse2<false>;
+    func[make_tuple(2, yv24, true, false, USE_SSE2)] = yuv_to_shader_2_sse2<true>;
 
-    func[make_tuple(2, rgb24, false, NO_SIMD)] = rgb_to_shader_2_c<false>;
-    func[make_tuple(2, rgb32, false, NO_SIMD)] = rgb_to_shader_2_c<true>;
-    func[make_tuple(2, rgb32, false, USE_SSE2)] = rgb32_to_shader_2_sse2;
+    func[make_tuple(2, rgb24, false, false, NO_SIMD)] = rgb_to_shader_2_c<false>;
+    func[make_tuple(2, rgb32, false, false, NO_SIMD)] = rgb_to_shader_2_c<true>;
+    func[make_tuple(2, rgb32, false, false, USE_SSE2)] = rgb32_to_shader_2_sse2;
 
-    func[make_tuple(3, yv24, false, NO_SIMD)] = yuv_to_shader_3_c<false>;
-    func[make_tuple(3, yv24, true, NO_SIMD)] = yuv_to_shader_3_c<true>;
-    func[make_tuple(3, yv24, false, USE_SSE2)] = yuv_to_shader_3_simd<false, USE_SSE2>;
-    func[make_tuple(3, yv24, true, USE_SSE2)] = yuv_to_shader_3_simd<true, USE_SSE2>;
+    func[make_tuple(3, yv24, false, false, NO_SIMD)] = yuv_to_shader_3_c<false>;
+    func[make_tuple(3, yv24, true, false, NO_SIMD)] = yuv_to_shader_3_c<true>;
+    func[make_tuple(3, yv24, false, false, USE_SSE2)] = yuv_to_shader_3_simd<false, USE_SSE2>;
+    func[make_tuple(3, yv24, true, false, USE_SSE2)] = yuv_to_shader_3_simd<true, USE_SSE2>;
 
-    func[make_tuple(3, rgb24, false, NO_SIMD)] = rgb_to_shader_3_c<false>;
-    func[make_tuple(3, rgb32, false, NO_SIMD)] = rgb_to_shader_3_c<true>;
-    func[make_tuple(3, rgb32, false, USE_SSE2)] = rgb32_to_shader_3_simd<USE_SSE2>;
+    func[make_tuple(3, rgb24, false, false, NO_SIMD)] = rgb_to_shader_3_c<false>;
+    func[make_tuple(3, rgb32, false, false, NO_SIMD)] = rgb_to_shader_3_c<true>;
+    func[make_tuple(3, rgb32, false, false, USE_SSE2)] = rgb32_to_shader_3_simd<USE_SSE2>;
 
 #if defined(__AVX__)
     func[make_tuple(3, yv24, false, USE_F16C)] = yuv_to_shader_3_simd<false, USE_F16C>;
@@ -415,91 +414,91 @@ main_proc_t get_main_proc(int precision, int pix_type, bool stack16, arch_t arch
 #endif
 
 
-    return func[make_tuple(precision, pix_type, stack16, arch)];
+    return func[make_tuple(precision, pix_type, stack16, planar, arch)];
 }
 
 
-ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, int opt, IScriptEnvironment* env) :
-    GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
+
+ConvertToShader::ConvertToShader(PClip _child, int precision, bool stack16, bool planar, int opt, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
 {
-    if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
-        env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
-    if (precision < 1 && precision > 3)
-        env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
-    if (stack16 && vi.IsRGB())
-        env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
-    if (stack16 && precision == 1)
-        env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
+	if (!vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
+		env->ThrowError("ConvertToShader: Source must be YV12, YV24, RGB24 or RGB32");
+	if (precision < 1 && precision > 3)
+		env->ThrowError("ConvertToShader: Precision must be 1, 2 or 3");
+	if (stack16 && vi.IsRGB())
+		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
+	if (stack16 && precision == 1)
+		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 
-    arch_t arch = get_arch(opt);
-    if (precision != 3 && arch > USE_SSE2) {
-        arch = USE_SSE2;
-    }
+	arch_t arch = get_arch(opt);
+	if (precision != 3 && arch > USE_SSE2) {
+		arch = USE_SSE2;
+	}
 
-    if (vi.IsRGB24() && arch != NO_SIMD) {
-        child = env->Invoke("ConvertToRGB32", child).AsClip();
-        vi = child->GetVideoInfo();
-    }
+	if (vi.IsRGB24() && arch != NO_SIMD) {
+		child = env->Invoke("ConvertToRGB32", child).AsClip();
+		vi = child->GetVideoInfo();
+	}
 
-    viSrc = vi;
+	viSrc = vi;
 
-    vi.pixel_type = VideoInfo::CS_BGR32;
+	vi.pixel_type = VideoInfo::CS_BGR32;
 
-    if (precision > 1) {    // Half-float frame has its width twice larger than normal
-        vi.width *= 2;
-    }
+	if (precision > 1) {    // Half-float frame has its width twice larger than normal
+		vi.width *= 2;
+	}
 
-    if (stack16) {
-        vi.height /= 2;
-    }
+	if (stack16) {
+		vi.height /= 2;
+	}
 
-    if (precision == 3) {
-        floatBufferPitch = (vi.width * 4 * 4 + 63) & ~63; // must be mod64
-        isPlusMt = env->FunctionExists("SetFilterMTMode");
-        if (!isPlusMt) { // if not avs+MT, allocate buffer at constructor.
-            buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 32));
-            if (!buff) {
-                env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
-            }
-        }
-    }
+	if (precision == 3) {
+		floatBufferPitch = (vi.width * 4 * 4 + 63) & ~63; // must be mod64
+		isPlusMt = env->FunctionExists("SetFilterMTMode");
+		if (!isPlusMt) { // if not avs+MT, allocate buffer at constructor.
+			buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 32));
+			if (!buff) {
+				env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
+			}
+		}
+	}
 
-    mainProc = get_main_proc(precision, viSrc.pixel_type, stack16, arch);
+	mainProc = get_main_proc(precision, viSrc.pixel_type, stack16, planar, arch);
 }
 
 
 ConvertToShader::~ConvertToShader() {
-    _aligned_free(buff);
+	_aligned_free(buff);
 }
 
 
 PVideoFrame __stdcall ConvertToShader::GetFrame(int n, IScriptEnvironment* env) {
-    PVideoFrame src = child->GetFrame(n, env);
+	PVideoFrame src = child->GetFrame(n, env);
 
-    // Convert from YV24 to half-float RGB
-    PVideoFrame dst = env->NewVideoFrame(vi);
+	// Convert from YV24 to half-float RGB
+	PVideoFrame dst = env->NewVideoFrame(vi);
 
-    const uint8_t* srcp[] = {
-        src->GetReadPtr(),
-        viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_U),
-        viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_V),
-    };
+	const uint8_t* srcp[] = {
+		src->GetReadPtr(),
+		viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_U),
+		viSrc.IsRGB() ? nullptr : src->GetReadPtr(PLANAR_V),
+	};
 
-    float* b = buff;
-    if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
-        void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
-        if (!t) {
-            env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
-        }
-        b = reinterpret_cast<float*>(t);
-    }
+	float* b = buff;
+	if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
+		void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
+		if (!t) {
+			env->ThrowError("ConvertToShader: Failed to allocate temporal buffer.");
+		}
+		b = reinterpret_cast<float*>(t);
+	}
 
-    mainProc(dst->GetWritePtr(), srcp, dst->GetPitch(), src->GetPitch(), viSrc.width, vi.height, b);
+	mainProc(dst->GetWritePtr(), srcp, dst->GetPitch(), src->GetPitch(), viSrc.width, vi.height, b);
 
-    if (isPlusMt) {
-        static_cast<IScriptEnvironment2*>(env)->Free(b);
-    }
+	if (isPlusMt) {
+		static_cast<IScriptEnvironment2*>(env)->Free(b);
+	}
 
-    return dst;
+	return dst;
 }
-

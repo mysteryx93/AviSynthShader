@@ -63,8 +63,8 @@ public:
 	ShaderItem m_Shaders[maxTextures] = { 0 };
 
 private:
-	HRESULT ApplyPrecision(int precision, int &precisionSizeOut, D3DFORMAT &formatOut);
-	D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision);
+	HRESULT ApplyPrecision(int precision, int &precisionSizeOut);
+	D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision, bool planar);
 	unsigned char* ReadBinaryFile(const char* filePath);
 	bool StringEndsWith(const char * str, const char * suffix);
 	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);
@@ -90,9 +90,9 @@ private:
 	int m_OutputPrecision;
 	int m_OutputPrecisionSize;
 	bool m_PlanarOut;
-	D3DFORMAT m_Format;
-	D3DFORMAT m_ClipFormat[9];
-	D3DFORMAT m_OutputFormat;
+	//D3DFORMAT m_Format;
+	//D3DFORMAT m_ClipFormat[9];
+	//D3DFORMAT m_OutputFormat;
 	D3DDISPLAYMODE m_displayMode;
 	D3DPRESENT_PARAMETERS m_presentParams;
 	IScriptEnvironment* m_env;

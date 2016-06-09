@@ -6,6 +6,10 @@
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiff601.cso" "SuperRes\DownscaleAndDiff709.hlsl" /Daxis=1 /DKb=0.114 /DKr=0.299
 
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiffYV709.cso" "SuperRes\DownscaleAndDiffYV.hlsl" /Daxis=1
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResDownscaleAndDiffYV601.cso" "SuperRes\DownscaleAndDiffYV.hlsl" /Daxis=1 /DKb=0.114 /DKr=0.299
+
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperRes.cso" "SuperRes\SuperRes.hlsl"
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "SuperResSkipSoftening.cso" "SuperRes\SuperRes.hlsl" /DSkipSoftening=1

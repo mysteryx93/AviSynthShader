@@ -25,7 +25,7 @@ class ConvertToShader : public GenericVideoFilter {
     void(__stdcall* mainProc)(uint8_t* dstp, const uint8_t** srcp, const int dpitch, const int spitch, const int width, const int height, float* buff);
 
 public:
-    ConvertToShader(PClip _child, int _precision, bool stack16, int opt, IScriptEnvironment* env);
+    ConvertToShader(PClip _child, int _precision, bool stack16, bool planar, int opt, IScriptEnvironment* env);
     ~ConvertToShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 
@@ -43,7 +43,7 @@ class ConvertFromShader : public GenericVideoFilter {
         uint8_t** dstp, const uint8_t* srcp, const int dpitch, const int spitch, const int width, const int height, float* buff);
 
 public:
-    ConvertFromShader(PClip _child, int _precision, std::string format, bool stack16, int opt, IScriptEnvironment* env);
+    ConvertFromShader(PClip _child, int _precision, std::string format, bool stack16, bool planar, int opt, IScriptEnvironment* env);
     ~ConvertFromShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 
