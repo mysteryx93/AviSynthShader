@@ -434,7 +434,7 @@ shader_to_yuv_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
 
 
-convert_shader_t get_convert_from_shader_packed(int precision, int pix_type, bool stack16, arch_t arch)
+convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack16, arch_t arch)
 {
     using std::make_tuple;
 
