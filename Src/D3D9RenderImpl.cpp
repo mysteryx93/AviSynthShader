@@ -7,12 +7,18 @@
 // do its work with textures on the GPU side. We must transfer data around.
 //
 // In this sample, we have 3 input textures out of 9 slots, and we run 3 shaders.
-// D = D3DPOOL_DEFAULT, S = D3DPOOL_SYSTEMMEM, R = D3DUSAGE_RENDERTARGET
+// GPU = D3DPOOL_DEFAULT, CPU = D3DPOOL_SYSTEMMEM
 //
 // m_InputTextures
-// Index  0 1 2 3 4 5 6 7 8 9 10 11
-// CPU                            S
-// GPU    R R R             R  R  R
+// Index  0 1 2 3 4 5 6 7 8 ... 19 20 21
+// CPU                                X
+// GPU      X X                 X  X  X
+// YUV    X                           
+//
+// Planar allows transfering the data in and out as 3 planes which reduces transfers by 25% (no Alpha plane)
+// PlanarIn: First clip has 3x L8 textures that will be passed to the first shader as s0, s1 and s2.
+// PlanarOut: Output as YUV to GPU memory, then for each of Y, U and V, run shader to fill L8 plane and transfer L8 plane 
+//            to CPU before returning all 3 planes to AviSynth. All 3 planes will be transfered via the same surface.
 //
 // m_RenderTargets contains one R texture per output resolution. The Render Target then gets 
 // copied into the next available index. Command1 outputs to RenderTarget[0] and then
@@ -36,12 +42,16 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 	}
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision) {
-	HR(ApplyPrecision(precision, m_Precision, m_Format));
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut) {
+	m_PlanarOut = planarOut;
+	m_Precision = precision;
+	HR(ApplyPrecision(precision, m_PrecisionSize, m_Format));
 	for (int i = 0; i < 9; i++) {
-		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecision[i], m_ClipFormat[i]));
+		m_ClipPrecision[i] = clipPrecision[i];
+		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecisionSize[i], m_ClipFormat[i]));
 	}
-	HR(ApplyPrecision(outputPrecision, m_OutputPrecision, m_OutputFormat));
+	m_OutputPrecision = outputPrecision;
+	HR(ApplyPrecision(outputPrecision, m_OutputPrecisionSize, m_OutputFormat));
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow));
 
@@ -55,27 +65,34 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 }
 
 // Applies the video format corresponding to specified pixel precision.
-HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionOut, D3DFORMAT &formatOut) {
-	if (precision == 0) {
-		formatOut = D3DFMT_L8;
-		precisionOut = 1;
-	}
-	else if (precision == 1) {
-		formatOut = D3DFMT_A8R8G8B8;
-		precisionOut = 4;
-	}
-	else if (precision == 2) {
-		formatOut = D3DFMT_A16B16G16R16;
-		precisionOut = 8;
-	}
-	else if (precision == 3) {
-		formatOut = D3DFMT_A16B16G16R16F;
-		precisionOut = 8;
-	}
+HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionSizeOut, D3DFORMAT &formatOut) {
+	formatOut = GetD3DFormat(precision);
+	formatOut = GetD3DFormat(precision);
+	if (precision == 0)
+		precisionSizeOut = 1;
+	else if (precision == 1)
+		precisionSizeOut = 4;
+	else if (precision == 2)
+		precisionSizeOut = 8;
+	else if (precision == 3)
+		precisionSizeOut = 8;
 	else
 		return E_FAIL;
 
 	return S_OK;
+}
+
+D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision) {
+	if (precision == 0)
+		return D3DFMT_L8;
+	else if (precision == 1)
+		return D3DFMT_A8R8G8B8;
+	else if (precision == 2)
+		return D3DFMT_A16B16G16R16;
+	else if (precision == 3)
+		return D3DFMT_A16B16G16R16F;
+	else
+		return D3DFMT_UNKNOWN;
 }
 
 HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow) {
@@ -116,7 +133,7 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 	presentParams.BackBufferHeight = 10;
 	presentParams.SwapEffect = D3DSWAPEFFECT_COPY;
 	presentParams.MultiSampleType = D3DMULTISAMPLE_NONE;
-	presentParams.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+	presentParams.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 	presentParams.BackBufferFormat = D3DFMT_UNKNOWN;
 	presentParams.BackBufferCount = 0;
 	presentParams.EnableAutoDepthStencil = FALSE;
@@ -156,7 +173,6 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 		Target->Height = height;
 		Target->Format = format;
 		HR(CreateSurface(width, height, true, format, &Target->Texture, &Target->Surface));
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, &Target->Memory, NULL));
 
 		HR(SetupMatrices(Target, float(width), float(height)));
 	}
@@ -193,7 +209,7 @@ HRESULT D3D9RenderImpl::SetupMatrices(RenderTarget* target, float width, float h
 	return(target->VertexBuffer->Unlock());
 }
 
-HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, int height, bool memoryTexture, bool isSystemMemory) {
+HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, int height, bool isInput, bool isPlanar, bool isLast, int shaderPrecision) {
 	if (index < 0 || index >= maxTextures)
 		return E_FAIL;
 
@@ -203,23 +219,25 @@ HRESULT D3D9RenderImpl::CreateInputTexture(int index, int clipIndex, int width, 
 	Obj->Height = height;
 
 	D3DFORMAT OutputFormat = m_Format;
-	bool RenderTarget = true;
-	if (memoryTexture && !isSystemMemory) {
-		OutputFormat = m_ClipFormat[index];
-		//if (m_ClipPrecision[index] == 1) {
-		//	HR(CreateSurface(width, height, false, D3DFMT_L8, &Obj->TextureY, &Obj->SurfaceY));
-		//	HR(CreateSurface(width, height, false, D3DFMT_L8, &Obj->TextureU, &Obj->SurfaceU));
-		//	HR(CreateSurface(width, height, false, D3DFMT_L8, &Obj->TextureV, &Obj->SurfaceV));
-		//}
-		//else
-		//	RenderTarget = false;
-		//HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_ClipFormat[index], D3DPOOL_DEFAULT, &Obj->Memory, NULL));
+	if (isPlanar) {
+		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureY, &Obj->SurfaceY));
+		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureU, &Obj->SurfaceU));
+		HR(CreateSurface(width, height, false, GetD3DFormat(0), &Obj->TextureV, &Obj->SurfaceV));
 	}
-	else if (isSystemMemory) {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_OutputFormat, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
-	}
-	if (!isSystemMemory) {
-		HR(CreateSurface(width, height, RenderTarget, OutputFormat, &Obj->Texture, &Obj->Surface));
+
+	if (isLast) {
+		if (m_PlanarOut) {
+			HR(CreateSurface(width, height, true, GetD3DFormat(1), &Obj->Texture, &Obj->Surface));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceY, NULL));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceU, NULL));
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, GetD3DFormat(0), D3DPOOL_SYSTEMMEM, &Obj->SurfaceV, NULL));
+		}
+		else {
+			HR(m_pDevice->CreateOffscreenPlainSurface(width, height, m_OutputFormat, D3DPOOL_SYSTEMMEM, &Obj->Memory, NULL));
+		}
+	} else {
+		D3DFORMAT Format = isInput ? m_ClipFormat[index] : shaderPrecision > -1 ? GetD3DFormat(shaderPrecision) : m_Format;
+		HR(CreateSurface(width, height, true, Format, &Obj->Texture, &Obj->Surface));
 	}
 
 	return S_OK;
@@ -242,31 +260,31 @@ InputTexture* D3D9RenderImpl::FindTextureByClipIndex(int clipIndex, IScriptEnvir
 			break;
 	}
 	if (Result == -1)
-		env->ThrowError("Shader: Clip index not found");
+		return NULL;
 	return &m_InputTextures[Result];
 }
 
 void D3D9RenderImpl::ResetTextureClipIndex() {
-	for (int i = 9; i < maxTextures; i++) {
+	for (int i = maxClips; i < maxTextures; i++) {
 		m_InputTextures[i].ClipIndex = 0;
 	}
 }
 
-HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::ProcessFrame(CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {
 	HR(m_pDevice->TestCooperativeLevel());
-	HR(SetRenderTarget(width, height, isLast ? m_OutputFormat : m_Format, env));
-	HR(CreateScene(cmd, env));
-	HR(m_pDevice->Present(NULL, NULL, NULL, NULL));
-	return CopyFromRenderTarget(9 + cmd->CommandIndex, cmd->OutputIndex, width, height);
+	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(0) : isLast ? m_OutputFormat : m_Format;
+	HR(SetRenderTarget(width, height, fmt, env));
+	HR(CreateScene(cmd, planeOut,  env));
+	return CopyFromRenderTarget(maxClips + cmd->CommandIndex, cmd->OutputIndex, width, height, isLast, planeOut, env);
 }
 
-HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, int planeOut, IScriptEnvironment* env)
 {
 	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
 	HR(m_pDevice->BeginScene());
 	SCENE_HR(m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1), m_pDevice);
-	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex].Shader), m_pDevice);
+	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex - 1 + planeOut].Shader), m_pDevice);
 	SCENE_HR(m_pDevice->SetStreamSource(0, m_pCurrentRenderTarget->VertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
 	// Set input clips.
@@ -275,7 +293,15 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
 		if (cmd->ClipIndex[i] > 0) {
 			Input = FindTextureByClipIndex(cmd->ClipIndex[i], env);
 			if (Input != NULL) {
-				SCENE_HR(m_pDevice->SetTexture(i, Input->Texture), m_pDevice);
+				if (Input->TextureY == NULL) {
+					SCENE_HR(m_pDevice->SetTexture(i, Input->Texture), m_pDevice);
+				}
+				else {
+					// Copy planar data to the 3 sampler spots starting at specified clip index.
+					SCENE_HR(m_pDevice->SetTexture(i + 0, Input->TextureY), m_pDevice);
+					SCENE_HR(m_pDevice->SetTexture(i + 1, Input->TextureU), m_pDevice);
+					SCENE_HR(m_pDevice->SetTexture(i + 2, Input->TextureV), m_pDevice);
+				}
 			}
 			else
 				env->ThrowError("Shader: Invalid clip index.");
@@ -286,33 +312,73 @@ HRESULT D3D9RenderImpl::CreateScene(CommandStruct* cmd, IScriptEnvironment* env)
 	return m_pDevice->EndScene();
 }
 
+HRESULT D3D9RenderImpl::CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
+{
+	if (dstIndex < 0 || dstIndex >= maxTextures)
+		return E_FAIL;
+
+	InputTexture* Output = &m_InputTextures[dstIndex];
+	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
+	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
+	Output->ClipIndex = outputIndex;
+	if (!isLast) {
+		HR(D3DXLoadSurfaceFromSurface(Output->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
+	}
+	else {
+		if (planeOut > 0) {
+			// This gets called recursively from the code below for each plane.
+			IDirect3DSurface9* SurfaceOut = planeOut == 1 ? Output->SurfaceY : planeOut == 2 ? Output->SurfaceU : planeOut == 3 ? Output->SurfaceV : NULL;
+			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, SurfaceOut));
+		}
+		else if (m_PlanarOut) {
+			HR(D3DXLoadSurfaceFromSurface(Output->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
+
+			CommandStruct cmd = { 0 };
+			cmd.Path = "OutputY.cso";
+			cmd.CommandIndex = dstIndex - maxClips;
+			cmd.ClipIndex[0] = 1;
+			cmd.OutputIndex = 1;
+			cmd.Precision = 0;
+			if FAILED(InitPixelShader(&cmd, 1, env))
+				env->ThrowError("ExecuteShader: OutputY.cso not found");
+			HR(ProcessFrame(&cmd, width, height, true, 1, env));
+			cmd.Path = "OutputU.cso";
+			if FAILED(InitPixelShader(&cmd, 2, env))
+				env->ThrowError("ExecuteShader: OutputU.cso not found");
+			HR(ProcessFrame(&cmd, width, height, true, 2, env));
+			cmd.Path = "OutputV.cso";
+			if FAILED(InitPixelShader(&cmd, 3, env))
+				env->ThrowError("ExecuteShader: OutputV.cso not found");
+			HR(ProcessFrame(&cmd, width, height, true, 3, env));
+		}
+		else {
+			// If reading last command, copy it back to CPU directly
+			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, Output->Memory));
+		}
+	}
+	return S_OK;
+}
+
 HRESULT D3D9RenderImpl::CopyBuffer(InputTexture* srcSurface, int commandIndex, int outputIndex, IScriptEnvironment* env) {
-	InputTexture* dstSurface = &m_InputTextures[9 + commandIndex];
+	InputTexture* dstSurface = &m_InputTextures[maxClips + commandIndex];
 	dstSurface->ClipIndex = outputIndex;
 
-	// HR(m_pDevice->ColorFill(dstSurface->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	// HR(m_pDevice->StretchRect(srcSurface->Surface, NULL, dstSurface->Surface, NULL, D3DTEXF_POINT));
-	HR(D3DXLoadSurfaceFromSurface(dstSurface->Surface, NULL, NULL, srcSurface->Surface, NULL, NULL, D3DX_FILTER_NONE, 0));
+	if (srcSurface->TextureY == NULL) {
+		HR(D3DXLoadSurfaceFromSurface(dstSurface->Surface, NULL, NULL, srcSurface->Surface, NULL, NULL, D3DX_FILTER_NONE, 0));
+	}
+	else {
+		HR(D3DXLoadSurfaceFromSurface(dstSurface->SurfaceY, NULL, NULL, srcSurface->SurfaceY, NULL, NULL, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dstSurface->SurfaceU, NULL, NULL, srcSurface->SurfaceU, NULL, NULL, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dstSurface->SurfaceV, NULL, NULL, srcSurface->SurfaceV, NULL, NULL, D3DX_FILTER_NONE, 0));
+	}
 	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, IScriptEnvironment* env) {
 	// Copies source frame into main surface buffer, or into additional input textures
-	CComPtr<IDirect3DSurface9> destSurface = m_InputTextures[index].Memory;
 	if (index < 0 || index >= maxTextures)
 		return E_FAIL;
 
-	//D3DLOCKED_RECT d3drect;
-	//HR(destSurface->LockRect(&d3drect, NULL, 0));
-	//BYTE* pict = (BYTE*)d3drect.pBits;
-
-	//env->BitBlt(pict, d3drect.Pitch, src, srcPitch, width * m_ClipPrecision[index], height);
-
-	//HR(destSurface->UnlockRect());
-
-	// Copy to GPU
-	//HR(m_pDevice->ColorFill(m_InputTextures[index].Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-	//HR(m_pDevice->StretchRect(m_InputTextures[index].Memory, NULL, m_InputTextures[index].Surface, NULL, D3DTEXF_POINT));
 	RECT SrcRect;
 	SrcRect.top = 0;
 	SrcRect.left = 0;
@@ -322,46 +388,56 @@ HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int 
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CopyFromRenderTarget(int dstIndex, int outputIndex, int width, int height)
-{
-	if (dstIndex < 0 || dstIndex >= maxTextures)
+HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(PVideoFrame frame, int index, int width, int height, IScriptEnvironment* env) {
+	// Copies source frame into main surface buffer, or into additional input textures
+	if (index < 0 || index >= maxTextures)
 		return E_FAIL;
 
-	InputTexture* Output = &m_InputTextures[dstIndex];
-	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
-	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
-	Output->ClipIndex = outputIndex;
-	if (Output->Memory == NULL) {
-		//HR(m_pDevice->ColorFill(Output->Surface, NULL, D3DCOLOR_ARGB(0xFF, 0, 0, 0)));
-		// HR(m_pDevice->StretchRect(pReadSurfaceGpu, NULL, Output->Surface, NULL, D3DTEXF_POINT));
-		HR(D3DXLoadSurfaceFromSurface(Output->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
-	}
-	else {
-		// If reading last command, copy it back to CPU directly
-		HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, Output->Memory));
-	}
+	RECT SrcRect;
+	SrcRect.top = 0;
+	SrcRect.left = 0;
+	SrcRect.right = width;
+	SrcRect.bottom = height;
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceY, NULL, NULL, frame->GetReadPtr(PLANAR_Y), GetD3DFormat(0), frame->GetPitch(PLANAR_Y), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceU, NULL, NULL, frame->GetReadPtr(PLANAR_U), GetD3DFormat(0), frame->GetPitch(PLANAR_U), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
+	HR(D3DXLoadSurfaceFromMemory(m_InputTextures[index].SurfaceV, NULL, NULL, frame->GetReadPtr(PLANAR_V), GetD3DFormat(0), frame->GetPitch(PLANAR_V), NULL, &SrcRect, D3DX_FILTER_NONE, 0));
 	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, byte* dst, int dstPitch, IScriptEnvironment* env) {
-	InputTexture* ReadSurface = &m_InputTextures[9 + commandIndex];
-
-	D3DLOCKED_RECT srcRect;
-	HR(ReadSurface->Memory->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
-	BYTE* srcPict = (BYTE*)srcRect.pBits;
-
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, ReadSurface->Width * m_OutputPrecision, ReadSurface->Height);
-
-	return ReadSurface->Memory->UnlockRect();
+	InputTexture* ReadSurface = &m_InputTextures[maxClips + commandIndex];
+	HR(CopyBufferToAviSynthInternal(ReadSurface->Memory, dst, dstPitch, ReadSurface->Width * m_OutputPrecisionSize, ReadSurface->Height, env));
+	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex];
+HRESULT D3D9RenderImpl::CopyBufferToAviSynthPlanar(int commandIndex, byte* dstY, byte* dstU, byte* dstV, int dstPitch, IScriptEnvironment* env) {
+	InputTexture* ReadSurface = &m_InputTextures[maxClips + commandIndex];
+	HR(CopyBufferToAviSynthInternal(ReadSurface->SurfaceY, dstY, dstPitch, ReadSurface->Width, ReadSurface->Height, env));
+	HR(CopyBufferToAviSynthInternal(ReadSurface->SurfaceU, dstU, dstPitch, ReadSurface->Width, ReadSurface->Height, env));
+	HR(CopyBufferToAviSynthInternal(ReadSurface->SurfaceV, dstV, dstPitch, ReadSurface->Width, ReadSurface->Height, env));
+	return S_OK;
+}
+
+HRESULT D3D9RenderImpl::CopyBufferToAviSynthInternal(IDirect3DSurface9* surface, byte* dst, int dstPitch, int rowSize, int height, IScriptEnvironment* env) {
+	D3DLOCKED_RECT srcRect;
+	HR(surface->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
+	BYTE* srcPict = (BYTE*)srcRect.pBits;
+	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, rowSize, height);
+	HR(surface->UnlockRect());
+	return S_OK;
+}
+
+HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScriptEnvironment* env) {
+	// PlaneOut will use the next 3 shader positions
+	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex - 1 + planeOut];
+	if (Shader->Shader != NULL)
+		return S_OK;
+
 	CComPtr<ID3DXBuffer> code;
 	unsigned char* ShaderBuf = NULL;
 	DWORD* CodeBuffer = NULL;
 
-	if (cmd->ShaderModel == NULL || cmd->ShaderModel[0] == '\0') {
+	if (!StringEndsWith(cmd->Path, ".hlsl")) {
 		// Precompiled shader
 		ShaderBuf = ReadBinaryFile(cmd->Path);
 		if (ShaderBuf == NULL)
@@ -407,6 +483,20 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	}
 	else
 		return NULL;
+}
+
+// returns 1 if str ends with suffix
+bool D3D9RenderImpl::StringEndsWith(const char * str, const char * suffix) {
+	if (str == NULL || suffix == NULL)
+		return false;
+
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+
+	if (suffix_len > str_len)
+		return false;
+
+	return 0 == strncmp(str + str_len - suffix_len, suffix, suffix_len);
 }
 
 // Gets the path where the DLL file is located.

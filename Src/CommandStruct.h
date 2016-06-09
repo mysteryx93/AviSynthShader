@@ -25,7 +25,8 @@ struct CommandStruct {
 	const char* EntryPoint;
 	const char* ShaderModel;
 	ParamStruct Param[9];
-	byte ClipIndex[9];
+	byte ClipIndex[12];
 	byte OutputIndex;
 	int OutputWidth, OutputHeight;
+	int Precision;
 };

@@ -1,8 +1,8 @@
 #include "ExecuteShader.h"
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision) {
+ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision), m_PlanarOut(_planarOut) {
 
 	// Validate parameters
 	if (!vi.IsY8())
@@ -30,7 +30,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 
 	// We must change pixel type here for the next filter to recognize it properly during its initialization
 	srcHeight = vi.height;
-	vi.pixel_type = VideoInfo::CS_BGR32;
+	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
 	InitializeDevice(env);
 }
@@ -42,7 +42,7 @@ ExecuteShader::~ExecuteShader() {
 
 void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision)))
+	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	CreateInputClip(0, env);
@@ -54,6 +54,10 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	CreateInputClip(6, env);
 	CreateInputClip(7, env);
 	CreateInputClip(8, env);
+	// Clips 9 to 20 cannot be used as input but can be used for internal processing.
+	for (int i = 9; i < 20; i++) {
+		render->m_InputTextures[i].ClipIndex = i + 1;
+	}
 
 	PVideoFrame src = child->GetFrame(0, env);
 	const byte* srcReader = src->GetReadPtr();
@@ -62,7 +66,7 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	CommandStruct cmd;
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
-	bool IsLast;
+	bool IsPlanar, IsLast;
 	render->ResetTextureClipIndex();
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
@@ -79,13 +83,18 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 		}
 
 		texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
+		//if (texture == NULL)
+		//	env->ThrowError("ExecuteShader: Output index not found");
 		// If clip at output position isn't defined, use dimensions of first clip by default.
-		if (texture->Texture == NULL)
+		if (texture == NULL || texture->Texture == NULL)
 			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
+		if (texture == NULL)
+			env->ThrowError("ExecuteShader: Clip index not found");
 		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
+		IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
 
-		if (FAILED(render->CreateInputTexture(9 + i, cmd.OutputIndex, OutputWidth, OutputHeight, IsLast, IsLast)))
+		if (FAILED(render->CreateInputTexture(D3D9RenderImpl::maxClips + i, cmd.OutputIndex, OutputWidth, OutputHeight, false, IsPlanar, IsLast, cmd.Precision)))
 			env->ThrowError("ExecuteShader: Failed to create input texture.");
 
 		if (IsLast) {
@@ -128,7 +137,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		if (cmd.Path != NULL && cmd.Path[0] != '\0') {
 			// If clip at output position isn't defined, use dimensions of first clip by default.
 			texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
-			if (texture->Texture == NULL)
+			if (texture == NULL || texture->Texture == NULL)
 				texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
@@ -145,7 +154,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 				}
 			}
 
-			if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, env))
+			if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, 0, env))
 				env->ThrowError("ExecuteShader: ProcessFrame failed.");
 		}
 		else {
@@ -158,7 +167,13 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 
 	// After last command, copy result back to AviSynth.
 	PVideoFrame dst = env->NewVideoFrame(vi);
-	render->CopyBufferToAviSynth(srcHeight - 1, dst->GetWritePtr(), dst->GetPitch(), env);
+	if (m_PlanarOut) {
+		if FAILED(render->CopyBufferToAviSynthPlanar(srcHeight - 1, dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
+			env->ThrowError("CopyBufferToAviSynthPlanar failed");
+	} else {
+		if FAILED(render->CopyBufferToAviSynth(srcHeight - 1, dst->GetWritePtr(), dst->GetPitch(), env))
+			env->ThrowError("CopyBufferToAviSynth failed");
+	}
 	return dst;
 }
 
@@ -193,12 +208,14 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 	// clip1-clip9 take texture spots 0-8. Then, each shader execution will output in subsequent texture spots.
 	PClip clip = m_clips[index];
 	if (clip != NULL) {
-		if (!clip->GetVideoInfo().IsRGB32())
+		// Planar YV24 allowed with Precision=1
+		bool IsPlanar = m_ClipPrecision[index] == 1 && clip->GetVideoInfo().IsYV24();
+		if (!clip->GetVideoInfo().IsRGB32() && !IsPlanar)
 			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
 		else if (m_ClipPrecision[index] == 0 && !clip->GetVideoInfo().IsY8())
 			env->ThrowError("ExecuteShader: Clip with Precision=0 must be in Y8 format");
 
-		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, true, false)))
+		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, true, IsPlanar, false, -1)))
 			env->ThrowError("ExecuteShader: Failed to create input textures.");
 	}
 	else
@@ -210,13 +227,21 @@ void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (m_clips[index] != NULL) {
 		PVideoFrame frame = clip->GetFrame(n, env);
-		if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, env)))
-			env->ThrowError("ExecuteShader: CopyInputClip failed");
+		if (m_ClipPrecision[index] == 1 && clip->GetVideoInfo().IsYV24()) {
+			// Copy planar data from YV24.
+			if (FAILED(render->CopyAviSynthToPlanarBuffer(frame, index, clip->GetVideoInfo().width, clip->GetVideoInfo().height, env)))
+				env->ThrowError("ExecuteShader: CopyInputClip failed");
+		}
+		else {
+			// Copy regular data after calling ConvertToShader.
+			if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, env)))
+				env->ThrowError("ExecuteShader: CopyInputClip failed");
+		}
 	}
 }
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	if FAILED(render->InitPixelShader(cmd, env)) {
+	if FAILED(render->InitPixelShader(cmd, 0,  env)) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
 		size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;

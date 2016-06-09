@@ -3,7 +3,7 @@
 
 Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel,
 	const char* _param0, const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8,
-	int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, IScriptEnvironment* env) :
+	int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel),
 	param1(_param0), param2(_param1), param3(_param2), param4(_param3), param5(_param4), param6(_param5), param7(_param6), param8(_param7), param9(_param8) {
 
@@ -32,10 +32,17 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	cmd.OutputIndex = _output;
 	cmd.OutputWidth = _width;
 	cmd.OutputHeight = _height;
+	cmd.Precision = _precision;
 
 	// Validate parameters
-	//if (path == NULL || path[0] == '\0')
-	//	env->ThrowError("Shader: path to a compiled shader must be specified");
+	for (int i = 0; i < 9; i++) {
+		if (cmd.ClipIndex[i] < 0 || cmd.ClipIndex[i] > 20)
+			env->ThrowError("Shader: Clip index must be between 1 and 20");
+	}
+	if (cmd.OutputIndex < 0 || cmd.OutputIndex > 20)
+		env->ThrowError("Shader: Output index must be between 1 and 20");
+	if (_precision < -1 || _precision > 3)
+		env->ThrowError("Shader: Invalid precision");
 
 	if (vi.pixel_type != VideoInfo::CS_Y8) {
 		vi.pixel_type = VideoInfo::CS_Y8;
