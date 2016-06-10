@@ -7,7 +7,7 @@
 template <bool IS_RGB32>
 static void __stdcall
 shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
@@ -31,7 +31,7 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
 static void __stdcall
 shader_to_rgb32_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0];
     uint8_t* d = dstp[0];
@@ -57,21 +57,23 @@ shader_to_rgb32_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool IS_RGB32>
 static void __stdcall
 shader_to_rgb_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+    const int spitch, const int width, const int height, void* _lut) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
     const uint8_t* s = srcp[0];
     uint8_t* d = dstp[0];
 
+    const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
+
     for (int y = 0; y < height; ++y) {
-        convert_half_to_float<NO_SIMD>(buff, s, width * 4);
+        const uint16_t* s16 = reinterpret_cast<const uint16_t*>(s);
         for (int x = 0; x < width; ++x) {
-            d[step * x + 0] = static_cast<uint8_t>(buff[4 * x + 0] * 255 + 0.5f);
-            d[step * x + 1] = static_cast<uint8_t>(buff[4 * x + 1] * 255 + 0.5f);
-            d[step * x + 2] = static_cast<uint8_t>(buff[4 * x + 2] * 255 + 0.5f);
+            d[step * x + 0] = static_cast<uint8_t>(lut[s16[4 * x + 0]]);
+            d[step * x + 1] = static_cast<uint8_t>(lut[s16[4 * x + 1]]);
+            d[step * x + 2] = static_cast<uint8_t>(lut[s16[4 * x + 2]]);
             if (IS_RGB32) {
-                d[4 * x + 3] = static_cast<uint8_t>(buff[4 * x + 3] * 255 + 0.5f);
+                d[4 * x + 3] = static_cast<uint8_t>(lut[s16[4 * x + 3]]);
             }
         }
         d += dpitch;
@@ -80,18 +82,19 @@ shader_to_rgb_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-template <arch_t ARCH>
+#if defined(__AVX__)
 static void __stdcall
-shader_to_rgb32_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept
 {
     const uint8_t* s = srcp[0];
     uint8_t* d = dstp[0];
+    float* buff = reinterpret_cast<float*>(_buff);
 
     const __m128 coef = _mm_set1_ps(255.0f);
 
     for (int y = 0; y < height; ++y) {
-        convert_half_to_float<ARCH>(buff, s, width * 4);
+        convert_half_to_float(buff, s, width * 4);
         for (int x = 0; x < width * 4; x += 16) {
             __m128i d0 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + x + 0)));
             __m128i d1 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + x + 4)));
@@ -104,11 +107,12 @@ shader_to_rgb32_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         s += spitch;
     }
 }
+#endif
 
 
 static void __stdcall
 shader_to_yuv_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0];
 
@@ -156,7 +160,7 @@ unpack8_x4_x4(__m128i& a, __m128i& b, __m128i& c, __m128i& d)
 
 static void __stdcall
 shader_to_yuv_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0];
 
@@ -188,7 +192,7 @@ shader_to_yuv_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool STACK16>
 static void __stdcall
 shader_to_yuv_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0];
 
@@ -253,7 +257,7 @@ unpack16_x4_x3(__m128i& a, __m128i& b, __m128i& c, __m128i& d)
 template <bool STACK16>
 static void __stdcall
 shader_to_yuv_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0];
 
@@ -312,13 +316,15 @@ shader_to_yuv_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool STACK16>
 static void __stdcall
 shader_to_yuv_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+    const int spitch, const int width, const int height, void* _lut) noexcept
 {
     const uint8_t* s = srcp[0];
 
     uint8_t* dy = dstp[0];
     uint8_t* du = dstp[1];
     uint8_t* dv = dstp[2];
+
+    const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
 
     uint8_t *ly, *lu, *lv;
     if (STACK16) {
@@ -328,12 +334,12 @@ shader_to_yuv_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     }
 
     for (int y = 0; y < height; ++y) {
-        convert_half_to_float<NO_SIMD>(buff, s, width * 4);
+        const uint16_t* s16 = reinterpret_cast<const uint16_t*>(s);
         for (int x = 0; x < width; ++x) {
             if (!STACK16) {
-                dv[x] = static_cast<uint8_t>(buff[4 * x + 0] * 255 + 0.5f);
-                du[x] = static_cast<uint8_t>(buff[4 * x + 1] * 255 + 0.5f);
-                dy[x] = static_cast<uint8_t>(buff[4 * x + 2] * 255 + 0.5f);
+                dv[x] = static_cast<uint8_t>(lut[s16[4 * x + 0]]);
+                du[x] = static_cast<uint8_t>(lut[s16[4 * x + 1]]);
+                dy[x] = static_cast<uint8_t>(lut[s16[4 * x + 2]]);
             } else {
                 union dst16 {
                     uint16_t v16;
@@ -341,9 +347,9 @@ shader_to_yuv_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 };
                 dst16 dsty, dstu, dstv;
 
-                dstv.v16 = static_cast<uint16_t>(buff[4 * x + 0] * 65535 + 0.5f);
-                dstu.v16 = static_cast<uint16_t>(buff[4 * x + 1] * 65535 + 0.5f);
-                dsty.v16 = static_cast<uint16_t>(buff[4 * x + 2] * 65535 + 0.5f);
+                dstv.v16 = lut[s16[4 * x + 0]];
+                dstu.v16 = lut[s16[4 * x + 1]];
+                dsty.v16 = lut[s16[4 * x + 2]];
                 ly[x] = dsty.v8[0];
                 dy[x] = dsty.v8[1];
                 lu[x] = dstu.v8[0];
@@ -365,16 +371,19 @@ shader_to_yuv_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-template <bool STACK16, arch_t ARCH>
+#if defined(__AVX__)
+template <bool STACK16>
 static void __stdcall
-shader_to_yuv_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+shader_to_yuv_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept
 {
     const uint8_t* s = srcp[0];
 
     uint8_t* dy = dstp[0];
     uint8_t* du = dstp[1];
     uint8_t* dv = dstp[2];
+
+    float * buff = reinterpret_cast<float*>(_buff);
 
     uint8_t *ly, *lu, *lv;
     const __m128 coef = _mm_set1_ps(STACK16 ? 65535.0f : 255.0f);
@@ -388,7 +397,7 @@ shader_to_yuv_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     }
 
     for (int y = 0; y < height; ++y) {
-        convert_half_to_float<ARCH>(buff, s, width * 4);
+        convert_half_to_float(buff, s, width * 4);
         for (int x = 0; x < width; x += 4) {
             __m128i s0 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x +  0))); // v0,u0,y0,a0
             __m128i s1 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x +  4))); // v1,u1,y1,a1
@@ -429,7 +438,7 @@ shader_to_yuv_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         }
     }
 }
-
+#endif
 
 
 
@@ -458,17 +467,14 @@ convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack1
 
     func[make_tuple(3, yv24, false, NO_SIMD)] = shader_to_yuv_3_c<false>;
     func[make_tuple(3, yv24, true, NO_SIMD)] = shader_to_yuv_3_c<true>;
-    func[make_tuple(3, yv24, false, USE_SSE2)] = shader_to_yuv_3_simd<false, USE_SSE2>;
-    func[make_tuple(3, yv24, true, USE_SSE2)] = shader_to_yuv_3_simd<true, USE_SSE2>;
 
     func[make_tuple(3, rgb24, false, NO_SIMD)] = shader_to_rgb_3_c<false>;
     func[make_tuple(3, rgb32, false, NO_SIMD)] = shader_to_rgb_3_c<true>;
-    func[make_tuple(3, rgb32, false, USE_SSE2)] = shader_to_rgb32_3_simd<USE_SSE2>;
 
 #if defined(__AVX__)
-    func[make_tuple(3, yv24, false, USE_F16C)] = shader_to_yuv_3_simd<false, USE_F16C>;
-    func[make_tuple(3, yv24, true, USE_F16C)] = shader_to_yuv_3_simd<true, USE_F16C>;
-    func[make_tuple(3, rgb32, false, USE_F16C)] = shader_to_rgb32_3_simd<USE_F16C>;
+    func[make_tuple(3, yv24, false, USE_F16C)] = shader_to_yuv_3_f16c<false>;
+    func[make_tuple(3, yv24, true, USE_F16C)] = shader_to_yuv_3_f16c<true>;
+    func[make_tuple(3, rgb32, false, USE_F16C)] = shader_to_rgb32_3_f16c;
 #endif
 
 
