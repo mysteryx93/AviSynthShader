@@ -1,6 +1,6 @@
 #include <map>
 #include <tuple>
-
+#define USE_UINT8_TO_HALF_TABLE
 #include "ConvertShader.h"
 
 
@@ -185,31 +185,32 @@ yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         vlsb = sv + height * spitch;
     }
 
-    constexpr float rcp = 1.0f / (STACK16 ? 65535 : 255);
-
     for (int y = 0; y < height; ++y) {
+        uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
             if (!STACK16) {
-                buff[4 * x + 0] = sv[x] * rcp;
-                buff[4 * x + 1] = su[x] * rcp;
-                buff[4 * x + 2] = sy[x] * rcp;
+                d16[4 * x + 0] = half_table[sv[x]];
+                d16[4 * x + 1] = half_table[su[x]];
+                d16[4 * x + 2] = half_table[sy[x]];
+                d16[4 * x + 3] = 0;
             } else {
+                constexpr float rcp = 1.0f / 65535;
                 buff[4 * x + 0] = (sv[x] << 8 | vlsb[x]) * rcp;
                 buff[4 * x + 1] = (su[x] << 8 | ulsb[x]) * rcp;
                 buff[4 * x + 2] = (sy[x] << 8 | ylsb[x]) * rcp;
+                buff[4 * x + 3] = 0.0f;
             }
-            buff[4 * x + 3] = 0.0f;
         }
-        convert_float_to_half<NO_SIMD>(d, buff, width * 4);
-        d += dpitch;
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
         if (STACK16) {
+            convert_float_to_half<NO_SIMD>(d, buff, width * 4);
             ylsb += spitch;
             ulsb += spitch;
             vlsb += spitch;
         }
+        d += dpitch;
+        sy += spitch;
+        su += spitch;
+        sv += spitch;
     }
 }
 
@@ -321,25 +322,25 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
+
+
 template <bool IS_RGB32>
 static void __stdcall
 rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, float* buff) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
-
     const uint8_t* s = srcp[0];
     uint8_t* d = dstp[0];
 
     for (int y = 0; y < height; ++y) {
+        uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
-            constexpr float rcp = 1.0f / 255;
-            buff[4 * x + 0] = s[step * x + 0] * rcp;
-            buff[4 * x + 1] = s[step * x + 1] * rcp;
-            buff[4 * x + 2] = s[step * x + 2] * rcp;
-            buff[4 * x + 3] = IS_RGB32 ? s[4 * x + 3] * rcp : 0.0f;
+            d16[4 * x + 0] = half_table[s[step * x + 0]];
+            d16[4 * x + 1] = half_table[s[step * x + 1]];
+            d16[4 * x + 2] = half_table[s[step * x + 2]];
+            d16[4 * x + 3] = IS_RGB32 ? half_table[s[4 * x + 3]] : 0;
         }
-        convert_float_to_half<NO_SIMD>(d, buff, width * 4);
         d += dpitch;
         s += spitch;
     }

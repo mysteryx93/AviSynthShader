@@ -23,9 +23,11 @@ static arch_t get_arch(int opt)
 
 void ConvertShader::constructToShader(int precision, bool stack16, bool planar, arch_t arch, IScriptEnvironment* env)
 {
-    if (vi.IsRGB24() && arch != NO_SIMD) {
-        child = env->Invoke("ConvertToRGB32", child).AsClip();
-        vi = child->GetVideoInfo();
+    if (vi.IsRGB24()) {
+        arch = NO_SIMD;
+    }
+    if (vi.IsRGB32() && precision == 3 && arch != USE_F16C) {
+        arch = NO_SIMD;
     }
 
     viSrc = vi;
