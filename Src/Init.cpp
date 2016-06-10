@@ -44,10 +44,11 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 		return input;
 	}
 
-	return new ConvertToShader(
+	return new ConvertShader(
 		input,					// source clip
 		precision,				// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
 		stack16,				// lsb / Stack16
+		std::string(""),
 		planar,					// Planar
 		args[4].AsInt(-1),		// 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);					// env is the link to essential informations, always provide it
@@ -94,11 +95,12 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		return input;
 	}
 
-	ConvertFromShader* Result = new ConvertFromShader(
+	ConvertShader* Result = new ConvertShader(
 		input,				// source clip
 		precision,			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		format,				// destination format
 		stack16,			// lsb / Stack16
+		format,				// destination format
+		false,
 		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2 and others for use F16C.
 		env);				// env is the link to essential informations, always provide it
 

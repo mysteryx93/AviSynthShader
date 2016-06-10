@@ -17,6 +17,7 @@
 
 #pragma warning(disable: 4556)
 
+
 enum arch_t {
     NO_SIMD,
     USE_SSE2,
@@ -28,37 +29,24 @@ using convert_shader_t = void(__stdcall*)(
     uint8_t** dstp, const uint8_t** srcp, const int dpitch, const int spitch, const int width, const int height, float* buff);
 
 
-// Converts YV12 data into RGB data with float precision, 12-byte per pixel.
-class ConvertToShader : public GenericVideoFilter {
+
+class ConvertShader : public GenericVideoFilter {
+    const char* name;
     VideoInfo viSrc;
+    int procWidth;
+    int procHeight;
     int floatBufferPitch;
     float* buff;
     bool isPlusMt;
 
+    void constructToShader(int precision, bool stack16, bool planar, arch_t arch, IScriptEnvironment* env);
+    void constructFromShader(int precision, bool stack16, std::string& format, arch_t arch);
     convert_shader_t mainProc;
 
 public:
-    ConvertToShader(PClip _child, int _precision, bool stack16, bool planar, int opt, IScriptEnvironment* env);
-    ~ConvertToShader();
+    ConvertShader(PClip _child, int _precision, bool stack16, std::string& format, bool planar, int opt, IScriptEnvironment* env);
+    ~ConvertShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-
-};
-
-
-// Converts float-precision RGB data (12-byte per pixel) into YV12 format.
-class ConvertFromShader : public GenericVideoFilter {
-    VideoInfo viSrc;
-    bool isPlusMt;
-    int floatBufferPitch;
-    float* buff;
-
-    convert_shader_t mainProc;
-
-public:
-    ConvertFromShader(PClip _child, int _precision, std::string format, bool stack16, int opt, IScriptEnvironment* env);
-    ~ConvertFromShader();
-    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-
 };
 
 
@@ -66,29 +54,6 @@ convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16,
 convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16, arch_t arch);
 convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack16, arch_t arch);
 convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack16, arch_t arch);
-
-
-
-extern bool has_sse2() noexcept;
-extern bool has_f16c() noexcept;
-
-
-static inline arch_t get_arch(int opt)
-{
-    if (opt == 0 || !has_sse2()) {
-        return NO_SIMD;
-    }
-#if !defined(__AVX__)
-    return USE_SSE2;
-#else
-    if (opt == 1 || !has_f16c()) {
-        return USE_SSE2;
-    }
-    return USE_F16C;
-#endif
-}
-
-
 
 
 static __forceinline __m128i loadl(const uint8_t* p)
