@@ -312,8 +312,8 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const __m128i zero = _mm_setzero_si128();
 
     for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width * 4; x += 8) {
-            stream(d + 2 * x, _mm_unpacklo_epi8(zero, loadl(s + x)));
+        for (int x = 0; x < width; x += 2) {
+            stream(d + 8 * x, _mm_unpacklo_epi8(zero, loadl(s + 4 * x)));
         }
         d += dpitch;
         s += spitch;
@@ -358,10 +358,16 @@ rgb32_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const __m128 rcp = _mm_set1_ps(1.0f / 255);
 
     for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width * 4; x += 4) {
-            __m128i i32 = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(s + x), zero), zero);
-            __m128 f32 = _mm_mul_ps(_mm_cvtepi32_ps(i32), rcp);
-            _mm_store_ps(buff + x, f32);
+        for (int x = 0; x < width; x += 2) {
+            __m128i sx = _mm_unpacklo_epi8(loadl(s + 4 * x), zero);
+
+            __m128i s0 = _mm_unpacklo_epi16(sx, zero);
+            __m128 f0 = _mm_mul_ps(_mm_cvtepi32_ps(s0), rcp);
+            _mm_store_ps(buff + 4 * x + 0, f0);
+
+            s0 = _mm_unpackhi_epi16(sx, zero);
+            f0 = _mm_mul_ps(_mm_cvtepi32_ps(s0), rcp);
+            _mm_store_ps(buff + 4 * x + 4, f0);
         }
         convert_float_to_half<ARCH>(d, buff, width * 4);
         d += dpitch;

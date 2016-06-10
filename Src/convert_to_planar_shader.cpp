@@ -229,16 +229,16 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 8) {
-            __m128i s0 = loadl(s + 4 * x + 0);  //b0,g0,r0,a0,b1,g1,r1,a1
-            __m128i s1 = loadl(s + 4 * x + 8);  //b2,g2,r2,a2,b3,g3,r3,a3
-            __m128i s2 = loadl(s + 4 * x + 16); //b4,g4,r4,a4,b5,g5,r5,a5
-            __m128i s3 = loadl(s + 4 * x + 24); //b6,g6,r6,a6,b7,g7,r7,a7
-            s0 = _mm_unpacklo_epi8(s0, s1);     //b0,b2,g0,g2,r0,r2,a0,a2,b1,b3,g1,g3,r1,r3,a1,a3
-            s1 = _mm_unpacklo_epi8(s2, s3);     //b4,b6,g4,g6,r4,r6,a4,a6,b5,b7,g5,g7,r5,r7,a5,a7
-            s2 = _mm_unpacklo_epi16(s0, s1);    //b0,b2,b4,b6,g0,g2,g4,g6,r0,r2,r4,r6,a0,a2,a4,a6
-            s3 = _mm_unpackhi_epi16(s0, s1);    //b1,b3,b5,b7,g1,g3,g5,g7,r1,r3,r5,r7,a1,a3,a5,a7
-            s0 = _mm_unpacklo_epi8(s2, s3);     //b0,b1,b2,b3,b4,b5,b6,b7,g0,g1,g2,g3,g4,g5,g6,g7
-            s1 = _mm_unpackhi_epi8(s2, s3);     //r0,r1,r2,r3,r4,r5,r6,r7,aaaaaaaa
+            __m128i s0 = loadl(s + 4 * x + 0);
+            __m128i s1 = loadl(s + 4 * x + 8);
+            __m128i s2 = loadl(s + 4 * x + 16);
+            __m128i s3 = loadl(s + 4 * x + 24);
+            s0 = _mm_unpacklo_epi8(s0, s1);
+            s1 = _mm_unpacklo_epi8(s2, s3);
+            s2 = _mm_unpacklo_epi16(s0, s1);
+            s3 = _mm_unpackhi_epi16(s0, s1);
+            s0 = _mm_unpacklo_epi8(s2, s3);
+            s1 = _mm_unpackhi_epi8(s2, s3);
             stream(db + 2 * x, _mm_unpacklo_epi8(zero, s0));
             stream(dg + 2 * x, _mm_unpackhi_epi8(zero, s0));
             stream(dr + 2 * x, _mm_unpacklo_epi8(zero, s1));
@@ -304,16 +304,16 @@ rgb32_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 8) {
-            __m128i s0 = loadl(s + 4 * x + 0);  //b0,g0,r0,a0,b1,g1,r1,a1
-            __m128i s1 = loadl(s + 4 * x + 8);  //b2,g2,r2,a2,b3,g3,r3,a3
-            __m128i s2 = loadl(s + 4 * x + 16); //b4,g4,r4,a4,b5,g5,r5,a5
-            __m128i s3 = loadl(s + 4 * x + 24); //b6,g6,r6,a6,b7,g7,r7,a7
-            s0 = _mm_unpacklo_epi8(s0, s1);     //b0,b2,g0,g2,r0,r2,a0,a2,b1,b3,g1,g3,r1,r3,a1,a3
-            s1 = _mm_unpacklo_epi8(s2, s3);     //b4,b6,g4,g6,r4,r6,a4,a6,b5,b7,g5,g7,r5,r7,a5,a7
-            s2 = _mm_unpacklo_epi16(s0, s1);    //b0,b2,b4,b6,g0,g2,g4,g6,r0,r2,r4,r6,a0,a2,a4,a6
-            s3 = _mm_unpackhi_epi16(s0, s1);    //b1,b3,b5,b7,g1,g3,g5,g7,r1,r3,r5,r7,a1,a3,a5,a7
-            s0 = _mm_unpacklo_epi8(s2, s3);     //b0,b1,b2,b3,b4,b5,b6,b7,g0,g1,g2,g3,g4,g5,g6,g7
-            s1 = _mm_unpackhi_epi8(s2, s3);     //r0,r1,r2,r3,r4,r5,r6,r7,aaaaaaaa
+            __m128i s0 = loadl(s + 4 * x + 0);
+            __m128i s1 = loadl(s + 4 * x + 8);
+            __m128i s2 = loadl(s + 4 * x + 16);
+            __m128i s3 = loadl(s + 4 * x + 24);
+            s0 = _mm_unpacklo_epi8(s0, s1);
+            s1 = _mm_unpacklo_epi8(s2, s3);
+            s2 = _mm_unpacklo_epi16(s0, s1);
+            s3 = _mm_unpackhi_epi16(s0, s1);
+            s0 = _mm_unpacklo_epi8(s2, s3);
+            s1 = _mm_unpackhi_epi8(s2, s3);
 
             __m128i r = _mm_unpacklo_epi8(s1, zero);
             s3 = _mm_unpacklo_epi16(r, zero);
