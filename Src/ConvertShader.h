@@ -31,7 +31,7 @@ using convert_shader_t = void(__stdcall*)(
 
 
 class ConvertShader : public GenericVideoFilter {
-    const char* name;
+    std::string name;
     VideoInfo viSrc;
     int procWidth;
     int procHeight;
