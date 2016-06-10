@@ -76,6 +76,8 @@ void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 		if (cmd.Path != NULL && cmd.Path[0] != '\0')
 			ConfigureShader(&cmd, env);
 		else {
+			if (IsLast)
+				env->ThrowError("ExecuteShader: A shader path must be specified for the last command");
 			if (cmd.ClipIndex[0] == cmd.OutputIndex)
 				env->ThrowError("ExecuteShader: If Path is not specified, Output must be different than Clip1 to copy clip data");
 			if (cmd.OutputWidth != 0 || cmd.OutputHeight != 0)
