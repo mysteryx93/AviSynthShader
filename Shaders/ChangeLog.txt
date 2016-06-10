@@ -1,3 +1,18 @@
+Version 1.5: June 10th 2016
+- Major performance improvements
+- Replaced D3DPRESENT_INTERVAL_DEFAULT with D3DPRESENT_INTERVAL_IMMEDIATE which removed the processing cap
+- Now supports processing single Y8 planes
+- Shader: Clip1-Clip9 can now have values between 0 and 100
+- Shader: Added Precision parameter to specify different output precisions per shader
+- Shader: Now detecting whether to compile file or not based on extension (.hlsl or .cso)
+- Shader: ShaderModel default value is now 'ps_3_0'
+- ExecuteShader: Added PlanarOut parameter to return output as YV24 planar data
+- ExecuteShader: Can now transfer YV24 source clips as planar data
+- ConvertToShader/ConvertFromShader: Added Planar parameter to convert to YV24
+- ConvertToShader/ConvertFromShader: Added assembly optimizations
+- ConvertToShader/ConvertFromShader: Added opt parameter to specify the optimization path to execute
+- Added PlanarIn and PlanarOut parameters to all shader scripts, mostly useful for performance tweaks
+
 Version 1.4.6: June 6th 2016
 - Minor performance improvements
 - Removed ColorMatrixShader

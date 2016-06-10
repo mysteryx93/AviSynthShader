@@ -27,5 +27,5 @@ float2 p1 :  register(c1);
 
 // -- Main code --
 float4 main(float2 tex : TEXCOORD0) : COLOR {
-    return float4(tex2D(s0, tex).b, tex2D(s0, tex).b, tex2D(s0, tex).b, 1);
+	return float4(tex2D(s0, tex).zzz, 1);
 }

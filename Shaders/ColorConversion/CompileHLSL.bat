@@ -32,7 +32,9 @@
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YVToLinear.cso" "YVToLinear.hlsl"
 
-"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YV601ToLinear.cso" "YVToLinear.hlsl" /DKb=0.114 /DKr=0.299
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YVToYuv.cso" "YVToYuv.hlsl"
+
+"C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "YVToLinear.cso" "YVToLinear.hlsl"
 
 "C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin\x86\fxc.exe" /T ps_3_0 /Fo "OutputY.cso" "OutputY.hlsl"
 

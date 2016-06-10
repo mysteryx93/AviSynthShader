@@ -31,6 +31,5 @@ float2 p1 :  register(c1);
 
 // -- Main code --
 float4 main(float2 tex : TEXCOORD0) : COLOR {
-    float4 c0 = float4(tex2D(s0, tex).r, tex2D(s1, tex).r, tex2D(s2, tex).r, 1);
-    return c0;
+    return float4(tex2D(s0, tex).x, tex2D(s1, tex).x, tex2D(s2, tex).x, 1);
 }
