@@ -209,7 +209,7 @@ void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
 	PClip clip = m_clips[index];
 	if (clip != NULL) {
 		// Planar YV24 allowed with Precision=1
-		bool IsPlanar = m_ClipPrecision[index] == 1 && clip->GetVideoInfo().IsYV24();
+		bool IsPlanar = clip->GetVideoInfo().IsYV24();
 		if (!clip->GetVideoInfo().IsRGB32() && !IsPlanar)
 			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
 		else if (m_ClipPrecision[index] == 0 && !clip->GetVideoInfo().IsY8())
