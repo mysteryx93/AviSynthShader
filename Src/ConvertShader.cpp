@@ -26,8 +26,16 @@ void ConvertShader::constructToShader(int precision, bool stack16, bool planar, 
     if (vi.IsRGB24()) {
         arch = NO_SIMD;
     }
-    if (vi.IsRGB32() && precision == 3 && arch != USE_F16C) {
-        arch = NO_SIMD;
+    if (precision == 3) {
+        if (arch != USE_F16C) {
+            arch = NO_SIMD;
+            useLut = true;
+            int maximum = stack16 ? 65536 : 256;
+            lut.resize(maximum);
+            for (int i = 0; i < maximum; ++i) {
+                lut[i] = DirectX::PackedVector::XMConvertFloatToHalf(i * 1.0f / (maximum - 1));
+            }
+        }
     }
 
     viSrc = vi;
@@ -49,6 +57,7 @@ void ConvertShader::constructToShader(int precision, bool stack16, bool planar, 
 
     mainProc = planar ? get_to_shader_planar(precision, viSrc.pixel_type, stack16, arch)
         : get_to_shader_packed(precision, viSrc.pixel_type, stack16, arch);
+
 }
 
 
@@ -72,6 +81,19 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
         vi.width /= 2;
     }
 
+    if (precision == 3) {
+        if (arch != USE_F16C) {
+            arch = NO_SIMD;
+            useLut = true;
+            int maximum = stack16 ? 65535 : 255;
+            lut.resize(65536);
+            for (int i = 0; i < 65536; ++i) {
+                float t = DirectX::PackedVector::XMConvertHalfToFloat(static_cast<uint16_t>(i));
+                lut[i] = static_cast<uint16_t>(t * maximum + 0.5f);
+            }
+        }
+    }
+
     procWidth = vi.width;
     procHeight = viSrc.height;
 
@@ -83,7 +105,7 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
 
 
 ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::string& format, bool planar, int opt, IScriptEnvironment* env) :
-    GenericVideoFilter(_child), isPlusMt(false), buff(nullptr)
+    GenericVideoFilter(_child), isPlusMt(false), buff(nullptr), useLut(false)
 {
     name = format == "" ? "ConvertToShader" : "ConvertFromShader";
 
@@ -102,7 +124,7 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
         env->ThrowError("%s: not impplemented yet.", name);
     }
 
-    if (precision == 3) {
+    if (precision == 3 && !useLut) {
         isPlusMt = env->FunctionExists("SetFilterMTMode");
         if (!isPlusMt) { // if not avs+MT, allocate buffer at constructor.
             buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 32));
@@ -136,13 +158,12 @@ PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
         vi.IsRGB() ? nullptr : dst->GetWritePtr(PLANAR_V),
     };
 
-    float* b = buff;
+    void* b = useLut ? reinterpret_cast<void*>(lut.data()) : buff;
     if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
-        void* t = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
-        if (!t) {
+        b = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
+        if (!b) {
             env->ThrowError("%s Failed to allocate temporal buffer.", name);
         }
-        b = reinterpret_cast<float*>(t);
     }
 
     mainProc(dstp, srcp, dst->GetPitch(), src->GetPitch(), procWidth, procHeight, b);

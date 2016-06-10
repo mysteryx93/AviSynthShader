@@ -1,7 +1,6 @@
 #include <map>
 #include <tuple>
 
-#define USE_UINT8_TO_HALF_TABLE
 #include "ConvertShader.h"
 
 
@@ -9,7 +8,7 @@
 template <bool STACK16>
 static void __stdcall
 yuv_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     for (int p = 0; p < 3; ++p) {
         const uint8_t* s = srcp[p];
@@ -34,7 +33,7 @@ yuv_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool STACK16>
 static void __stdcall
 yuv_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const __m128i zero = _mm_setzero_si128();
 
@@ -65,8 +64,10 @@ yuv_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool STACK16>
 static void __stdcall
 yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+    const int spitch, const int width, const int height, void* _lut) noexcept
 {
+    const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
+
     for (int p = 0; p < 3; ++p) {
         const uint8_t* s = srcp[p];
         const uint8_t* lsb = s + height * spitch;
@@ -76,14 +77,12 @@ yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
             for (int x = 0; x < width; ++x) {
                 if (!STACK16) {
-                    d16[x] = half_table[s[x]];
+                    d16[x] = lut[s[x]];
                 } else {
-                    constexpr float rcp = 1.0f / 65535;
-                    buff[x] = rcp * ((s[x] << 8) | lsb[x]);
+                    d16[x] = lut[(s[x] << 8) | lsb[x]];
                 }
             }
             if (STACK16) {
-                convert_float_to_half<NO_SIMD>(d, buff, width);
                 lsb += spitch;
             }
             s += spitch;
@@ -93,13 +92,16 @@ yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-template <bool STACK16, arch_t ARCH>
+#if defined(__AVX__)
+template <bool STACK16>
 static void __stdcall
-yuv_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept
 {
     const __m128i zero = _mm_setzero_si128();
     const __m128 rcp = _mm_set1_ps(1.0f / (STACK16 ? 65535 : 255));
+
+    float* buff = reinterpret_cast<float*>(_buff);
 
     for (int p = 0; p < 3; ++p) {
         const uint8_t* s = srcp[p];
@@ -123,7 +125,7 @@ yuv_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 _mm_store_ps(buff + x + 8, f0);
                 _mm_store_ps(buff + x + 12, f1);
             }
-            convert_float_to_half<ARCH>(d, buff, width);
+            convert_float_to_half(d, buff, width);
             s += spitch;
             d += dpitch;
             if (STACK16) {
@@ -132,12 +134,13 @@ yuv_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         }
     }
 }
+#endif
 
 
 template <bool IS_RGB32>
 static void __stdcall
 rgb_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
@@ -162,7 +165,7 @@ rgb_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
 static void __stdcall
 rgb32_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* dr = dstp[0];
@@ -196,7 +199,7 @@ rgb32_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool IS_RGB32>
 static void __stdcall
 rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
@@ -224,7 +227,7 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
 static void __stdcall
 rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float*) noexcept
+    const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* dr = dstp[0];
@@ -260,7 +263,7 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 template <bool IS_RGB32>
 static void __stdcall
 rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+    const int spitch, const int width, const int height, void* _lut) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
@@ -269,14 +272,16 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
 
+    const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
+
     for (int y = 0; y < height; ++y) {
         uint16_t* dr16 = reinterpret_cast<uint16_t*>(dr);
         uint16_t* dg16 = reinterpret_cast<uint16_t*>(dg);
         uint16_t* db16 = reinterpret_cast<uint16_t*>(db);
         for (int x = 0; x < width; ++x) {
-            db16[x] = half_table[s[step * x + 0]];
-            dg16[x] = half_table[s[step * x + 1]];
-            dr16[x] = half_table[s[step * x + 2]];
+            db16[x] = lut[s[step * x + 0]];
+            dg16[x] = lut[s[step * x + 1]];
+            dr16[x] = lut[s[step * x + 2]];
         }
         s -= spitch;
         dr += dpitch;
@@ -286,17 +291,17 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-template <arch_t ARCH>
+#if defined(__AVX__)
 static void __stdcall
-rgb32_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, float* buff) noexcept
+rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* buff) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
 
-    float* bb = buff;
+    float* bb = reinterpret_cast<float*>(buff);
     float* bg = bb + ((width + 7) & ~7); // must be aligned 32 bytes
     float* br = bg + ((width + 7) & ~7); // must be aligned 32 bytes
 
@@ -335,15 +340,16 @@ rgb32_to_shader_3_simd(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             s3 = _mm_unpackhi_epi16(g, zero);
             _mm_store_ps(bg + x + 4, _mm_mul_ps(rcp, _mm_cvtepi32_ps(s3)));
         }
-        convert_float_to_half<ARCH>(dr, br, width);
-        convert_float_to_half<ARCH>(dg, bg, width);
-        convert_float_to_half<ARCH>(db, bb, width);
+        convert_float_to_half(dr, br, width);
+        convert_float_to_half(dg, bg, width);
+        convert_float_to_half(db, bb, width);
         s -= spitch;
         dr += dpitch;
         dg += dpitch;
         db += dpitch;
     }
 }
+#endif
 
 
 convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16, arch_t arch)
@@ -370,18 +376,14 @@ convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16,
 
     func[make_tuple(3, yv24, false, NO_SIMD)] = yuv_to_shader_3_c<false>;
     func[make_tuple(3, yv24, true, NO_SIMD)] = yuv_to_shader_3_c<true>;
-    //func[make_tuple(3, yv24, false, USE_SSE2)] = yuv_to_shader_3_simd<false, USE_SSE2>;
-    func[make_tuple(3, yv24, false, USE_SSE2)] = yuv_to_shader_3_c<false>;
-    func[make_tuple(3, yv24, true, USE_SSE2)] = yuv_to_shader_3_simd<true, USE_SSE2>;
 
     func[make_tuple(3, rgb24, false, NO_SIMD)] = rgb_to_shader_3_c<false>;
     func[make_tuple(3, rgb32, false, NO_SIMD)] = rgb_to_shader_3_c<true>;
-    //func[make_tuple(3, rgb32, false, USE_SSE2)] = rgb32_to_shader_3_simd<USE_SSE2>;
 
 #if defined(__AVX__)
-    func[make_tuple(3, yv24, false, USE_F16C)] = yuv_to_shader_3_simd<false, USE_F16C>;
-    func[make_tuple(3, yv24, true, USE_F16C)] = yuv_to_shader_3_simd<true, USE_F16C>;
-    func[make_tuple(3, rgb32, false, USE_F16C)] = rgb32_to_shader_3_simd<USE_F16C>;
+    func[make_tuple(3, yv24, false, USE_F16C)] = yuv_to_shader_3_f16c<false>;
+    func[make_tuple(3, yv24, true, USE_F16C)] = yuv_to_shader_3_f16c<true>;
+    func[make_tuple(3, rgb32, false, USE_F16C)] = rgb32_to_shader_3_f16c;
 #endif
 
     return func[make_tuple(precision, pix_type, stack16, arch)];
