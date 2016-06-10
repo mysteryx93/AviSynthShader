@@ -121,7 +121,7 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
     }
 
     if (!mainProc) {
-        env->ThrowError("%s: not impplemented yet.", name);
+        env->ThrowError("%s: not impplemented yet.", name.c_str());
     }
 
     if (precision == 3 && !useLut) {
@@ -129,7 +129,7 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
         if (!isPlusMt) { // if not avs+MT, allocate buffer at constructor.
             buff = static_cast<float*>(_aligned_malloc(floatBufferPitch, 32));
             if (!buff) {
-                env->ThrowError("%s: Failed to allocate temporal buffer.", name);
+                env->ThrowError("%s: Failed to allocate temporal buffer.", name.c_str());
             }
         }
     }
@@ -162,7 +162,7 @@ PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
     if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
         b = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
         if (!b) {
-            env->ThrowError("%s Failed to allocate temporal buffer.", name);
+            env->ThrowError("%s Failed to allocate temporal buffer.", name.c_str());
         }
     }
 

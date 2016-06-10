@@ -111,19 +111,27 @@ yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; x += 16) {
                 __m128i msbx = load(s + x);
-                __m128i lsbx = STACK16 ? load(lsb + x) : zero;
+                __m128i d0, lsbx;
+                if (!STACK16) {
+                    d0 = _mm_unpacklo_epi8(msbx, zero);
+                } else {
+                    lsbx = load(lsb + x);
+                    d0 = _mm_unpacklo_epi8(lsbx, msbx);
+                }
+                __m128 f0 = _mm_cvtepi32_ps(_mm_unpacklo_epi16(d0, zero));
+                _mm_store_ps(buff + x + 0, _mm_mul_ps(rcp, f0));
+                f0 = _mm_cvtepi32_ps(_mm_unpackhi_epi16(d0, zero));
+                _mm_store_ps(buff + x + 4, _mm_mul_ps(rcp, f0));
 
-                __m128i d0 = _mm_unpacklo_epi8(msbx, lsbx);
-                __m128 f0 = _mm_mul_ps(rcp, _mm_cvtepi32_ps(_mm_unpacklo_epi16(d0, zero)));
-                __m128 f1 = _mm_mul_ps(rcp, _mm_cvtepi32_ps(_mm_unpackhi_epi16(d0, zero)));
-                _mm_store_ps(buff + x + 0, f0);
-                _mm_store_ps(buff + x + 4, f1);
-
-                d0 = _mm_unpackhi_epi8(msbx, lsbx);
-                f0 = _mm_mul_ps(rcp, _mm_cvtepi32_ps(_mm_unpacklo_epi16(d0, zero)));
-                f1 = _mm_mul_ps(rcp, _mm_cvtepi32_ps(_mm_unpackhi_epi16(d0, zero)));
-                _mm_store_ps(buff + x + 8, f0);
-                _mm_store_ps(buff + x + 12, f1);
+                if (!STACK16) {
+                    d0 = _mm_unpackhi_epi8(msbx, zero);
+                } else {
+                    d0 = _mm_unpackhi_epi8(lsbx, msbx);
+                }
+                f0 = _mm_cvtepi32_ps(_mm_unpacklo_epi16(d0, zero));
+                _mm_store_ps(buff + x + 8, _mm_mul_ps(rcp, f0));
+                f0 = _mm_cvtepi32_ps(_mm_unpackhi_epi16(d0, zero));
+                _mm_store_ps(buff + x + 12, _mm_mul_ps(rcp, f0));
             }
             convert_float_to_half(d, buff, width);
             s += spitch;

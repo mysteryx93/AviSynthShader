@@ -245,9 +245,9 @@ yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(su + x), zero), zero);
                 v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sv + x), zero), zero);
             } else {
-                y = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sy + x), loadl(ylsb + x)), zero);
-                u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(su + x), loadl(ulsb + x)), zero);
-                v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(sv + x), loadl(vlsb + x)), zero);
+                y = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(ylsb + x), loadl(sy + x)), zero);
+                u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x)), zero);
+                v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x)), zero);
             }
             __m128i vu = _mm_unpacklo_epi32(v, u);
             __m128i ya = _mm_unpacklo_epi32(y, zero);
