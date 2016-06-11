@@ -221,8 +221,8 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             d[step * x + 0] = std::min((sb[2 * x + 0] >> 7) + sb[2 * x + 1], 255);
-            d[step * x + 1] = std::min((sg[2 * x + 0] >> 7) + sb[2 * x + 1], 255);
-            d[step * x + 2] = std::min((sr[2 * x + 0] >> 7) + sb[2 * x + 1], 255);
+            d[step * x + 1] = std::min((sg[2 * x + 0] >> 7) + sg[2 * x + 1], 255);
+            d[step * x + 2] = std::min((sr[2 * x + 0] >> 7) + sr[2 * x + 1], 255);
             if (IS_RGB32) {
                 d[4 * x + 3] = 0;
             }

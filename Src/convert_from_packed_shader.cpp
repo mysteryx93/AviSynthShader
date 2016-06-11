@@ -11,7 +11,7 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     for (int y = 0; y < height; ++y) {
@@ -24,7 +24,7 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             }
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -33,7 +33,7 @@ static void __stdcall
 shader_to_rgb32_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     const __m128i mask = _mm_set1_epi16(0x0080);
@@ -48,7 +48,7 @@ shader_to_rgb32_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             stream(d + x, d0);
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -61,7 +61,7 @@ shader_to_rgb_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
@@ -77,7 +77,7 @@ shader_to_rgb_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             }
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -87,7 +87,7 @@ static void __stdcall
 shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* _buff) noexcept
 {
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
     float* buff = reinterpret_cast<float*>(_buff);
 
@@ -104,7 +104,7 @@ shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             stream(d + x, d0);
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 #endif
@@ -266,13 +266,11 @@ shader_to_yuv_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     uint8_t* dv = dstp[2];
 
     uint8_t *ly, *lu, *lv;
-    const __m128i mask = _mm_set1_epi16(0x80);
-    __m128i mask16;
+    const __m128i mask = _mm_set1_epi16(0x00FF);
     if (STACK16) {
         ly = dy + height * dpitch;
         lu = du + height * dpitch;
         lv = dv + height * dpitch;
-        mask16 = _mm_set1_epi16(0x00FF);
     }
 
     for (int y = 0; y < height; ++y) {
@@ -293,11 +291,11 @@ shader_to_yuv_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 storel(dy + x, _mm_packus_epi16(s2, s2));
             } else {
                 storel(dv + x, _mm_packus_epi16(_mm_srli_epi16(s0, 8), s0));
-                storel(lv + x, _mm_packus_epi16(_mm_and_si128(s0, mask16), s0));
+                storel(lv + x, _mm_packus_epi16(_mm_and_si128(s0, mask), s0));
                 storel(du + x, _mm_packus_epi16(_mm_srli_epi16(s1, 8), s1));
-                storel(lu + x, _mm_packus_epi16(_mm_and_si128(s1, mask16), s1));
+                storel(lu + x, _mm_packus_epi16(_mm_and_si128(s1, mask), s1));
                 storel(dy + x, _mm_packus_epi16(_mm_srli_epi16(s2, 8), s2));
-                storel(ly + x, _mm_packus_epi16(_mm_and_si128(s2, mask16), s2));
+                storel(ly + x, _mm_packus_epi16(_mm_and_si128(s2, mask), s2));
             }
         }
         s += spitch;
