@@ -285,7 +285,7 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     for (int y = 0; y < height; ++y) {
@@ -300,7 +300,7 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             d[8 * x + 7] = IS_RGB32 ? s[4 * x + 3] : 0;
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -309,7 +309,7 @@ static void __stdcall
 rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     const __m128i zero = _mm_setzero_si128();
@@ -319,7 +319,7 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             stream(d + 8 * x, _mm_unpacklo_epi8(zero, loadl(s + 4 * x)));
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -332,7 +332,7 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* _lut) noexcept
 {
     constexpr size_t step = IS_RGB32 ? 4 : 3;
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
     const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
 
@@ -345,7 +345,7 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             d16[4 * x + 3] = IS_RGB32 ? lut[s[4 * x + 3]] : 0;
         }
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 
@@ -355,7 +355,7 @@ static void __stdcall
 rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* _buff) noexcept
 {
-    const uint8_t* s = srcp[0];
+    const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
     float* buff = reinterpret_cast<float*>(_buff);
 
@@ -376,7 +376,7 @@ rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         }
         convert_float_to_half(d, buff, width * 4);
         d += dpitch;
-        s += spitch;
+        s -= spitch;
     }
 }
 #endif

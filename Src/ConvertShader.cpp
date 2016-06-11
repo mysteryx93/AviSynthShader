@@ -1,3 +1,4 @@
+#include <DirectXPackedVector.h>
 #include "ConvertShader.h"
 
 
@@ -121,7 +122,7 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
     }
 
     if (!mainProc) {
-        env->ThrowError("%s: not impplemented yet.", name.c_str());
+        env->ThrowError("%s: not implemented yet.", name.c_str());
     }
 
     if (precision == 3 && !useLut) {

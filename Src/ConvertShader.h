@@ -13,7 +13,6 @@
 #define NOMINMAX
 #include <windows.h>
 #endif
-#include <DirectXPackedVector.h>
 #include "avisynth.h"
 
 #pragma warning(disable: 4556)
