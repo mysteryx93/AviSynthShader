@@ -6,25 +6,10 @@
 // We can only read/write to a texture that is on the CPU side, and DirectX9 can only 
 // do its work with textures on the GPU side. We must transfer data around.
 //
-// In this sample, we have 3 input textures out of 9 slots, and we run 3 shaders.
-// GPU = D3DPOOL_DEFAULT, CPU = D3DPOOL_SYSTEMMEM
-//
-// m_InputTextures
-// Index  0 1 2 3 4 5 6 7 8 9 10 11
-// CPU                            X
-// GPU      X X             X  X  X
-// YUV    X                           
-//
 // Planar allows transfering the data in and out as 3 planes which reduces transfers by 25% (no Alpha plane)
 // PlanarIn: First clip has 3x L8 textures that will be passed to the first shader as s0, s1 and s2.
 // PlanarOut: Output as YUV to GPU memory, then for each of Y, U and V, run shader to fill L8 plane and transfer L8 plane 
 //            to CPU before returning all 3 planes to AviSynth. All 3 planes will be transfered via the same surface.
-//
-// m_RenderTargets contains one R texture per output resolution. The Render Target then gets 
-// copied into the next available index. Command1 outputs to RenderTarget[0] and then
-// to index 9, Command2 outputs to index 10, Command3 outputs to index 11, etc.
-// Only the final output needs to be copied from the GPU back onto the CPU, 
-// requiring a SYSTEMMEM texture.
 
 #include "D3D9RenderImpl.h"
 
@@ -32,20 +17,12 @@
 
 
 D3D9RenderImpl::D3D9RenderImpl() {
-	// ZeroMemory(m_InputTextures, sizeof(InputTexture) * maxTextures);
-	// ZeroMemory(m_RenderTargets, sizeof(RenderTarget) * maxTextures);
-	// ZeroMemory(m_Shaders, sizeof(ShaderItem) * 50);
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
 	if (m_Pool != NULL)
 		delete m_Pool;
 	ClearRenderTarget();
-	//for (int i = 0; i < maxTextures; i++) {
-	//	SafeRelease(m_InputTextures[0].Surface);
-	//	SafeRelease(m_InputTextures[0].Texture);
-	//	SafeRelease(m_InputTextures[0].Memory);
-	//}
 }
 
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut) {
