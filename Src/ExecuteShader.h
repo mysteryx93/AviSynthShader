@@ -6,6 +6,7 @@
 #include "avisynth.h"
 #include "D3D9RenderImpl.h"
 #include <mutex>
+#include <vector>
 
 class ExecuteShader : public GenericVideoFilter {
 public:
@@ -13,12 +14,13 @@ public:
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
+	void GetFrameInternal(std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
 	int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision);
-	void InitializeDevice(IScriptEnvironment* env);
+	void AllocateAndCopyInputTextures(std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env);
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
-	void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3);
+	bool SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3);
 	int m_Precision;
 	int m_PrecisionMultiplier;
 	int m_OutputPrecision;

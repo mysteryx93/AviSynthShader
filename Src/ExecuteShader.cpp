@@ -32,104 +32,63 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	srcHeight = vi.height;
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
-	InitializeDevice(env);
-}
-
-ExecuteShader::~ExecuteShader() {
-	delete render;
-	DestroyWindow(dummyHWND);
-}
-
-void ExecuteShader::InitializeDevice(IScriptEnvironment* env) {
 	render = new D3D9RenderImpl();
 	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
-	CreateInputClip(0, env);
-	CreateInputClip(1, env);
-	CreateInputClip(2, env);
-	CreateInputClip(3, env);
-	CreateInputClip(4, env);
-	CreateInputClip(5, env);
-	CreateInputClip(6, env);
-	CreateInputClip(7, env);
-	CreateInputClip(8, env);
-	// Clips 9 to 20 cannot be used as input but can be used for internal processing.
-	for (int i = 9; i < 20; i++) {
-		render->m_InputTextures[i].ClipIndex = i + 1;
-	}
+	// vi.width and vi.height must be set during constructor
+	std::vector<InputTexture*> TextureList;
+	AllocateAndCopyInputTextures(&TextureList, 0, true, env);
+	GetFrameInternal(&TextureList, 0, true, env);
+	// Release all 
+	render->ClearTextures(&TextureList);
+}
 
-	PVideoFrame src = child->GetFrame(0, env);
-	const byte* srcReader = src->GetReadPtr();
-
-	// Each row of input clip contains commands to execute. Create one texture for each command.
-	CommandStruct cmd;
-	InputTexture* texture;
-	int OutputWidth, OutputHeight;
-	bool IsPlanar, IsLast;
-	render->ResetTextureClipIndex();
-	for (int i = 0; i < srcHeight; i++) {
-		memcpy(&cmd, srcReader, sizeof(CommandStruct));
-		srcReader += src->GetPitch();
-		IsLast = i == srcHeight - 1; // Only create memory on the CPU side for the last command, as it is the only one that needs to be read back.
-
-		if (cmd.Path != NULL && cmd.Path[0] != '\0')
-			ConfigureShader(&cmd, env);
-		else {
-			if (IsLast)
-				env->ThrowError("ExecuteShader: A shader path must be specified for the last command");
-			if (cmd.ClipIndex[0] == cmd.OutputIndex)
-				env->ThrowError("ExecuteShader: If Path is not specified, Output must be different than Clip1 to copy clip data");
-			if (cmd.OutputWidth != 0 || cmd.OutputHeight != 0)
-				env->ThrowError("ExecuteShader: If Path is not specified, OutputWidth and OutputHeight cannot be set");
-		}
-
-		texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
-		//if (texture == NULL)
-		//	env->ThrowError("ExecuteShader: Output index not found");
-		// If clip at output position isn't defined, use dimensions of first clip by default.
-		if (texture == NULL || texture->Texture == NULL)
-			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
-		if (texture == NULL)
-			env->ThrowError("ExecuteShader: Clip index not found");
-		OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
-		OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
-		IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
-
-		if (FAILED(render->CreateInputTexture(D3D9RenderImpl::maxClips + i, cmd.OutputIndex, OutputWidth, OutputHeight, false, IsPlanar, IsLast, cmd.Precision)))
-			env->ThrowError("ExecuteShader: Failed to create input texture.");
-
-		if (IsLast) {
-			if (cmd.OutputIndex != 1)
-				env->ThrowError("ExecuteShader: Last command must have Output = 1");
-
-			vi.width = OutputWidth * m_OutputMultiplier;
-			vi.height = OutputHeight;
-		}
-	}
-	render->ResetTextureClipIndex();
+ExecuteShader::~ExecuteShader() {
+	DestroyWindow(dummyHWND);
+	delete render;
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
-	PVideoFrame src = child->GetFrame(n, env);
-	const byte* srcReader = src->GetReadPtr();
+	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
+
+	std::vector<InputTexture*> TextureList;
+	AllocateAndCopyInputTextures(&TextureList, n, false, env);
+
+	GetFrameInternal(&TextureList, n, false, env);
+
+	// After last command, copy result back to AviSynth.
+	PVideoFrame dst = env->NewVideoFrame(vi);
+	if (m_PlanarOut) {
+		if FAILED(render->CopyBufferToAviSynthPlanar(srcHeight - 1, TextureList.back(), dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
+			env->ThrowError("CopyBufferToAviSynthPlanar failed");
+	}
+	else {
+		if FAILED(render->CopyBufferToAviSynth(srcHeight - 1, TextureList.back(), dst->GetWritePtr(), dst->GetPitch(), env))
+			env->ThrowError("CopyBufferToAviSynth failed");
+	}
+
+	// Release all 
+	render->ClearTextures(&TextureList);
+
+	return dst;
+}
+
+// This part of GetFrame is protected with unique_lock to prevent parallel executions
+void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
+	// Mutex will be unlocked when gets out of scope (exit from GetFrameInternal)
+	//std::unique_lock<std::mutex> my_lock(executeshader_mutex);
 
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;
+	bool IsPlanar;
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
-  
-	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
-	// P.F. prevent parallel use of the class-global "render"
-	// Mutex will be unlocked when gets out of scope (exit from GetFrame() or {} block )
+	InputTexture* NewTexture;
 
-	render->ResetTextureClipIndex();
-
-	// Copy input clips from AviSynth
-	for (int j = 0; j < 9; j++) {
-		CopyInputClip(j, n, env);
-	}
+	PVideoFrame src = child->GetFrame(n, env);
+	const byte* srcReader = src->GetReadPtr();
 
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
@@ -137,16 +96,27 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 		IsLast = i == srcHeight - 1;
 
 		if (cmd.Path != NULL && cmd.Path[0] != '\0') {
+			ConfigureShader(&cmd, env);
+
 			// If clip at output position isn't defined, use dimensions of first clip by default.
-			texture = render->FindTextureByClipIndex(cmd.OutputIndex, env);
+			texture = render->FindTexture(textureList, cmd.OutputIndex);
 			if (texture == NULL || texture->Texture == NULL)
-				texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
+				texture = render->FindTexture(textureList, cmd.ClipIndex[0]);
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
+			IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
+
+			if (IsLast) {
+				if (cmd.OutputIndex != 1)
+					env->ThrowError("ExecuteShader: Last command must have Output = 1");
+
+				vi.width = OutputWidth * m_OutputMultiplier;
+				vi.height = OutputHeight;
+			}
 
 			// Set Param0 and Param1 default values.
-			SetDefaultParamValue(&cmd.Param[0], (float)OutputWidth, (float)OutputHeight, 0, 0);
-			SetDefaultParamValue(&cmd.Param[1], 1.0f / OutputWidth, 1.0f / OutputHeight, 0, 0);
+			bool SetDefault1 = SetDefaultParamValue(&cmd.Param[0], (float)OutputWidth, (float)OutputHeight, 0, 0);
+			bool SetDefault2 = SetDefaultParamValue(&cmd.Param[1], 1.0f / OutputWidth, 1.0f / OutputHeight, 0, 0);
 
 			// Configure pixel shader
 			for (int i = 0; i < 9; i++) {
@@ -156,27 +126,29 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 				}
 			}
 
-			if FAILED(render->ProcessFrame(&cmd, OutputWidth, OutputHeight, IsLast, 0, env))
+			if FAILED(render->ProcessFrame(textureList, &cmd, OutputWidth, OutputHeight, IsLast, 0, env))
 				env->ThrowError("ExecuteShader: ProcessFrame failed.");
+
+			// Delete memory allocated for default values
+			if (SetDefault1)
+				delete cmd.Param[0].Values;
+			if (SetDefault2)
+				delete cmd.Param[1].Values;
 		}
 		else {
+			if (IsLast)
+				env->ThrowError("ExecuteShader: A shader path must be specified for the last command");
+			if (cmd.ClipIndex[0] == cmd.OutputIndex)
+				env->ThrowError("ExecuteShader: If Path is not specified, Output must be different than Clip1 to copy clip data");
+			if (cmd.OutputWidth != 0 || cmd.OutputHeight != 0)
+				env->ThrowError("ExecuteShader: If Path is not specified, OutputWidth and OutputHeight cannot be set");
+
 			// Only copy Clip1 to Output without processing
-			texture = render->FindTextureByClipIndex(cmd.ClipIndex[0], env);
-			if FAILED(render->CopyBuffer(texture, cmd.CommandIndex, cmd.OutputIndex, env))
+			texture = render->FindTexture(textureList, cmd.ClipIndex[0]);
+			if FAILED(render->CopyBuffer(textureList, texture, cmd.OutputIndex, env))
 				env->ThrowError("ExecuteShader: CopyBuffer failed.");
 		}
 	}
-
-	// After last command, copy result back to AviSynth.
-	PVideoFrame dst = env->NewVideoFrame(vi);
-	if (m_PlanarOut) {
-		if FAILED(render->CopyBufferToAviSynthPlanar(srcHeight - 1, dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
-			env->ThrowError("CopyBufferToAviSynthPlanar failed");
-	} else {
-		if FAILED(render->CopyBufferToAviSynth(srcHeight - 1, dst->GetWritePtr(), dst->GetPitch(), env))
-			env->ThrowError("CopyBufferToAviSynth failed");
-	}
-	return dst;
 }
 
 // Returns how to multiply the AviSynth frame format's width based on the precision.
@@ -194,7 +166,8 @@ int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision) {
 }
 
 // Sets the default parameter value if it is not already defined.
-void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3) {
+// Returns whether a value was assigned.
+bool ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float value1, float value2, float value3) {
 	if (p->Type == ParamType::None) {
 		p->Type = ParamType::Float;
 		p->Count = 1;
@@ -203,47 +176,50 @@ void ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float val
 		p->Values[1] = value1;
 		p->Values[2] = value2;
 		p->Values[3] = value3;
+		return true;
 	}
+	return false;
 }
 
-void ExecuteShader::CreateInputClip(int index, IScriptEnvironment* env) {
-	// clip1-clip9 take texture spots 0-8. Then, each shader execution will output in subsequent texture spots.
-	PClip clip = m_clips[index];
-	if (clip != NULL) {
-		// Planar YV24 allowed with Precision=1
-		bool IsPlanar = clip->GetVideoInfo().IsYV24();
-		if (!clip->GetVideoInfo().IsRGB32() && !IsPlanar)
-			env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
-		else if (m_ClipPrecision[index] == 0 && !clip->GetVideoInfo().IsY8())
-			env->ThrowError("ExecuteShader: Clip with Precision=0 must be in Y8 format");
+void ExecuteShader::AllocateAndCopyInputTextures(std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env) {
+	// Allocated textures must be released manually after use
+	InputTexture* NewTexture;
+	for (int i = 0; i < D3D9RenderImpl::maxClips; i++) {
+		PClip clip = m_clips[i];
+		if (clip != NULL) {
+			// Allocate textures
+			bool IsPlanar = clip->GetVideoInfo().IsYV24();
+			if (!clip->GetVideoInfo().IsRGB32() && !IsPlanar)
+				env->ThrowError("ExecuteShader: You must first call ConvertToShader on source");
+			else if (m_ClipPrecision[i] == 0 && !clip->GetVideoInfo().IsY8())
+				env->ThrowError("ExecuteShader: Clip with Precision=0 must be in Y8 format");
 
-		if (FAILED(render->CreateInputTexture(index, index + 1, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, true, IsPlanar, false, -1)))
-			env->ThrowError("ExecuteShader: Failed to create input textures.");
-	}
-	else
-		render->m_InputTextures[index].ClipIndex = index + 1;
-}
+			NewTexture = new InputTexture();
+			if (FAILED(render->CreateTexture(i + 1, clip->GetVideoInfo().width / m_ClipMultiplier[i], clip->GetVideoInfo().height, true, IsPlanar, false, -1, NewTexture)))
+				env->ThrowError("ExecuteShader: Failed to create input textures.");
 
-// Copies the first clip from AviSynth before running the first command.
-void ExecuteShader::CopyInputClip(int index, int n, IScriptEnvironment* env) {
-	PClip clip = m_clips[index];
-	if (m_clips[index] != NULL) {
-		PVideoFrame frame = clip->GetFrame(n, env);
-		if (clip->GetVideoInfo().IsYV24()) {
-			// Copy planar data from YV24.
-			if (FAILED(render->CopyAviSynthToPlanarBuffer(frame->GetReadPtr(PLANAR_Y), frame->GetReadPtr(PLANAR_U), frame->GetReadPtr(PLANAR_V), frame->GetPitch(PLANAR_Y), index, clip->GetVideoInfo().width, clip->GetVideoInfo().height, env)))
-				env->ThrowError("ExecuteShader: CopyInputClip failed");
-		}
-		else {
-			// Copy regular data after calling ConvertToShader.
-			if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), index, clip->GetVideoInfo().width / m_ClipMultiplier[index], clip->GetVideoInfo().height, env)))
-				env->ThrowError("ExecuteShader: CopyInputClip failed");
+			list->push_back(NewTexture);
+
+			if (!init) {
+				// Copy frame data from AviSynth
+				PVideoFrame frame = clip->GetFrame(n, env);
+				if (clip->GetVideoInfo().IsYV24()) {
+					// Copy planar data from YV24.
+					if (FAILED(render->CopyAviSynthToPlanarBuffer(frame->GetReadPtr(PLANAR_Y), frame->GetReadPtr(PLANAR_U), frame->GetReadPtr(PLANAR_V), frame->GetPitch(PLANAR_Y), i, clip->GetVideoInfo().width, clip->GetVideoInfo().height, NewTexture, env)))
+						env->ThrowError("ExecuteShader: CopyInputClip failed");
+				}
+				else {
+					// Copy regular data after calling ConvertToShader.
+					if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), i, clip->GetVideoInfo().width / m_ClipMultiplier[i], clip->GetVideoInfo().height, NewTexture, env)))
+						env->ThrowError("ExecuteShader: CopyInputClip failed");
+				}
+			}
 		}
 	}
 }
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	if FAILED(render->InitPixelShader(cmd, 0,  env)) {
+	if FAILED(render->InitPixelShader(cmd, 0, env)) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
 		size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;

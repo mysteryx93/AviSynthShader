@@ -11,6 +11,7 @@
     <ClCompile Include="convert_from_packed_shader.cpp" />
     <ClCompile Include="convert_from_planar_shader.cpp" />
     <ClCompile Include="ConvertShader.cpp" />
+    <ClCompile Include="MemoryPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -41,6 +42,7 @@
       <Filter>avs</Filter>
     </ClInclude>
     <ClInclude Include="ConvertShader.h" />
+    <ClInclude Include="MemoryPool.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

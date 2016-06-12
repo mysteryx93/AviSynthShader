@@ -190,7 +190,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 		env2->SetFilterMTMode("ConvertToShader", MT_NICE_FILTER, true);
 		env2->SetFilterMTMode("ConvertFromShader", MT_NICE_FILTER, true);
 		env2->SetFilterMTMode("Shader", MT_NICE_FILTER, true);
-		env2->SetFilterMTMode("ExecuteShader", MT_MULTI_INSTANCE, true);
+		env2->SetFilterMTMode("ExecuteShader", MT_NICE_FILTER, true);
 	}
 
 	return "Shader plugin";

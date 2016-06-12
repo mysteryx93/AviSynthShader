@@ -191,6 +191,7 @@
     <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ConvertShader.h" />
     <ClInclude Include="ExecuteShader.h" />
+    <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="D3D9RenderImpl.h" />
     <ClInclude Include="D3D9Macros.h" />
@@ -204,6 +205,7 @@
     <ClCompile Include="cpu_check.cpp" />
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
+    <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
   </ItemGroup>
