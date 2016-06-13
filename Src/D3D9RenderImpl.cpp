@@ -149,7 +149,7 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 	m_pCurrentRenderTarget->Width = width;
 	m_pCurrentRenderTarget->Height = height;
 	m_pCurrentRenderTarget->Format = format;
-	HR(m_Pool->Allocate(true, width, height, true, format, &m_pCurrentRenderTarget->Texture, &m_pCurrentRenderTarget->Surface));
+	HR(m_Pool->Allocate(true, width, height, true, format, m_pCurrentRenderTarget->Texture, m_pCurrentRenderTarget->Surface));
 
 	HR(SetupMatrices(m_pCurrentRenderTarget, float(width), float(height)));
 
@@ -200,26 +200,26 @@ HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool
 	D3DFORMAT Format;
 	if (isPlanar) {
 		Format = GetD3DFormat(m_ClipPrecision[clipIndex], true);
-		HR(m_Pool->Allocate(true, width, height, false, Format, &outTexture->TextureY, &outTexture->SurfaceY));
-		HR(m_Pool->Allocate(true, width, height, false, Format, &outTexture->TextureU, &outTexture->SurfaceU));
-		HR(m_Pool->Allocate(true, width, height, false, Format, &outTexture->TextureV, &outTexture->SurfaceV));
+		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureY, outTexture->SurfaceY));
+		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureU, outTexture->SurfaceU));
+		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureV, outTexture->SurfaceV));
 	}
 
 	if (isLast) {
 		if (m_PlanarOut) {
-			HR(m_Pool->Allocate(true, width, height, true, GetD3DFormat(m_OutputPrecision, false), &outTexture->Texture, &outTexture->Surface));
+			HR(m_Pool->Allocate(true, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
 			Format = GetD3DFormat(m_OutputPrecision, true);
-			HR(m_Pool->Allocate(false, width, height, false, Format, NULL, &outTexture->SurfaceY));
-			HR(m_Pool->Allocate(false, width, height, false, Format, NULL, &outTexture->SurfaceU));
-			HR(m_Pool->Allocate(false, width, height, false, Format, NULL, &outTexture->SurfaceV));
+			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceY));
+			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceU));
+			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceV));
 		}
 		else {
-			HR(m_Pool->Allocate(false, width, height, false, GetD3DFormat(m_OutputPrecision, false), NULL, &outTexture->Memory));
+			HR(m_Pool->Allocate(false, width, height, false, GetD3DFormat(m_OutputPrecision, false), CComPtr<IDirect3DTexture9>(NULL), outTexture->Memory));
 		}
 	}
 	else {
 		Format = GetD3DFormat(isInput ? m_ClipPrecision[clipIndex] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
-		HR(m_Pool->Allocate(true, width, height, true, Format, &outTexture->Texture, &outTexture->Surface));
+		HR(m_Pool->Allocate(true, width, height, true, Format, outTexture->Texture, outTexture->Surface));
 	}
 	return S_OK;
 }
