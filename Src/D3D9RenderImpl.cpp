@@ -20,9 +20,9 @@ D3D9RenderImpl::D3D9RenderImpl() {
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
+	ClearRenderTarget();
 	if (m_Pool != NULL)
 		delete m_Pool;
-	ClearRenderTarget();
 }
 
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT) {
@@ -161,6 +161,7 @@ HRESULT D3D9RenderImpl::ClearRenderTarget() {
 	if (m_pCurrentRenderTarget != NULL) {
 		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));
 		delete m_pCurrentRenderTarget;
+		m_pCurrentRenderTarget = NULL;
 	}
 	return S_OK;
 }

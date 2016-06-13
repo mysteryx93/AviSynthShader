@@ -15,14 +15,14 @@ MemoryPool::~MemoryPool() {
 
 HRESULT MemoryPool::Allocate(bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface) {
 	// Search for available texture in pool.
-	//for (auto const item : m_Pool) {
-	//	if (item->Available == true && item->GpuTexture == gpuTexture && item->Width == width && item->Height == height && item->RenderTarget == renderTarget && item->Format == format) {
-	//		item->Available = false;
-	//		*texture = item->Texture;
-	//		*surface = item->Surface;
-	//		return S_OK;
-	//	}
-	//}
+	for (auto const item : m_Pool) {
+		if (item->Available == true && item->GpuTexture == gpuTexture && item->Width == width && item->Height == height && item->RenderTarget == renderTarget && item->Format == format) {
+			item->Available = false;
+			*texture = item->Texture;
+			*surface = item->Surface;
+			return S_OK;
+		}
+	}
 
 	// If not found, create it
 	if (gpuTexture) {
@@ -30,6 +30,7 @@ HRESULT MemoryPool::Allocate(bool gpuTexture, int width, int height, bool render
 		HR((*texture)->GetSurfaceLevel(0, surface));
 	}
 	else {
+		*texture = NULL;
 		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, surface, NULL));
 	}
 
