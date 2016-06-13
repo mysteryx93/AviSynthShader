@@ -25,7 +25,7 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
 	ClearRenderTarget();
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut) {
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT) {
 	m_PlanarOut = planarOut;
 	m_Precision = precision;
 	HR(ApplyPrecision(precision, m_PrecisionSize));
@@ -36,7 +36,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 	m_OutputPrecision = outputPrecision;
 	HR(ApplyPrecision(outputPrecision, m_OutputPrecisionSize));
 
-	HR(CreateDevice(&m_pDevice, hDisplayWindow));
+	HR(CreateDevice(&m_pDevice, hDisplayWindow, isMT));
 	m_Pool = new MemoryPool(m_pDevice);
 
 	for (int i = 0; i < 9; i++) {
@@ -88,7 +88,7 @@ D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision, bool planar) {
 		return D3DFMT_UNKNOWN;
 }
 
-HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow) {
+HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow, bool isMT) {
 	HR(Direct3DCreate9Ex(D3D_SDK_VERSION, &m_pD3D9));
 	if (!m_pD3D9) {
 		return E_FAIL;
@@ -97,7 +97,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	D3DCAPS9 deviceCaps;
 	HR(m_pD3D9->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &deviceCaps));
 
-	DWORD dwBehaviorFlags = 0; // D3DCREATE_DISABLE_PSGP_THREADING;
+	DWORD dwBehaviorFlags = isMT ? D3DCREATE_MULTITHREADED : 0;
 
 	if (deviceCaps.VertexProcessingCaps != 0)
 		dwBehaviorFlags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;

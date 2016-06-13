@@ -33,7 +33,8 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
 	render = new D3D9RenderImpl();
-	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut)))
+	bool IsMt = env->FunctionExists("SetMTMode") || env->FunctionExists("SetFilterMTMode");
+	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// vi.width and vi.height must be set during constructor
@@ -50,8 +51,6 @@ ExecuteShader::~ExecuteShader() {
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
-	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
-
 	std::vector<InputTexture*> TextureList;
 	AllocateAndCopyInputTextures(&TextureList, n, false, env);
 
@@ -77,7 +76,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 // This part of GetFrame is protected with unique_lock to prevent parallel executions
 void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
 	// Mutex will be unlocked when gets out of scope (exit from GetFrameInternal)
-	//std::unique_lock<std::mutex> my_lock(executeshader_mutex);
+	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
 
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;

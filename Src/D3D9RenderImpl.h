@@ -46,7 +46,7 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl();
 
-	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut);
+	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT);
 	HRESULT CreateTexture(int clipIndex, int width, int height, bool isInput, bool IsPlanar, bool isLast, int shaderPrecision, InputTexture* outTexture);
 	HRESULT RemoveTexture(std::vector<InputTexture*>* textureList, InputTexture* item);
 	HRESULT ClearTextures(std::vector<InputTexture*>* textureList);
@@ -74,7 +74,7 @@ private:
 	bool StringEndsWith(const char * str, const char * suffix);
 	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);
 	static void StaticFunction() {}; // needed by GetDefaultPath
-	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow);
+	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow, bool isMT);
 	HRESULT SetupMatrices(RenderTarget* target, float width, float height);
 	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int planeOut, IScriptEnvironment* env);
 	HRESULT CreateSurface(int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface);
