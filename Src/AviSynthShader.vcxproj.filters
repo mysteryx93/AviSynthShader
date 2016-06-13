@@ -43,6 +43,7 @@
     </ClInclude>
     <ClInclude Include="ConvertShader.h" />
     <ClInclude Include="MemoryPool.h" />
+    <ClInclude Include="PooledTexture.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

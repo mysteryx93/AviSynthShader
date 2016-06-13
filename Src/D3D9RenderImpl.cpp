@@ -159,9 +159,7 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 
 HRESULT D3D9RenderImpl::ClearRenderTarget() {
 	if (m_pCurrentRenderTarget != NULL) {
-		m_Pool->Release(m_pCurrentRenderTarget->Surface);
-		SafeRelease(m_pCurrentRenderTarget->Surface);
-		SafeRelease(m_pCurrentRenderTarget->Texture);
+		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));
 		delete m_pCurrentRenderTarget;
 	}
 	return S_OK;
@@ -249,17 +247,11 @@ HRESULT D3D9RenderImpl::ClearTextures(std::vector<InputTexture*>* textureList) {
 }
 
 HRESULT D3D9RenderImpl::ReleaseTexture(InputTexture* obj) {
-	m_Pool->Release(obj->Surface);
-	SafeRelease(obj->Surface);
-	SafeRelease(obj->Texture);
-	m_Pool->Release(obj->Memory);
-	SafeRelease(obj->Memory);
-	m_Pool->Release(obj->SurfaceY);
-	SafeRelease(obj->SurfaceY);
-	m_Pool->Release(obj->SurfaceU);
-	SafeRelease(obj->SurfaceU);
-	m_Pool->Release(obj->SurfaceV);
-	SafeRelease(obj->SurfaceV);
+	HR(m_Pool->Release(obj->Surface));
+	HR(m_Pool->Release(obj->Memory));
+	HR(m_Pool->Release(obj->SurfaceY));
+	HR(m_Pool->Release(obj->SurfaceU));
+	HR(m_Pool->Release(obj->SurfaceV));
 	delete obj;
 	return S_OK;
 }
@@ -314,7 +306,7 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {	
 	InputTexture* dst;
-	PrepareReadTarget(textureList, cmd->OutputIndex, width, height, planeOut, isLast, &dst);
+	HR(PrepareReadTarget(textureList, cmd->OutputIndex, width, height, planeOut, isLast, &dst));
 
 	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
 	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
@@ -359,7 +351,7 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 
 HRESULT D3D9RenderImpl::CopyBuffer(std::vector<InputTexture*>* textureList, InputTexture* src, int outputIndex, IScriptEnvironment* env) {
 	InputTexture* dst;
-	PrepareReadTarget(textureList, outputIndex, src->Width, src->Height, 0, false, &dst);
+	HR(PrepareReadTarget(textureList, outputIndex, src->Width, src->Height, 0, false, &dst));
 	dst->ClipIndex = outputIndex;
 
 	if (src->TextureY == NULL) {
@@ -378,7 +370,7 @@ HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureLis
 	if (planeOut == 0) {
 		// Remove previous item with OutputIndex and replace it with new texture
 		if (dst != NULL)
-			RemoveTexture(textureList, dst);
+			HR(RemoveTexture(textureList, dst));
 		dst = new InputTexture();
 		HR(CreateTexture(outputIndex, width, height, false, false, isLast, -1, dst));
 		textureList->push_back(dst);
