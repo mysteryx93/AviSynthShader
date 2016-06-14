@@ -12,6 +12,8 @@ Version 1.5: June 10th 2016
 - ConvertToShader/ConvertFromShader: Added assembly optimizations
 - ConvertToShader/ConvertFromShader: Added opt parameter to specify the optimization path to execute
 - Added PlanarIn and PlanarOut parameters to all shader scripts, mostly useful for performance tweaks
+- Fixed ConvertToShader(2, lsb=true) was causing brightening
+- ConvertFromShader: Format default value is now YV24 instead of YV12
 
 Version 1.4.6: June 6th 2016
 - Minor performance improvements

@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <DxErr.h>
+#include "TextureList.hpp"
 
 // MT_MULTI_INSTANCE with 4 threads gives the best performance.
 const bool SUPPORT_MT_NICE_FILTER = true;

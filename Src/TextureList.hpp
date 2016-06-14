@@ -1,3 +1,5 @@
+#pragma once
+
 #include "avisynth.h"
 #include "D3D9Macros.h"
 #include <vector>
@@ -65,15 +67,26 @@ static D3DFORMAT __stdcall GetD3DFormat(int precision, bool planar) {
 		return D3DFMT_UNKNOWN;
 }
 
-static int __stdcall GetD3DFormatSize(int precision) {
+static int __stdcall GetD3DFormatSize(int precision, bool planar) {
 	if (precision == 0)
 		return 1;
-	else if (precision == 1)
-		return 4;
-	else if (precision == 2)
-		return 8;
+	else if (precision == 1) {
+		if (planar)
+			return 1;
+		else
+			return 4;
+	}
+	else if (precision == 2) {
+		if (planar)
+			return 2;
+		else
+			return 8;
+	}
 	else if (precision == 3)
-		return 8;
+		if (planar)
+			return 2;
+		else
+			return 8;
 	else
 		return 0;
 }
@@ -128,13 +141,13 @@ static HRESULT __stdcall CopyBufferToAviSynthInternal(IDirect3DSurface9* surface
 }
 
 static HRESULT __stdcall CopyBufferToAviSynth(int commandIndex, InputTexture* src, byte* dst, int dstPitch, int outputPrecision, IScriptEnvironment* env) {
-	int Width = src->Width * AdjustPrecision(env, outputPrecision);
+	int Width = src->Width * GetD3DFormatSize(outputPrecision, false);
 	HR(CopyBufferToAviSynthInternal(src->Memory, dst, dstPitch, Width, src->Height, env));
 	return S_OK;
 }
 
 static HRESULT __stdcall CopyBufferToAviSynthPlanar(int commandIndex, InputTexture* src, byte* dstY, byte* dstU, byte* dstV, int dstPitch, int outputPrecision, IScriptEnvironment* env) {
-	int Width = src->Width * AdjustPrecision(env, outputPrecision);
+	int Width = src->Width * GetD3DFormatSize(outputPrecision, true);
 	HR(CopyBufferToAviSynthInternal(src->SurfaceY, dstY, dstPitch, Width, src->Height, env));
 	HR(CopyBufferToAviSynthInternal(src->SurfaceU, dstU, dstPitch, Width, src->Height, env));
 	HR(CopyBufferToAviSynthInternal(src->SurfaceV, dstV, dstPitch, Width, src->Height, env));

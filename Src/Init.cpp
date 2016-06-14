@@ -62,7 +62,7 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 	if (!vi.IsRGB32() && !vi.IsYV24())
 		env->ThrowError("ConvertFromShader: Source must be RGB32 or Planar YV24");
 
-	auto format = std::string(args[2].AsString("YV12"));
+	auto format = std::string(args[2].AsString("YV24"));
 	std::transform(format.begin(), format.end(), format.begin(), toupper); // convert lower to UPPER
 	if (format == "YV12" && format == "YV24" && format == "RGB24" && format == "RGB32")
 		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
