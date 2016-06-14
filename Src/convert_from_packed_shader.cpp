@@ -58,7 +58,7 @@ shader_to_yuv_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             t0 = _mm_unpacklo_epi8(s0, s1);         // A0,A1,A2,A3,A4,A5,A6,A7,R0,R1,R2,R3,R4,R5,R6,R7
             t1 = _mm_unpackhi_epi8(s0, s1);         // G0,G1,G2,G3,G4,G5,G6,G7,B0,B1,B2,B3,B4,B5,B6,B7
 
-            stream(dy + x, _mm_srli_si128(t0, 8));
+            storel(dy + x, _mm_srli_si128(t0, 8));
             storel(du + x, t1);
             storel(dv + x, _mm_srli_si128(t1, 8));
         }
