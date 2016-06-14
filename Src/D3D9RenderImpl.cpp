@@ -15,29 +15,29 @@
 
 #pragma warning(disable: 4996)
 
-
 D3D9RenderImpl::D3D9RenderImpl() {
 }
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
 	ClearRenderTarget();
-	if (m_Pool != NULL)
+	if (m_Pool != NULL) {
 		delete m_Pool;
+		m_Pool = NULL;
+	}
+	for (auto const item : m_MatrixCache) {
+		delete item;
+	}
 }
 
 HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT) {
 	m_PlanarOut = planarOut;
 	m_Precision = precision;
-	HR(ApplyPrecision(precision, m_PrecisionSize));
 	for (int i = 0; i < 9; i++) {
 		m_ClipPrecision[i] = clipPrecision[i];
-		HR(ApplyPrecision(clipPrecision[i], m_ClipPrecisionSize[i]));
 	}
 	m_OutputPrecision = outputPrecision;
-	HR(ApplyPrecision(outputPrecision, m_OutputPrecisionSize));
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow, isMT));
-	m_Pool = new MemoryPool(m_pDevice);
 
 	for (int i = 0; i < 9; i++) {
 		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
@@ -45,47 +45,8 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
 	}
 
+	m_Pool = new MemoryPool();
 	return S_OK;
-}
-
-// Applies the video format corresponding to specified pixel precision.
-HRESULT D3D9RenderImpl::ApplyPrecision(int precision, int &precisionSizeOut) {
-	if (precision == 0)
-		precisionSizeOut = 1;
-	else if (precision == 1)
-		precisionSizeOut = 4;
-	else if (precision == 2)
-		precisionSizeOut = 8;
-	else if (precision == 3)
-		precisionSizeOut = 8;
-	else
-		return E_FAIL;
-
-	return S_OK;
-}
-
-D3DFORMAT D3D9RenderImpl::GetD3DFormat(int precision, bool planar) {
-	if (precision == 0)
-		return D3DFMT_L8;
-	else if (precision == 1) {
-		if (planar)
-			return D3DFMT_L8;
-		else
-			return D3DFMT_A8R8G8B8;
-	}
-	else if (precision == 2) {
-		if (planar)
-			return D3DFMT_L16;
-		else
-			return D3DFMT_A16B16G16R16;
-	}
-	else if (precision == 3)
-		if (planar)
-			return D3DFMT_R16F;
-		else
-			return D3DFMT_A16B16G16R16F;
-	else
-		return D3DFMT_UNKNOWN;
 }
 
 HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow, bool isMT) {
@@ -144,29 +105,18 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 		return S_OK;
 
 	ClearRenderTarget();
-	m_pCurrentRenderTarget = new RenderTarget{ 0 };
+	m_pCurrentRenderTarget = new PooledTexture { 0 };
 
 	m_pCurrentRenderTarget->Width = width;
 	m_pCurrentRenderTarget->Height = height;
 	m_pCurrentRenderTarget->Format = format;
-	HR(m_Pool->Allocate(true, width, height, true, format, m_pCurrentRenderTarget->Texture, m_pCurrentRenderTarget->Surface));
-
-	HR(SetupMatrices(m_pCurrentRenderTarget, float(width), float(height)));
+	HR(m_Pool->Allocate(m_pDevice, true, width, height, true, format, m_pCurrentRenderTarget->Texture, m_pCurrentRenderTarget->Surface));
 
 	HR(m_pDevice->SetRenderTarget(0, m_pCurrentRenderTarget->Surface));
-	return m_pDevice->SetTransform(D3DTS_PROJECTION, &m_pCurrentRenderTarget->MatrixOrtho);
-}
-
-HRESULT D3D9RenderImpl::ClearRenderTarget() {
-	if (m_pCurrentRenderTarget != NULL) {
-		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));
-		delete m_pCurrentRenderTarget;
-		m_pCurrentRenderTarget = NULL;
-	}
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::SetupMatrices(RenderTarget* target, float width, float height)
+HRESULT D3D9RenderImpl::SetupMatrices(RenderTargetMatrix* target, float width, float height)
 {
 	D3DXMatrixOrthoOffCenterLH(&target->MatrixOrtho, 0, width, height, 0, 0.0f, 1.0f);
 
@@ -192,7 +142,59 @@ HRESULT D3D9RenderImpl::SetupMatrices(RenderTarget* target, float width, float h
 	return(target->VertexBuffer->Unlock());
 }
 
+HRESULT D3D9RenderImpl::ClearRenderTarget() {
+	if (m_pCurrentRenderTarget != NULL) {
+		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));
+		delete m_pCurrentRenderTarget;
+		m_pCurrentRenderTarget = NULL;
+	}
+	return S_OK;
+}
+
+HRESULT D3D9RenderImpl::GetRenderTargetMatrix(int width, int height, RenderTargetMatrix** outMatrix)
+{
+	// First look whether a matrix was already created for those dimensions.
+	for (auto const item : m_MatrixCache) {
+		if (item->Width == width && item->Height == height) {
+			*outMatrix = item;
+			return S_OK;
+		}			
+	}
+
+	// If not, create a new one and store in cache.
+	RenderTargetMatrix* Obj = new RenderTargetMatrix();
+	Obj->Width = width;
+	Obj->Height = height;
+	D3DXMatrixOrthoOffCenterLH(&Obj->MatrixOrtho, 0, (float)width, (float)height, 0, 0.0f, 1.0f);
+
+	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &Obj->VertexBuffer, NULL));
+
+	// Create vertexes for FVF (Fixed Vector Function) set to pre-processed vertex coordinates.
+	VERTEX vertexArray[] =
+	{
+		{ 0, 0, 1, 1, 0, 0 }, // top left
+		{ (float)width, 0, 1, 1, 1, 0 }, // top right
+		{ (float)width, (float)height, 1, 1, 1, 1 }, // bottom right
+		{ 0, (float)height, 1, 1, 0, 1 } // bottom left
+	};
+	// Prevent texture distortion during rasterization. https://msdn.microsoft.com/en-us/library/windows/desktop/bb219690%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396
+	for (int i = 0; i < 4; i++) {
+		vertexArray[i].x -= .5f;
+		vertexArray[i].y -= .5f;
+	}
+
+	VERTEX *vertices;
+	HR(Obj->VertexBuffer->Lock(0, 0, (void**)&vertices, D3DLOCK_DISCARD));
+	memcpy(vertices, vertexArray, sizeof(vertexArray));
+	HR(Obj->VertexBuffer->Unlock());
+
+	m_MatrixCache.push_back(Obj);
+	*outMatrix = Obj;
+	return S_OK;
+}
+
 HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool isInput, bool isPlanar, bool isLast, int shaderPrecision, InputTexture* outTexture) {
+	outTexture->Pool = m_Pool;
 	outTexture->ClipIndex = clipIndex;
 	outTexture->Width = width;
 	outTexture->Height = height;
@@ -200,62 +202,30 @@ HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool
 	D3DFORMAT Format;
 	if (isPlanar) {
 		Format = GetD3DFormat(m_ClipPrecision[clipIndex], true);
-		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureY, outTexture->SurfaceY));
-		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureU, outTexture->SurfaceU));
-		HR(m_Pool->Allocate(true, width, height, false, Format, outTexture->TextureV, outTexture->SurfaceV));
+		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureY, outTexture->SurfaceY));
+		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureU, outTexture->SurfaceU));
+		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureV, outTexture->SurfaceV));
 	}
 
 	if (isLast) {
 		if (m_PlanarOut) {
-			HR(m_Pool->Allocate(true, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
+			HR(m_Pool->Allocate(m_pDevice, true, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
 			Format = GetD3DFormat(m_OutputPrecision, true);
-			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceY));
-			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceU));
-			HR(m_Pool->Allocate(false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceV));
+			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceY));
+			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceU));
+			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceV));
 		}
 		else {
-			HR(m_Pool->Allocate(false, width, height, false, GetD3DFormat(m_OutputPrecision, false), CComPtr<IDirect3DTexture9>(NULL), outTexture->Memory));
+			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, GetD3DFormat(m_OutputPrecision, false), CComPtr<IDirect3DTexture9>(NULL), outTexture->Memory));
 		}
 	}
 	else {
 		Format = GetD3DFormat(isInput ? m_ClipPrecision[clipIndex] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
-		HR(m_Pool->Allocate(true, width, height, true, Format, outTexture->Texture, outTexture->Surface));
+		HR(m_Pool->Allocate(m_pDevice, true, width, height, true, Format, outTexture->Texture, outTexture->Surface));
 	}
 	return S_OK;
 }
 
-// Only one texture per ClipIndex should be kept in the list.
-InputTexture* D3D9RenderImpl::FindTexture(std::vector<InputTexture*>* textureList, int clipIndex) {
-	for (auto const& item : *textureList) {
-		if (item->ClipIndex == clipIndex)
-			return item;
-	}
-	return NULL;
-}
-
-HRESULT D3D9RenderImpl::RemoveTexture(std::vector<InputTexture*>* textureList, InputTexture* item) {
-	textureList->erase(std::remove(textureList->begin(), textureList->end(), item), textureList->end());
-	HR(ReleaseTexture(item));
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::ClearTextures(std::vector<InputTexture*>* textureList) {
-	for (auto const& item : *textureList) {
-		HR(ReleaseTexture(item));
-	}
-	textureList->clear();
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::ReleaseTexture(InputTexture* obj) {
-	HR(m_Pool->Release(obj->Surface));
-	HR(m_Pool->Release(obj->Memory));
-	HR(m_Pool->Release(obj->SurfaceY));
-	HR(m_Pool->Release(obj->SurfaceU));
-	HR(m_Pool->Release(obj->SurfaceV));
-	delete obj;
-	return S_OK;
-}
 
 HRESULT D3D9RenderImpl::ProcessFrame(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {
@@ -263,16 +233,21 @@ HRESULT D3D9RenderImpl::ProcessFrame(std::vector<InputTexture*>* textureList, Co
 	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(m_OutputPrecision, true) : GetD3DFormat(isLast ? m_OutputPrecision : m_Precision, false);
 	HR(SetRenderTarget(width, height, fmt, env));
 	HR(CreateScene(textureList, cmd, planeOut, env));
-	return CopyFromRenderTarget(textureList, cmd, width, height, isLast, planeOut, env);
+	HR(CopyFromRenderTarget(textureList, cmd, width, height, isLast, planeOut, env));
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int planeOut, IScriptEnvironment* env)
 {
+	RenderTargetMatrix* Matrix;
+	SCENE_HR(GetRenderTargetMatrix(m_pCurrentRenderTarget->Width, m_pCurrentRenderTarget->Height, &Matrix), m_pDevice);
+	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &Matrix->MatrixOrtho));
+
 	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
 	HR(m_pDevice->BeginScene());
 	SCENE_HR(m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1), m_pDevice);
 	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex + planeOut].Shader), m_pDevice);
-	SCENE_HR(m_pDevice->SetStreamSource(0, m_pCurrentRenderTarget->VertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
+	SCENE_HR(m_pDevice->SetStreamSource(0, Matrix->VertexBuffer, 0, sizeof(VERTEX)), m_pDevice);
 
 	// Clear samplers
 	for (int i = 0; i < 9; i++) {
@@ -305,12 +280,16 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 }
 
 HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
-{	
+{
 	InputTexture* dst;
 	HR(PrepareReadTarget(textureList, cmd->OutputIndex, width, height, planeOut, isLast, &dst));
 
 	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
 	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
+
+	if (planeOut == 0 && (!isLast || !m_PlanarOut) || planeOut == 3)
+		mutex_ProcessFrame.unlock();
+
 	dst->ClipIndex = cmd->OutputIndex;
 	if (!isLast) {
 		HR(D3DXLoadSurfaceFromSurface(dst->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
@@ -341,12 +320,15 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 			if FAILED(InitPixelShader(&PlanarCmd, 3, env))
 				env->ThrowError("ExecuteShader: OutputV.cso not found");
 			HR(ProcessFrame(textureList, &PlanarCmd, width, height, true, 3, env));
+
+			// mutex_ProcessFrame.unlock();
 		}
 		else {
 			// If reading last command, copy it back to CPU directly
 			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, dst->Memory));
 		}
 	}
+
 	return S_OK;
 }
 
@@ -379,58 +361,13 @@ HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureLis
 	*outDst = dst;
 }
 
-HRESULT D3D9RenderImpl::CopyAviSynthToBuffer(const byte* src, int srcPitch, int index, int width, int height, InputTexture* dst, IScriptEnvironment* env) {
-	// Copies source frame into main surface buffer, or into additional input textures
-	RECT SrcRect;
-	SrcRect.top = 0;
-	SrcRect.left = 0;
-	SrcRect.right = width;
-	SrcRect.bottom = height;
-	HR(D3DXLoadSurfaceFromMemory(dst->Surface, NULL, NULL, src, GetD3DFormat(m_ClipPrecision[index], false), srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::CopyAviSynthToPlanarBuffer(const byte* srcY, const byte* srcU, const byte* srcV, int srcPitch, int index, int width, int height, InputTexture* dst, IScriptEnvironment* env) {
-	// Copies source frame into main surface buffer, or into additional input textures
-	RECT SrcRect;
-	SrcRect.top = 0;
-	SrcRect.left = 0;
-	SrcRect.right = width;
-	SrcRect.bottom = height;
-	D3DFORMAT fmt = GetD3DFormat(m_ClipPrecision[index], true);
-	HR(D3DXLoadSurfaceFromMemory(dst->SurfaceY, NULL, NULL, srcY, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(dst->SurfaceU, NULL, NULL, srcU, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	HR(D3DXLoadSurfaceFromMemory(dst->SurfaceV, NULL, NULL, srcV, fmt, srcPitch, NULL, &SrcRect, D3DX_FILTER_NONE, 0));
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::CopyBufferToAviSynth(int commandIndex, InputTexture* src, byte* dst, int dstPitch, IScriptEnvironment* env) {
-	HR(CopyBufferToAviSynthInternal(src->Memory, dst, dstPitch, src->Width * m_OutputPrecisionSize, src->Height, env));
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::CopyBufferToAviSynthPlanar(int commandIndex, InputTexture* src, byte* dstY, byte* dstU, byte* dstV, int dstPitch, IScriptEnvironment* env) {
-	HR(CopyBufferToAviSynthInternal(src->SurfaceY, dstY, dstPitch, src->Width, src->Height, env));
-	HR(CopyBufferToAviSynthInternal(src->SurfaceU, dstU, dstPitch, src->Width, src->Height, env));
-	HR(CopyBufferToAviSynthInternal(src->SurfaceV, dstV, dstPitch, src->Width, src->Height, env));
-	return S_OK;
-}
-
-HRESULT D3D9RenderImpl::CopyBufferToAviSynthInternal(IDirect3DSurface9* surface, byte* dst, int dstPitch, int rowSize, int height, IScriptEnvironment* env) {
-	D3DLOCKED_RECT srcRect;
-	HR(surface->LockRect(&srcRect, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY));
-	BYTE* srcPict = (BYTE*)srcRect.pBits;
-	env->BitBlt(dst, dstPitch, srcPict, srcRect.Pitch, rowSize, height);
-	HR(surface->UnlockRect());
-	return S_OK;
-}
-
 HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScriptEnvironment* env) {
 	// PlaneOut will use the next 3 shader positions
 	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex + planeOut];
 	if (Shader->Shader != NULL)
 		return S_OK;
 
+	std::unique_lock<std::mutex> my_lock(mutex_InitPixelShader);
 	CComPtr<ID3DXBuffer> code;
 	unsigned char* ShaderBuf = NULL;
 	DWORD* CodeBuffer = NULL;
@@ -458,6 +395,7 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScrip
 
 	if (ShaderBuf != NULL)
 		free(ShaderBuf);
+
 	return S_OK;
 }
 

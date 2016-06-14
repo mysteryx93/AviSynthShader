@@ -12,6 +12,7 @@
     <ClCompile Include="convert_from_planar_shader.cpp" />
     <ClCompile Include="ConvertShader.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
+    <ClCompile Include="TextureList.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -44,6 +45,7 @@
     <ClInclude Include="ConvertShader.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="PooledTexture.h" />
+    <ClInclude Include="InputTexture.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

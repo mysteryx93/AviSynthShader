@@ -32,52 +32,72 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	srcHeight = vi.height;
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
-	render = new D3D9RenderImpl();
+	render1 = new D3D9RenderImpl();
+	render2 = new D3D9RenderImpl();
 	bool IsMt = env->FunctionExists("SetMTMode") || env->FunctionExists("SetFilterMTMode");
-	if (FAILED(render->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
+	if (FAILED(render1->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
+		env->ThrowError("ExecuteShader: Initialize failed.");
+	if (FAILED(render2->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// vi.width and vi.height must be set during constructor
 	std::vector<InputTexture*> TextureList;
-	AllocateAndCopyInputTextures(&TextureList, 0, true, env);
-	GetFrameInternal(&TextureList, 0, true, env);
-	// Release all 
-	render->ClearTextures(&TextureList);
+	AllocateAndCopyInputTextures(render1, &TextureList, 0, true, env);
+	//render1->ClearTextures(&TextureList);
+	//AllocateAndCopyInputTextures(render2, &TextureList, 0, true, env);
+	GetFrameInternal(render1, &TextureList, 0, true, env);
+	if FAILED(ClearTextures(render1->m_Pool, &TextureList))
+		env->ThrowError("ExecuteShader: ClearTextures failed");
+	if FAILED(ClearTextures(render2->m_Pool, &TextureList))
+		env->ThrowError("ExecuteShader: ClearTextures failed");
 }
 
 ExecuteShader::~ExecuteShader() {
 	DestroyWindow(dummyHWND);
-	delete render;
+	delete render1;
+	delete render2;
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
-	std::vector<InputTexture*> TextureList;
-	AllocateAndCopyInputTextures(&TextureList, n, false, env);
+	// Iterate between both devices. First frame uses render1, second frame uses render2 and so on.
+	// We don't need to lock until within GetFrameInternal but we need to know which device is being used within GetFrame.
+	D3D9RenderImpl* render;
+	mutex_IterateDevice.lock();
+	if (m_IterateDevice == 0) {
+		m_IterateDevice = 1;
+		render = render1;
+	}
+	else {
+		m_IterateDevice = 0;
+		render = render2;
+	}
+	mutex_IterateDevice.unlock();
 
-	GetFrameInternal(&TextureList, n, false, env);
+	std::vector<InputTexture*> TextureList;
+	AllocateAndCopyInputTextures(render, &TextureList, n, false, env);
+
+	GetFrameInternal(render, &TextureList, n, false, env);
 
 	// After last command, copy result back to AviSynth.
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	if (m_PlanarOut) {
-		if FAILED(render->CopyBufferToAviSynthPlanar(srcHeight - 1, TextureList.back(), dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
-			env->ThrowError("CopyBufferToAviSynthPlanar failed");
+		if FAILED(CopyBufferToAviSynthPlanar(srcHeight - 1, TextureList.back(), dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
+			env->ThrowError("ExecuteShader: CopyBufferToAviSynthPlanar failed");
 	}
 	else {
-		if FAILED(render->CopyBufferToAviSynth(srcHeight - 1, TextureList.back(), dst->GetWritePtr(), dst->GetPitch(), env))
-			env->ThrowError("CopyBufferToAviSynth failed");
+		if FAILED(CopyBufferToAviSynth(srcHeight - 1, TextureList.back(), dst->GetWritePtr(), dst->GetPitch(), m_OutputPrecision, env))
+			env->ThrowError("ExecuteShader: CopyBufferToAviSynth failed");
 	}
 
 	// Release all 
-	render->ClearTextures(&TextureList);
+	if FAILED(ClearTextures(render->m_Pool, &TextureList))
+		env->ThrowError("ExecuteShader: ClearTextures failed");
 
 	return dst;
 }
 
 // This part of GetFrame is protected with unique_lock to prevent parallel executions
-void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
-	// Mutex will be unlocked when gets out of scope (exit from GetFrameInternal)
-	std::unique_lock<std::mutex> my_lock(executeshader_mutex);
-
+void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;
@@ -95,12 +115,13 @@ void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, in
 		IsLast = i == srcHeight - 1;
 
 		if (cmd.Path != NULL && cmd.Path[0] != '\0') {
-			ConfigureShader(&cmd, env);
+			if (init)
+				ConfigureShader(&cmd, env);
 
 			// If clip at output position isn't defined, use dimensions of first clip by default.
-			texture = render->FindTexture(textureList, cmd.OutputIndex);
+			texture = FindTexture(textureList, cmd.OutputIndex);
 			if (texture == NULL || texture->Texture == NULL)
-				texture = render->FindTexture(textureList, cmd.ClipIndex[0]);
+				texture = FindTexture(textureList, cmd.ClipIndex[0]);
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 			IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
@@ -116,6 +137,9 @@ void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, in
 			// Set Param0 and Param1 default values.
 			bool SetDefault1 = SetDefaultParamValue(&cmd.Param[0], (float)OutputWidth, (float)OutputHeight, 0, 0);
 			bool SetDefault2 = SetDefaultParamValue(&cmd.Param[1], 1.0f / OutputWidth, 1.0f / OutputHeight, 0, 0);
+
+			// This lock will be unlocked within render->CopyFromRenderTarget after it is done processing.
+			render->mutex_ProcessFrame.lock();
 
 			// Configure pixel shader
 			for (int i = 0; i < 9; i++) {
@@ -143,7 +167,7 @@ void ExecuteShader::GetFrameInternal(std::vector<InputTexture*>* textureList, in
 				env->ThrowError("ExecuteShader: If Path is not specified, OutputWidth and OutputHeight cannot be set");
 
 			// Only copy Clip1 to Output without processing
-			texture = render->FindTexture(textureList, cmd.ClipIndex[0]);
+			texture = FindTexture(textureList, cmd.ClipIndex[0]);
 			if FAILED(render->CopyBuffer(textureList, texture, cmd.OutputIndex, env))
 				env->ThrowError("ExecuteShader: CopyBuffer failed.");
 		}
@@ -180,7 +204,7 @@ bool ExecuteShader::SetDefaultParamValue(ParamStruct* p, float value0, float val
 	return false;
 }
 
-void ExecuteShader::AllocateAndCopyInputTextures(std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env) {
+void ExecuteShader::AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env) {
 	// Allocated textures must be released manually after use
 	InputTexture* NewTexture;
 	for (int i = 0; i < D3D9RenderImpl::maxClips; i++) {
@@ -204,12 +228,12 @@ void ExecuteShader::AllocateAndCopyInputTextures(std::vector<InputTexture*>* lis
 				PVideoFrame frame = clip->GetFrame(n, env);
 				if (clip->GetVideoInfo().IsYV24()) {
 					// Copy planar data from YV24.
-					if (FAILED(render->CopyAviSynthToPlanarBuffer(frame->GetReadPtr(PLANAR_Y), frame->GetReadPtr(PLANAR_U), frame->GetReadPtr(PLANAR_V), frame->GetPitch(PLANAR_Y), i, clip->GetVideoInfo().width, clip->GetVideoInfo().height, NewTexture, env)))
+					if (FAILED(CopyAviSynthToPlanarBuffer(frame->GetReadPtr(PLANAR_Y), frame->GetReadPtr(PLANAR_U), frame->GetReadPtr(PLANAR_V), frame->GetPitch(PLANAR_Y), m_ClipPrecision[i], clip->GetVideoInfo().width, clip->GetVideoInfo().height, NewTexture, env)))
 						env->ThrowError("ExecuteShader: CopyInputClip failed");
 				}
 				else {
 					// Copy regular data after calling ConvertToShader.
-					if (FAILED(render->CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), i, clip->GetVideoInfo().width / m_ClipMultiplier[i], clip->GetVideoInfo().height, NewTexture, env)))
+					if (FAILED(CopyAviSynthToBuffer(frame->GetReadPtr(), frame->GetPitch(), m_ClipPrecision[i], clip->GetVideoInfo().width / m_ClipMultiplier[i], clip->GetVideoInfo().height, NewTexture, env)))
 						env->ThrowError("ExecuteShader: CopyInputClip failed");
 				}
 			}
@@ -218,7 +242,9 @@ void ExecuteShader::AllocateAndCopyInputTextures(std::vector<InputTexture*>* lis
 }
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	if FAILED(render->InitPixelShader(cmd, 0, env)) {
+	HRESULT Result1 = render1->InitPixelShader(cmd, 0, env);
+	HRESULT Result2 = render2->InitPixelShader(cmd, 0, env);
+	if (Result1 != S_OK || Result2 != S_OK) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
 		size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;

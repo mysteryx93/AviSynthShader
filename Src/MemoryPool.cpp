@@ -1,7 +1,6 @@
 #include "MemoryPool.h"
 
-MemoryPool::MemoryPool(CComPtr<IDirect3DDevice9Ex> device) {
-	m_pDevice = device;
+MemoryPool::MemoryPool() {
 }
 
 MemoryPool::~MemoryPool() {
@@ -13,8 +12,8 @@ MemoryPool::~MemoryPool() {
 	m_Pool.clear();
 }
 
-HRESULT MemoryPool::Allocate(bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface) {
-	//std::unique_lock<std::mutex> my_lock(m_mutex);
+HRESULT MemoryPool::Allocate(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface) {
+	// Textures must be created by the device that will use them; thus, a memory pool is required for each device.
 
 	m_mutex.lock();
 	// Search for available texture in pool.
@@ -31,11 +30,11 @@ HRESULT MemoryPool::Allocate(bool gpuTexture, int width, int height, bool render
 
 	// If not found, create it
 	if (gpuTexture) {
-		HR(m_pDevice->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, D3DPOOL_DEFAULT, &texture, NULL));
+		HR(device->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, D3DPOOL_DEFAULT, &texture, NULL));
 		HR(texture->GetSurfaceLevel(0, &surface));
 	}
 	else {
-		HR(m_pDevice->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, &surface, NULL));
+		HR(device->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, &surface, NULL));
 	}
 
 	// Add to memory pool.
@@ -61,7 +60,6 @@ HRESULT MemoryPool::Release(IDirect3DSurface9 *surface) {
 
 	std::unique_lock<std::mutex> my_lock(m_mutex);
 
-	PooledTexture* Del = NULL;
 	for (auto const item : m_Pool) {
 		if (item->Surface == surface) {
 			item->Available = true;

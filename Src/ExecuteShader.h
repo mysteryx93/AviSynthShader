@@ -7,6 +7,8 @@
 #include "D3D9RenderImpl.h"
 #include <mutex>
 #include <vector>
+#include <DxErr.h>
+
 
 class ExecuteShader : public GenericVideoFilter {
 public:
@@ -14,9 +16,9 @@ public:
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
-	void GetFrameInternal(std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
-	int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision);
-	void AllocateAndCopyInputTextures(std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env);
+	void GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
+	int AdjustPrecision(IScriptEnvironment* env, int precision);
+	void AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env);
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);
 	void ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env);
@@ -30,7 +32,9 @@ private:
 	int m_ClipMultiplier[9];
 	bool m_PlanarOut;
 	HWND dummyHWND;
-	D3D9RenderImpl* render;
+	D3D9RenderImpl* render1;
+	D3D9RenderImpl* render2;
+	int m_IterateDevice = 0;
+	std::mutex mutex_IterateDevice;
 	int srcHeight;
-	std::mutex executeshader_mutex;
 };
