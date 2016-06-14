@@ -153,6 +153,7 @@ rgb_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -176,6 +177,7 @@ rgb32_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -212,6 +214,7 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -238,6 +241,7 @@ rgb32_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -276,6 +280,7 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     constexpr size_t step = IS_RGB32 ? 4 : 3;
 
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -305,6 +310,7 @@ rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* buff) noexcept
 {
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
+    // map r to Y, g to U, b to V
     uint8_t* dr = dstp[0];
     uint8_t* dg = dstp[1];
     uint8_t* db = dstp[2];
@@ -393,6 +399,16 @@ convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16,
     func[make_tuple(3, yv24, true, USE_F16C)] = yuv_to_shader_3_f16c<true>;
     func[make_tuple(3, rgb32, false, USE_F16C)] = rgb32_to_shader_3_f16c;
 #endif
+
+    if (pix_type == rgb24) {
+        arch = NO_SIMD;
+    }
+    if (precision != 3 && arch > USE_SSE2) {
+        arch = USE_SSE2;
+    }
+    if (precision == 3 && arch != USE_F16C) {
+        arch = NO_SIMD;
+    }
 
     return func[make_tuple(precision, pix_type, stack16, arch)];
 }

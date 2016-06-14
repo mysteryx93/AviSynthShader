@@ -37,13 +37,6 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 		return input;
 	}
 
-	if (precision == 1 && !planar && vi.IsRGB()) {
-		input = env->Invoke("FlipVertical", input).AsClip();
-		if (vi.IsRGB24())
-			input = env->Invoke("ConvertToRGB32", input).AsClip();
-		return input;
-	}
-
 	return new ConvertShader(
 		input,					// source clip
 		precision,				// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
@@ -87,13 +80,6 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 	bool rgb_dst = (format == "RGB24" || format == "RGB32");
 	if (stack16 && rgb_dst)
 		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
-
-	if (precision == 1 && vi.IsRGB32() && rgb_dst) {
-		input = env->Invoke("FlipVertical", input).AsClip();
-		if (format == "RGB24")
-			input = env->Invoke("ConvertToRGB24", input).AsClip();
-		return input;
-	}
 
 	ConvertShader* Result = new ConvertShader(
 		input,				// source clip
