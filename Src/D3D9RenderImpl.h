@@ -42,7 +42,6 @@ public:
 	MemoryPool* m_Pool = NULL;
 
 private:
-	HRESULT SetupMatrices(RenderTargetMatrix* target, float width, float height);
 	unsigned char* ReadBinaryFile(const char* filePath);
 	bool StringEndsWith(const char * str, const char * suffix);
 	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);

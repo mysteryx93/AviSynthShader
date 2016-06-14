@@ -9,6 +9,8 @@
 #include <vector>
 #include <DxErr.h>
 
+// MT_MULTI_INSTANCE with 4 threads gives the best performance.
+const bool SUPPORT_MT_NICE_FILTER = false;
 
 class ExecuteShader : public GenericVideoFilter {
 public:
@@ -36,5 +38,6 @@ private:
 	D3D9RenderImpl* render2;
 	int m_IterateDevice = 0;
 	std::mutex mutex_IterateDevice;
+	bool isMT;
 	int srcHeight;
 };

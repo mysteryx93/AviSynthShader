@@ -116,32 +116,6 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::SetupMatrices(RenderTargetMatrix* target, float width, float height)
-{
-	D3DXMatrixOrthoOffCenterLH(&target->MatrixOrtho, 0, width, height, 0, 0.0f, 1.0f);
-
-	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &target->VertexBuffer, NULL));
-
-	// Create vertexes for FVF (Fixed Vector Function) set to pre-processed vertex coordinates.
-	VERTEX vertexArray[] =
-	{
-		{ 0, 0, 1, 1, 0, 0 }, // top left
-		{ width, 0, 1, 1, 1, 0 }, // top right
-		{ width, height, 1, 1, 1, 1 }, // bottom right
-		{ 0, height, 1, 1, 0, 1 } // bottom left
-	};
-	// Prevent texture distortion during rasterization. https://msdn.microsoft.com/en-us/library/windows/desktop/bb219690%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396
-	for (int i = 0; i < 4; i++) {
-		vertexArray[i].x -= .5f;
-		vertexArray[i].y -= .5f;
-	}
-
-	VERTEX *vertices;
-	HR(target->VertexBuffer->Lock(0, 0, (void**)&vertices, D3DLOCK_DISCARD));
-	memcpy(vertices, vertexArray, sizeof(vertexArray));
-	return(target->VertexBuffer->Unlock());
-}
-
 HRESULT D3D9RenderImpl::ClearRenderTarget() {
 	if (m_pCurrentRenderTarget != NULL) {
 		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));

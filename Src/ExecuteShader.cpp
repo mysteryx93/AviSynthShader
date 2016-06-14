@@ -32,30 +32,29 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	srcHeight = vi.height;
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
+	isMT = SUPPORT_MT_NICE_FILTER && (env->FunctionExists("SetMTMode") || env->FunctionExists("SetFilterMTMode"));
+
 	render1 = new D3D9RenderImpl();
-	render2 = new D3D9RenderImpl();
-	bool IsMt = env->FunctionExists("SetMTMode") || env->FunctionExists("SetFilterMTMode");
-	if (FAILED(render1->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
+	render2 = isMT ? new D3D9RenderImpl() : NULL;
+	if (FAILED(render1->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
-	if (FAILED(render2->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, IsMt)))
+	if (isMT && FAILED(render2->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 
 	// vi.width and vi.height must be set during constructor
 	std::vector<InputTexture*> TextureList;
 	AllocateAndCopyInputTextures(render1, &TextureList, 0, true, env);
-	//render1->ClearTextures(&TextureList);
-	//AllocateAndCopyInputTextures(render2, &TextureList, 0, true, env);
 	GetFrameInternal(render1, &TextureList, 0, true, env);
 	if FAILED(ClearTextures(render1->m_Pool, &TextureList))
-		env->ThrowError("ExecuteShader: ClearTextures failed");
-	if FAILED(ClearTextures(render2->m_Pool, &TextureList))
 		env->ThrowError("ExecuteShader: ClearTextures failed");
 }
 
 ExecuteShader::~ExecuteShader() {
 	DestroyWindow(dummyHWND);
-	delete render1;
-	delete render2;
+	if (render1 != NULL)
+		delete render1;
+	if (render2 != NULL)
+		delete render2;
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
@@ -63,7 +62,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	// We don't need to lock until within GetFrameInternal but we need to know which device is being used within GetFrame.
 	D3D9RenderImpl* render;
 	mutex_IterateDevice.lock();
-	if (m_IterateDevice == 0) {
+	if (!isMT || m_IterateDevice == 0) {
 		m_IterateDevice = 1;
 		render = render1;
 	}
@@ -104,7 +103,6 @@ void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTe
 	bool IsPlanar;
 	InputTexture* texture;
 	int OutputWidth, OutputHeight;
-	InputTexture* NewTexture;
 
 	PVideoFrame src = child->GetFrame(n, env);
 	const byte* srcReader = src->GetReadPtr();
@@ -243,7 +241,7 @@ void ExecuteShader::AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::ve
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
 	HRESULT Result1 = render1->InitPixelShader(cmd, 0, env);
-	HRESULT Result2 = render2->InitPixelShader(cmd, 0, env);
+	HRESULT Result2 = isMT ? render2->InitPixelShader(cmd, 0, env) : S_OK;
 	if (Result1 != S_OK || Result2 != S_OK) {
 		char* ErrorText = "Shader: Failed to open pixel shader ";
 		char* FullText;
