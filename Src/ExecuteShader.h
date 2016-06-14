@@ -10,7 +10,7 @@
 #include <DxErr.h>
 
 // MT_MULTI_INSTANCE with 4 threads gives the best performance.
-const bool SUPPORT_MT_NICE_FILTER = false;
+const bool SUPPORT_MT_NICE_FILTER = true;
 
 class ExecuteShader : public GenericVideoFilter {
 public:
