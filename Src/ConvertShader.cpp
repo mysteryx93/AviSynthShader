@@ -3,6 +3,7 @@
 
 
 extern bool has_sse2() noexcept;
+extern bool has_ssse3() noexcept;
 extern bool has_f16c() noexcept;
 
 
@@ -11,11 +12,14 @@ static arch_t get_arch(int opt)
     if (opt == 0 || !has_sse2()) {
         return NO_SIMD;
     }
+    if (opt == 1 || !has_ssse3()) {
+        return USE_SSE2;
+    }
 #if !defined(__AVX__)
-    return USE_SSE2;
+    return USE_SSSE3;
 #else
     if (opt == 1 || !has_f16c()) {
-        return USE_SSE2;
+        return USE_SSSE3;
     }
     return USE_F16C;
 #endif
@@ -24,18 +28,12 @@ static arch_t get_arch(int opt)
 
 void ConvertShader::constructToShader(int precision, bool stack16, bool planar, arch_t arch, IScriptEnvironment* env)
 {
-    if (vi.IsRGB24()) {
-        arch = NO_SIMD;
-    }
-    if (precision == 3) {
-        if (arch != USE_F16C) {
-            arch = NO_SIMD;
-            useLut = true;
-            int maximum = stack16 ? 65536 : 256;
-            lut.resize(maximum);
-            for (int i = 0; i < maximum; ++i) {
-                lut[i] = DirectX::PackedVector::XMConvertFloatToHalf(i * 1.0f / (maximum - 1));
-            }
+    if (precision == 3 && arch != USE_F16C) {
+        useLut = true;
+        int maximum = stack16 ? 65536 : 256;
+        lut.resize(maximum);
+        for (int i = 0; i < maximum; ++i) {
+            lut[i] = DirectX::PackedVector::XMConvertFloatToHalf(i * 1.0f / (maximum - 1));
         }
     }
 
@@ -70,7 +68,6 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
         vi.pixel_type = VideoInfo::CS_BGR32;
     } else if (format == "RGB24") {
         vi.pixel_type = VideoInfo::CS_BGR24;
-        arch = NO_SIMD;
     } else {
         vi.pixel_type = VideoInfo::CS_YV24;
     }
@@ -82,16 +79,13 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
         vi.width /= 2;
     }
 
-    if (precision == 3) {
-        if (arch != USE_F16C) {
-            arch = NO_SIMD;
-            useLut = true;
-            int maximum = stack16 ? 65535 : 255;
-            lut.resize(65536);
-            for (int i = 0; i < 65536; ++i) {
-                float t = DirectX::PackedVector::XMConvertHalfToFloat(static_cast<uint16_t>(i));
-                lut[i] = static_cast<uint16_t>(t * maximum + 0.5f);
-            }
+    if (precision == 3 && arch != USE_F16C) {
+        useLut = true;
+        int maximum = stack16 ? 65535 : 255;
+        lut.resize(65536);
+        for (int i = 0; i < 65536; ++i) {
+            float t = DirectX::PackedVector::XMConvertHalfToFloat(static_cast<uint16_t>(i));
+            lut[i] = static_cast<uint16_t>(t * maximum + 0.5f);
         }
     }
 
@@ -111,9 +105,6 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
     name = format == "" ? "ConvertToShader" : "ConvertFromShader";
 
     arch_t arch = get_arch(opt);
-    if (precision != 3 && arch > USE_SSE2) {
-        arch = USE_SSE2;
-    }
 
     if (name == "ConvertToShader") {
         constructToShader(precision, stack16, planar, arch, env);

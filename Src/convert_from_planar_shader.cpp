@@ -376,6 +376,16 @@ convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack1
     func[make_tuple(3, rgb32, false, USE_F16C)] = shader_to_rgb32_3_f16c;
 #endif
 
+    if (precision != 3 && arch > USE_SSE2) {
+        arch = USE_SSE2;
+    }
+    if (pix_type == rgb24) {
+        arch = NO_SIMD;
+    }
+    if (precision == 3 && arch < USE_F16C) {
+        arch = NO_SIMD;
+    }
+
     return func[make_tuple(precision, pix_type, stack16, arch)];
 
 

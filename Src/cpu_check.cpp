@@ -143,6 +143,11 @@ bool has_sse2() noexcept
     return (get_simd_support_info() & CPU_SSE2_SUPPORT) != 0;
 }
 
+bool has_ssse3() noexcept
+{
+    return (get_simd_support_info() & CPU_SSSE3_SUPPORT) != 0;
+}
+
 bool has_f16c() noexcept
 {
     return (get_simd_support_info() & CPU_F16C_SUPPORT) != 0;

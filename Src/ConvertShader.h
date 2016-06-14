@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+
 #if defined(__AVX__)
 #include <immintrin.h>
 #else
@@ -21,6 +22,7 @@
 enum arch_t {
     NO_SIMD,
     USE_SSE2,
+    USE_SSSE3,
     USE_F16C,
 };
 
