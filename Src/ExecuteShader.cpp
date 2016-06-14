@@ -80,7 +80,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	// After last command, copy result back to AviSynth.
 	PVideoFrame dst = env->NewVideoFrame(vi);
 	if (m_PlanarOut) {
-		if FAILED(CopyBufferToAviSynthPlanar(srcHeight - 1, TextureList.back(), dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), env))
+		if FAILED(CopyBufferToAviSynthPlanar(srcHeight - 1, TextureList.back(), dst->GetWritePtr(PLANAR_Y), dst->GetWritePtr(PLANAR_U), dst->GetWritePtr(PLANAR_V), dst->GetPitch(PLANAR_Y), m_OutputPrecision, env))
 			env->ThrowError("ExecuteShader: CopyBufferToAviSynthPlanar failed");
 	}
 	else {
@@ -124,7 +124,7 @@ void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTe
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
 			IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
 
-			if (IsLast) {
+			if (init && IsLast) {
 				if (cmd.OutputIndex != 1)
 					env->ThrowError("ExecuteShader: Last command must have Output = 1");
 
@@ -170,20 +170,6 @@ void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTe
 				env->ThrowError("ExecuteShader: CopyBuffer failed.");
 		}
 	}
-}
-
-// Returns how to multiply the AviSynth frame format's width based on the precision.
-int ExecuteShader::AdjustPrecision(IScriptEnvironment* env, int precision) {
-	if (precision == 0)
-		return 1; // Same width as Y8
-	if (precision == 1)
-		return 1; // Same width as RGB24
-	else if (precision == 2)
-		return 2; // Double width as RGB32
-	else if (precision == 3)
-		return 2; // Double width as RGB32
-	else
-		env->ThrowError("ExecuteShader: Precision must be 0, 1, 2 or 3");
 }
 
 // Sets the default parameter value if it is not already defined.

@@ -78,6 +78,20 @@ static int __stdcall GetD3DFormatSize(int precision) {
 		return 0;
 }
 
+// Returns how to multiply the AviSynth frame format's width based on the precision.
+static int __stdcall AdjustPrecision(IScriptEnvironment* env, int precision) {
+	if (precision == 0)
+		return 1; // Same width as Y8
+	if (precision == 1)
+		return 1; // Same width as RGB24
+	else if (precision == 2)
+		return 2; // Double width as RGB32
+	else if (precision == 3)
+		return 2; // Double width as RGB32
+	else
+		env->ThrowError("ExecuteShader: Precision must be 0, 1, 2 or 3");
+	return 0;
+}
 
 static HRESULT __stdcall CopyAviSynthToBuffer(const byte* src, int srcPitch, int clipPrecision, int width, int height, InputTexture* dst, IScriptEnvironment* env) {
 	// Copies source frame into main surface buffer, or into additional input textures
@@ -114,13 +128,15 @@ static HRESULT __stdcall CopyBufferToAviSynthInternal(IDirect3DSurface9* surface
 }
 
 static HRESULT __stdcall CopyBufferToAviSynth(int commandIndex, InputTexture* src, byte* dst, int dstPitch, int outputPrecision, IScriptEnvironment* env) {
-	HR(CopyBufferToAviSynthInternal(src->Memory, dst, dstPitch, src->Width * GetD3DFormatSize(outputPrecision), src->Height, env));
+	int Width = src->Width * AdjustPrecision(env, outputPrecision);
+	HR(CopyBufferToAviSynthInternal(src->Memory, dst, dstPitch, Width, src->Height, env));
 	return S_OK;
 }
 
-static HRESULT __stdcall CopyBufferToAviSynthPlanar(int commandIndex, InputTexture* src, byte* dstY, byte* dstU, byte* dstV, int dstPitch, IScriptEnvironment* env) {
-	HR(CopyBufferToAviSynthInternal(src->SurfaceY, dstY, dstPitch, src->Width, src->Height, env));
-	HR(CopyBufferToAviSynthInternal(src->SurfaceU, dstU, dstPitch, src->Width, src->Height, env));
-	HR(CopyBufferToAviSynthInternal(src->SurfaceV, dstV, dstPitch, src->Width, src->Height, env));
+static HRESULT __stdcall CopyBufferToAviSynthPlanar(int commandIndex, InputTexture* src, byte* dstY, byte* dstU, byte* dstV, int dstPitch, int outputPrecision, IScriptEnvironment* env) {
+	int Width = src->Width * AdjustPrecision(env, outputPrecision);
+	HR(CopyBufferToAviSynthInternal(src->SurfaceY, dstY, dstPitch, Width, src->Height, env));
+	HR(CopyBufferToAviSynthInternal(src->SurfaceU, dstU, dstPitch, Width, src->Height, env));
+	HR(CopyBufferToAviSynthInternal(src->SurfaceV, dstV, dstPitch, Width, src->Height, env));
 	return S_OK;
 }

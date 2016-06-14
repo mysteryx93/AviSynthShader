@@ -19,7 +19,6 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
 	void GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
-	int AdjustPrecision(IScriptEnvironment* env, int precision);
 	void AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env);
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);

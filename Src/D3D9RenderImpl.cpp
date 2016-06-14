@@ -282,7 +282,7 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 			PlanarCmd.CommandIndex = cmd->CommandIndex;
 			PlanarCmd.ClipIndex[0] = 1;
 			PlanarCmd.OutputIndex = 1;
-			PlanarCmd.Precision = 0;
+			PlanarCmd.Precision = m_OutputPrecision;
 			if FAILED(InitPixelShader(&PlanarCmd, 1, env))
 				env->ThrowError("ExecuteShader: OutputY.cso not found");
 			HR(ProcessFrame(textureList, &PlanarCmd, width, height, true, 1, env));
@@ -333,6 +333,7 @@ HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureLis
 		textureList->push_back(dst);
 	}
 	*outDst = dst;
+	return S_OK;
 }
 
 HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScriptEnvironment* env) {
