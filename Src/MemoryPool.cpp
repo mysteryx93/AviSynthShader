@@ -12,7 +12,7 @@ MemoryPool::~MemoryPool() {
 	m_Pool.clear();
 }
 
-HRESULT MemoryPool::Allocate(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface) {
+HRESULT MemoryPool::AllocateInternal(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface) {
 	// Textures must be created by the device that will use them; thus, a memory pool is required for each device.
 
 	m_mutex.lock();
@@ -52,6 +52,14 @@ HRESULT MemoryPool::Allocate(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture
 	m_mutex.unlock();
 
 	return S_OK;
+}
+
+HRESULT MemoryPool::AllocateTexture(CComPtr<IDirect3DDevice9Ex> device, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface) {
+	return AllocateInternal(device, true, width, height, renderTarget, format, texture, surface);
+}
+
+HRESULT MemoryPool::AllocatePlainSurface(CComPtr<IDirect3DDevice9Ex> device, int width, int height, D3DFORMAT format, CComPtr<IDirect3DSurface9> &surface) {
+	return AllocateInternal(device, false, width, height, false, format, CComPtr<IDirect3DTexture9>(NULL), surface);
 }
 
 HRESULT MemoryPool::Release(IDirect3DSurface9 *surface) {

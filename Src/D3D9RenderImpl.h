@@ -10,7 +10,7 @@
 #include <algorithm>
 #include "CommandStruct.h"
 #include "MemoryPool.h"
-#include "TextureList.hpp"
+#include "TextureList.h"
 
 struct RenderTargetMatrix {
 	int Width, Height;

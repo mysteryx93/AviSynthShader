@@ -15,9 +15,11 @@ class MemoryPool {
 public:
 	MemoryPool();
 	~MemoryPool();
-	HRESULT Allocate(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface);
+	HRESULT AllocateTexture(CComPtr<IDirect3DDevice9Ex> device, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface);
+	HRESULT AllocatePlainSurface(CComPtr<IDirect3DDevice9Ex> device, int width, int height, D3DFORMAT format, CComPtr<IDirect3DSurface9> &surface);
 	HRESULT Release(IDirect3DSurface9 *surface);
 private:
+	HRESULT AllocateInternal(CComPtr<IDirect3DDevice9Ex> device, bool gpuTexture, int width, int height, bool renderTarget, D3DFORMAT format, CComPtr<IDirect3DTexture9> &texture, CComPtr<IDirect3DSurface9> &surface);
 	std::vector<PooledTexture*> m_Pool;
 	//CComPtr<IDirect3DDevice9Ex> m_pDevice;
 	std::mutex m_mutex;

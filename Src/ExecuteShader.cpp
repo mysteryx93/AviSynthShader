@@ -32,7 +32,12 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	srcHeight = vi.height;
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
-	isMT = SUPPORT_MT_NICE_FILTER && (env->FunctionExists("SetMTMode") || env->FunctionExists("SetFilterMTMode"));
+	// Runs as MT_NICE_FILTER in AviSynth+ MT, otherwise MT_MULTI_INSTANCE
+	isMT = false;
+	if (env->FunctionExists("SetFilterMTMode")) {
+		auto env2 = static_cast<IScriptEnvironment2*>(env);
+		isMT = SUPPORT_MT_NICE_FILTER && env2->GetProperty(AEP_FILTERCHAIN_THREADS) > 1;
+	}
 
 	render1 = new D3D9RenderImpl();
 	render2 = isMT ? new D3D9RenderImpl() : NULL;

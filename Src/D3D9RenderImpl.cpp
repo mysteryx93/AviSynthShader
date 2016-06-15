@@ -110,7 +110,7 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 	m_pCurrentRenderTarget->Width = width;
 	m_pCurrentRenderTarget->Height = height;
 	m_pCurrentRenderTarget->Format = format;
-	HR(m_Pool->Allocate(m_pDevice, true, width, height, true, format, m_pCurrentRenderTarget->Texture, m_pCurrentRenderTarget->Surface));
+	HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, format, m_pCurrentRenderTarget->Texture, m_pCurrentRenderTarget->Surface));
 
 	HR(m_pDevice->SetRenderTarget(0, m_pCurrentRenderTarget->Surface));
 	return S_OK;
@@ -176,26 +176,26 @@ HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool
 	D3DFORMAT Format;
 	if (isPlanar) {
 		Format = GetD3DFormat(m_ClipPrecision[clipIndex], true);
-		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureY, outTexture->SurfaceY));
-		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureU, outTexture->SurfaceU));
-		HR(m_Pool->Allocate(m_pDevice, true, width, height, false, Format, outTexture->TextureV, outTexture->SurfaceV));
+		HR(m_Pool->AllocateTexture(m_pDevice, width, height, false, Format, outTexture->TextureY, outTexture->SurfaceY));
+		HR(m_Pool->AllocateTexture(m_pDevice, width, height, false, Format, outTexture->TextureU, outTexture->SurfaceU));
+		HR(m_Pool->AllocateTexture(m_pDevice, width, height, false, Format, outTexture->TextureV, outTexture->SurfaceV));
 	}
 
 	if (isLast) {
 		if (m_PlanarOut) {
-			HR(m_Pool->Allocate(m_pDevice, true, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
+			HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
 			Format = GetD3DFormat(m_OutputPrecision, true);
-			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceY));
-			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceU));
-			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, Format, CComPtr<IDirect3DTexture9>(NULL), outTexture->SurfaceV));
+			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceY));
+			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceU));
+			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceV));
 		}
 		else {
-			HR(m_Pool->Allocate(m_pDevice, false, width, height, false, GetD3DFormat(m_OutputPrecision, false), CComPtr<IDirect3DTexture9>(NULL), outTexture->Memory));
+			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, GetD3DFormat(m_OutputPrecision, false), outTexture->Memory));
 		}
 	}
 	else {
 		Format = GetD3DFormat(isInput ? m_ClipPrecision[clipIndex] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
-		HR(m_Pool->Allocate(m_pDevice, true, width, height, true, Format, outTexture->Texture, outTexture->Surface));
+		HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, Format, outTexture->Texture, outTexture->Surface));
 	}
 	return S_OK;
 }

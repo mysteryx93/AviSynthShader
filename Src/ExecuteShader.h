@@ -8,10 +8,10 @@
 #include <mutex>
 #include <vector>
 #include <DxErr.h>
-#include "TextureList.hpp"
+#include "TextureList.h"
 
 // MT_MULTI_INSTANCE with 4 threads gives the best performance.
-const bool SUPPORT_MT_NICE_FILTER = true;
+const bool SUPPORT_MT_NICE_FILTER = false;
 
 class ExecuteShader : public GenericVideoFilter {
 public:
