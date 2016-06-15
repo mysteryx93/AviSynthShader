@@ -55,7 +55,7 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	cmd.CommandIndex = vi.height - 1;
 
 	// Configure pixel shader
-	if (path != NULL && path[0] != '\0') {
+	if (path && path[0] != '\0') {
 		for (int i = 0; i < 9; i++) {
 			ParamStruct* param = &cmd.Param[i];
 			if (param->String && param->String[0] != '\0') {

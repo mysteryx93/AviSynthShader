@@ -20,10 +20,8 @@ D3D9RenderImpl::D3D9RenderImpl() {
 
 D3D9RenderImpl::~D3D9RenderImpl(void) {
 	ClearRenderTarget();
-	if (m_Pool != NULL) {
+	if (m_Pool)
 		delete m_Pool;
-		m_Pool = NULL;
-	}
 	for (auto const item : m_MatrixCache) {
 		delete item;
 	}
@@ -68,7 +66,7 @@ HRESULT D3D9RenderImpl::CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayW
 	D3DPRESENT_PARAMETERS m_presentParams;
 	HR(GetPresentParams(&m_presentParams, hDisplayWindow));
 
-	HR(m_pD3D9->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hDisplayWindow, dwBehaviorFlags, &m_presentParams, NULL, device));
+	HR(m_pD3D9->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hDisplayWindow, dwBehaviorFlags, &m_presentParams, nullptr, device));
 	return S_OK;
 }
 
@@ -101,7 +99,7 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env)
 {
 	// Skip if current render target has right dimensions.
-	if (m_pCurrentRenderTarget != NULL && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height && m_pCurrentRenderTarget->Format == format)
+	if (m_pCurrentRenderTarget && m_pCurrentRenderTarget->Width == width && m_pCurrentRenderTarget->Height == height && m_pCurrentRenderTarget->Format == format)
 		return S_OK;
 
 	ClearRenderTarget();
@@ -117,10 +115,10 @@ HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format,
 }
 
 HRESULT D3D9RenderImpl::ClearRenderTarget() {
-	if (m_pCurrentRenderTarget != NULL) {
+	if (m_pCurrentRenderTarget) {
 		HR(m_Pool->Release(m_pCurrentRenderTarget->Surface));
 		delete m_pCurrentRenderTarget;
-		m_pCurrentRenderTarget = NULL;
+		m_pCurrentRenderTarget = nullptr;
 	}
 	return S_OK;
 }
@@ -141,7 +139,7 @@ HRESULT D3D9RenderImpl::GetRenderTargetMatrix(int width, int height, RenderTarge
 	Obj->Height = height;
 	D3DXMatrixOrthoOffCenterLH(&Obj->MatrixOrtho, 0, (float)width, (float)height, 0, 0.0f, 1.0f);
 
-	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &Obj->VertexBuffer, NULL));
+	HR(m_pDevice->CreateVertexBuffer(sizeof(VERTEX) * 4, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_TEX1, D3DPOOL_DEFAULT, &Obj->VertexBuffer, nullptr));
 
 	// Create vertexes for FVF (Fixed Vector Function) set to pre-processed vertex coordinates.
 	VERTEX vertexArray[] =
@@ -217,7 +215,7 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 	SCENE_HR(GetRenderTargetMatrix(m_pCurrentRenderTarget->Width, m_pCurrentRenderTarget->Height, &Matrix), m_pDevice);
 	HR(m_pDevice->SetTransform(D3DTS_PROJECTION, &Matrix->MatrixOrtho));
 
-	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
+	HR(m_pDevice->Clear(D3DADAPTER_DEFAULT, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0));
 	HR(m_pDevice->BeginScene());
 	SCENE_HR(m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1), m_pDevice);
 	SCENE_HR(m_pDevice->SetPixelShader(m_Shaders[cmd->CommandIndex + planeOut].Shader), m_pDevice);
@@ -225,7 +223,7 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 
 	// Clear samplers
 	for (int i = 0; i < 9; i++) {
-		SCENE_HR(m_pDevice->SetTexture(i, NULL), m_pDevice);
+		SCENE_HR(m_pDevice->SetTexture(i, nullptr), m_pDevice);
 	}
 
 	// Set input clips.
@@ -233,8 +231,8 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 	for (int i = 0; i < 9; i++) {
 		if (cmd->ClipIndex[i] > 0) {
 			Input = FindTexture(textureList, cmd->ClipIndex[i]);
-			if (Input != NULL && (Input->Texture != NULL || Input->TextureY != NULL)) {
-				if (Input->TextureY == NULL) {
+			if (Input && (Input->Texture || Input->TextureY)) {
+				if (!Input->TextureY) {
 					SCENE_HR(m_pDevice->SetTexture(i, Input->Texture), m_pDevice);
 				}
 				else {
@@ -266,16 +264,16 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 
 	dst->ClipIndex = cmd->OutputIndex;
 	if (!isLast) {
-		HR(D3DXLoadSurfaceFromSurface(dst->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 	}
 	else {
 		if (planeOut > 0) {
 			// This gets called recursively from the code below for each plane.
-			IDirect3DSurface9* SurfaceOut = planeOut == 1 ? dst->SurfaceY : planeOut == 2 ? dst->SurfaceU : planeOut == 3 ? dst->SurfaceV : NULL;
+			IDirect3DSurface9* SurfaceOut = planeOut == 1 ? dst->SurfaceY : planeOut == 2 ? dst->SurfaceU : planeOut == 3 ? dst->SurfaceV : nullptr;
 			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, SurfaceOut));
 		}
 		else if (m_PlanarOut) {
-			HR(D3DXLoadSurfaceFromSurface(dst->Surface, NULL, NULL, pReadSurfaceGpu, NULL, NULL, D3DX_FILTER_NONE, 0));
+			HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 
 			CommandStruct PlanarCmd = { 0 };
 			PlanarCmd.Path = "OutputY.cso";
@@ -312,12 +310,12 @@ HRESULT D3D9RenderImpl::CopyBuffer(std::vector<InputTexture*>* textureList, Inpu
 	dst->ClipIndex = outputIndex;
 
 	if (!IsPlanar) {
-		HR(D3DXLoadSurfaceFromSurface(dst->Surface, NULL, NULL, src->Surface, NULL, NULL, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, src->Surface, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 	}
 	else {
-		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceY, NULL, NULL, src->SurfaceY, NULL, NULL, D3DX_FILTER_NONE, 0));
-		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceU, NULL, NULL, src->SurfaceU, NULL, NULL, D3DX_FILTER_NONE, 0));
-		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceV, NULL, NULL, src->SurfaceV, NULL, NULL, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceY, nullptr, nullptr, src->SurfaceY, nullptr, nullptr, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceU, nullptr, nullptr, src->SurfaceU, nullptr, nullptr, D3DX_FILTER_NONE, 0));
+		HR(D3DXLoadSurfaceFromSurface(dst->SurfaceV, nullptr, nullptr, src->SurfaceV, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 	}
 	return S_OK;
 }
@@ -326,7 +324,7 @@ HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureLis
 	InputTexture* dst = FindTexture(textureList, outputIndex);
 	if (planeOut == 0) {
 		// Remove previous item with OutputIndex and replace it with new texture
-		if (dst != NULL)
+		if (dst)
 			HR(RemoveTexture(textureList, dst));
 		dst = new InputTexture();
 		HR(CreateTexture(outputIndex, width, height, false, isPlanar, isLast, -1, dst));
@@ -339,36 +337,36 @@ HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureLis
 HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScriptEnvironment* env) {
 	// PlaneOut will use the next 3 shader positions
 	ShaderItem* Shader = &m_Shaders[cmd->CommandIndex + planeOut];
-	if (Shader->Shader != NULL)
+	if (Shader->Shader)
 		return S_OK;
 
 	std::unique_lock<std::mutex> my_lock(mutex_InitPixelShader);
 	CComPtr<ID3DXBuffer> code;
-	unsigned char* ShaderBuf = NULL;
-	DWORD* CodeBuffer = NULL;
+	unsigned char* ShaderBuf = nullptr;
+	DWORD* CodeBuffer = nullptr;
 
 	if (!StringEndsWith(cmd->Path, ".hlsl")) {
 		// Precompiled shader
 		ShaderBuf = ReadBinaryFile(cmd->Path);
-		if (ShaderBuf == NULL)
+		if (ShaderBuf == nullptr)
 			return E_FAIL;
 		HR(D3DXGetShaderConstantTable((DWORD*)ShaderBuf, &Shader->ConstantTable));
 		CodeBuffer = (DWORD*)ShaderBuf;
 	}
 	else {
 		// Compile HLSL shader code
-		if (D3DXCompileShaderFromFile(cmd->Path, NULL, NULL, cmd->EntryPoint, cmd->ShaderModel, 0, &code, NULL, &Shader->ConstantTable) != S_OK) {
+		if (D3DXCompileShaderFromFile(cmd->Path, nullptr, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable) != S_OK) {
 			// Try in same folder as DLL file.
 			char path[MAX_PATH];
 			GetDefaultPath(path, MAX_PATH, cmd->Path);
-			HR(D3DXCompileShaderFromFile(path, NULL, NULL, cmd->EntryPoint, cmd->ShaderModel, 0, &code, NULL, &Shader->ConstantTable));
+			HR(D3DXCompileShaderFromFile(path, nullptr, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable));
 		}
 		CodeBuffer = (DWORD*)code->GetBufferPointer();
 	}
 
 	HR(m_pDevice->CreatePixelShader(CodeBuffer, &Shader->Shader));
 
-	if (ShaderBuf != NULL)
+	if (ShaderBuf)
 		free(ShaderBuf);
 
 	return S_OK;
@@ -376,13 +374,13 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScrip
 
 unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 	FILE *fl = fopen(filePath, "rb");
-	if (fl == NULL) {
+	if (!fl) {
 		// Try in same folder as DLL file.
 		char path[MAX_PATH];
 		GetDefaultPath(path, MAX_PATH, filePath);
 		fl = fopen(path, "rb");
 	}
-	if (fl != NULL)
+	if (fl)
 	{
 		fseek(fl, 0, SEEK_END);
 		long len = ftell(fl);
@@ -393,12 +391,12 @@ unsigned char* D3D9RenderImpl::ReadBinaryFile(const char* filePath) {
 		return ret;
 	}
 	else
-		return NULL;
+		return nullptr;
 }
 
 // returns 1 if str ends with suffix
 bool D3D9RenderImpl::StringEndsWith(const char * str, const char * suffix) {
-	if (str == NULL || suffix == NULL)
+	if (str == nullptr || suffix == nullptr)
 		return false;
 
 	size_t str_len = strlen(str);
@@ -413,7 +411,7 @@ bool D3D9RenderImpl::StringEndsWith(const char * str, const char * suffix) {
 // Gets the path where the DLL file is located.
 void D3D9RenderImpl::GetDefaultPath(char* outPath, int maxSize, const char* filePath)
 {
-	HMODULE hm = NULL;
+	HMODULE hm = nullptr;
 
 	if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
 		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -427,9 +425,8 @@ void D3D9RenderImpl::GetDefaultPath(char* outPath, int maxSize, const char* file
 
 	// Strip the file name to keep the path ending with '\'
 	char *pos = strrchr(outPath, '\\') + 1;
-	if (pos != NULL) {
+	if (pos)
 		strcpy(pos, filePath);
-	}
 }
 
 HRESULT D3D9RenderImpl::SetDefaults(LPD3DXCONSTANTTABLE table) {

@@ -30,7 +30,7 @@ HRESULT MemoryPool::AllocateInternal(CComPtr<IDirect3DDevice9Ex> device, bool gp
 
 	// If not found, create it
 	if (gpuTexture) {
-		HR(device->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, D3DPOOL_DEFAULT, &texture, NULL));
+		HR(device->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, D3DPOOL_DEFAULT, &texture, nullptr));
 		HR(texture->GetSurfaceLevel(0, &surface));
 	}
 	else {
@@ -45,8 +45,8 @@ HRESULT MemoryPool::AllocateInternal(CComPtr<IDirect3DDevice9Ex> device, bool gp
 	NewObj->Height = height;
 	NewObj->RenderTarget = renderTarget;
 	NewObj->Format = format;
-	NewObj->Texture = texture != NULL ? texture : NULL;
-	NewObj->Surface = surface != NULL ? surface : NULL;
+	NewObj->Texture = texture ? texture : nullptr;
+	NewObj->Surface = surface ? surface : nullptr;
 	m_mutex.lock();
 	m_Pool.push_back(NewObj);
 	m_mutex.unlock();
@@ -59,11 +59,11 @@ HRESULT MemoryPool::AllocateTexture(CComPtr<IDirect3DDevice9Ex> device, int widt
 }
 
 HRESULT MemoryPool::AllocatePlainSurface(CComPtr<IDirect3DDevice9Ex> device, int width, int height, D3DFORMAT format, CComPtr<IDirect3DSurface9> &surface) {
-	return AllocateInternal(device, false, width, height, false, format, CComPtr<IDirect3DTexture9>(NULL), surface);
+	return AllocateInternal(device, false, width, height, false, format, CComPtr<IDirect3DTexture9>(nullptr), surface);
 }
 
 HRESULT MemoryPool::Release(IDirect3DSurface9 *surface) {
-	if (surface == NULL)
+	if (!surface)
 		return S_OK;
 
 	std::unique_lock<std::mutex> my_lock(m_mutex);

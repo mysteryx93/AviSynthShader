@@ -39,7 +39,7 @@ public:
 	static const int maxClips = 9;
 	ShaderItem m_Shaders[80] = { 0 };
 	std::mutex mutex_ProcessFrame;
-	MemoryPool* m_Pool = NULL;
+	MemoryPool* m_Pool = nullptr;
 
 private:
 	unsigned char* ReadBinaryFile(const char* filePath);
@@ -59,7 +59,7 @@ private:
 
 	CComPtr<IDirect3D9Ex>           m_pD3D9;
 	CComPtr<IDirect3DDevice9Ex>     m_pDevice;
-	PooledTexture* m_pCurrentRenderTarget = NULL;
+	PooledTexture* m_pCurrentRenderTarget = nullptr;
 	std::vector<RenderTargetMatrix*> m_MatrixCache;
 	std::mutex mutex_InitPixelShader;
 

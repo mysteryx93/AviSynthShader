@@ -26,7 +26,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	}
 
 	// Initialize
-	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
 
 	// We must change pixel type here for the next filter to recognize it properly during its initialization
 	srcHeight = vi.height;
@@ -40,7 +40,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	}
 
 	render1 = new D3D9RenderImpl();
-	render2 = isMT ? new D3D9RenderImpl() : NULL;
+	render2 = isMT ? new D3D9RenderImpl() : nullptr;
 	if (FAILED(render1->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT)))
 		env->ThrowError("ExecuteShader: Initialize failed.");
 	if (isMT && FAILED(render2->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT)))
@@ -56,9 +56,9 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 
 ExecuteShader::~ExecuteShader() {
 	DestroyWindow(dummyHWND);
-	if (render1 != NULL)
+	if (render1)
 		delete render1;
-	if (render2 != NULL)
+	if (render2)
 		delete render2;
 }
 
@@ -117,17 +117,17 @@ void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTe
 		srcReader += src->GetPitch();
 		IsLast = i == srcHeight - 1;
 
-		if (cmd.Path != NULL && cmd.Path[0] != '\0') {
+		if (cmd.Path && cmd.Path[0] != '\0') {
 			if (init)
 				ConfigureShader(&cmd, env);
 
 			// If clip at output position isn't defined, use dimensions of first clip by default.
 			texture = FindTexture(textureList, cmd.OutputIndex);
-			if (texture == NULL || texture->Texture == NULL)
+			if (!texture || !texture->Texture)
 				texture = FindTexture(textureList, cmd.ClipIndex[0]);
 			OutputWidth = cmd.OutputWidth > 0 ? cmd.OutputWidth : texture->Width;
 			OutputHeight = cmd.OutputHeight > 0 ? cmd.OutputHeight : texture->Height;
-			IsPlanar = texture->TextureY != NULL && (cmd.Path == NULL || cmd.Path[0] == '\0');
+			IsPlanar = texture->TextureY && (!cmd.Path || cmd.Path[0] == '\0');
 
 			if (init && IsLast) {
 				if (cmd.OutputIndex != 1)
@@ -198,7 +198,7 @@ void ExecuteShader::AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::ve
 	InputTexture* NewTexture;
 	for (int i = 0; i < D3D9RenderImpl::maxClips; i++) {
 		PClip clip = m_clips[i];
-		if (clip != NULL) {
+		if (clip) {
 			// Allocate textures
 			bool IsPlanar = clip->GetVideoInfo().IsYV24();
 			if (!clip->GetVideoInfo().IsRGB32() && !IsPlanar)
