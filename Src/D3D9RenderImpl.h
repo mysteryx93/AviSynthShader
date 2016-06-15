@@ -51,7 +51,7 @@ private:
 	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int planeOut, IScriptEnvironment* env);
 	HRESULT CreateSurface(int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface);
 	HRESULT CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);
-	HRESULT PrepareReadTarget(std::vector<InputTexture*>* textureList, int outputIndex, int width, int height, int planeOut, bool isLast, InputTexture** dst);
+	HRESULT PrepareReadTarget(std::vector<InputTexture*>* textureList, int outputIndex, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** dst);
 	HRESULT SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env);
 	HRESULT ClearRenderTarget();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);

@@ -16,5 +16,4 @@ struct PooledTexture {
 	D3DFORMAT Format;
 	CComPtr<IDirect3DTexture9> Texture;
 	CComPtr<IDirect3DSurface9> Surface;
-	CComPtr<IDirect3DDevice9Ex> Device;
 };

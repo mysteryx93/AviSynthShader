@@ -256,7 +256,7 @@ HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, Com
 HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {
 	InputTexture* dst;
-	HR(PrepareReadTarget(textureList, cmd->OutputIndex, width, height, planeOut, isLast, &dst));
+	HR(PrepareReadTarget(textureList, cmd->OutputIndex, width, height, planeOut, isLast, false, &dst));
 
 	CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
 	HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
@@ -294,7 +294,6 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 			if FAILED(InitPixelShader(&PlanarCmd, 3, env))
 				env->ThrowError("ExecuteShader: OutputV.cso not found");
 			HR(ProcessFrame(textureList, &PlanarCmd, width, height, true, 3, env));
-
 			// mutex_ProcessFrame.unlock();
 		}
 		else {
@@ -307,11 +306,12 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 }
 
 HRESULT D3D9RenderImpl::CopyBuffer(std::vector<InputTexture*>* textureList, InputTexture* src, int outputIndex, IScriptEnvironment* env) {
+	bool IsPlanar = src->TextureY;
 	InputTexture* dst;
-	HR(PrepareReadTarget(textureList, outputIndex, src->Width, src->Height, 0, false, &dst));
+	HR(PrepareReadTarget(textureList, outputIndex, src->Width, src->Height, 0, false, IsPlanar, &dst));
 	dst->ClipIndex = outputIndex;
 
-	if (src->TextureY == NULL) {
+	if (!IsPlanar) {
 		HR(D3DXLoadSurfaceFromSurface(dst->Surface, NULL, NULL, src->Surface, NULL, NULL, D3DX_FILTER_NONE, 0));
 	}
 	else {
@@ -322,14 +322,14 @@ HRESULT D3D9RenderImpl::CopyBuffer(std::vector<InputTexture*>* textureList, Inpu
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureList, int outputIndex, int width, int height, int planeOut, bool isLast, InputTexture** outDst) {
+HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureList, int outputIndex, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** outDst) {
 	InputTexture* dst = FindTexture(textureList, outputIndex);
 	if (planeOut == 0) {
 		// Remove previous item with OutputIndex and replace it with new texture
 		if (dst != NULL)
 			HR(RemoveTexture(textureList, dst));
 		dst = new InputTexture();
-		HR(CreateTexture(outputIndex, width, height, false, false, isLast, -1, dst));
+		HR(CreateTexture(outputIndex, width, height, false, isPlanar, isLast, -1, dst));
 		textureList->push_back(dst);
 	}
 	*outDst = dst;
