@@ -3,6 +3,14 @@
 #include "ConvertShader.h"
 
 
+/*
+packed shader: color order ARGB
+precision1: all samples are uint8_t
+precision2: all samples are uint16_t
+precision3: all samples are half precision.
+map Y to R, U to G, V to B
+*/
+
 
 static void __stdcall
 yuv_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
@@ -16,8 +24,6 @@ yuv_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            // on 8bits, color order of shader is ARGB
-            //map 0 to A, y to R, u to G, v to B
             d[4 * x + 0] = 0;
             d[4 * x + 1] = sy[x];
             d[4 * x + 2] = su[x];
@@ -49,8 +55,6 @@ yuv_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
             __m128i y = loadl(sy + x);
             __m128i u = loadl(su + x);
             __m128i v = loadl(sv + x);
-            // on 8bits, color order of shader is ARGB
-            // map 0 to A, y to R, u to G, v to B
             __m128i ar = _mm_unpacklo_epi8(zero, y);
             __m128i gb = _mm_unpacklo_epi8(u, v);
             __m128i argb0 = _mm_unpacklo_epi16(ar, gb);
@@ -86,23 +90,21 @@ yuv_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            //on 16bits, color oreder of shader is ABGR
-            // map 0 to A, v to B, u to G, y to R
             d[8 * x + 0] = d[8 * x + 1] = 0;
             if (!STACK16) {
                 d[8 * x + 2] = 0;
-                d[8 * x + 3] = sv[x];
+                d[8 * x + 3] = sy[x];
                 d[8 * x + 4] = 0;
                 d[8 * x + 5] = su[x];
                 d[8 * x + 6] = 0;
-                d[8 * x + 7] = sy[x];
+                d[8 * x + 7] = sv[x];
             } else {
-                d[8 * x + 2] = vlsb[x];
-                d[8 * x + 3] = sv[x];
+                d[8 * x + 2] = ylsb[x];
+                d[8 * x + 3] = sy[x];
                 d[8 * x + 4] = ulsb[x];
                 d[8 * x + 5] = su[x];
-                d[8 * x + 6] = ylsb[x];
-                d[8 * x + 7] = sy[x];
+                d[8 * x + 6] = vlsb[x];
+                d[8 * x + 7] = sv[x];
             }
         }
         d += dpitch;
@@ -151,16 +153,14 @@ yuv_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 u = _mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x));
                 v = _mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x));
             }
-            //on 16bits, color oreder of shader is ABGR
-            // map 0 to A, v to B, u to G, y to R
-            __m128i ab = _mm_unpacklo_epi16(zero, v);
-            __m128i gr = _mm_unpacklo_epi16(u, y);
-            stream(d + 8 * x + 0, _mm_unpacklo_epi32(ab, gr));
-            stream(d + 8 * x + 16, _mm_unpackhi_epi32(ab, gr));
-            ab = _mm_unpackhi_epi16(zero, v);
-            gr = _mm_unpackhi_epi16(u, y);
-            stream(d + 8 * x + 32, _mm_unpacklo_epi32(ab, gr));
-            stream(d + 8 * x + 48, _mm_unpackhi_epi32(ab, gr));
+            __m128i ar = _mm_unpacklo_epi16(zero, y);
+            __m128i gb = _mm_unpacklo_epi16(u, v);
+            stream(d + 8 * x + 0, _mm_unpacklo_epi32(ar, gb));
+            stream(d + 8 * x + 16, _mm_unpackhi_epi32(ar, gb));
+            ar = _mm_unpackhi_epi16(zero, y);
+            gb = _mm_unpackhi_epi16(u, v);
+            stream(d + 8 * x + 32, _mm_unpacklo_epi32(ar, gb));
+            stream(d + 8 * x + 48, _mm_unpackhi_epi32(ar, gb));
         }
         d += dpitch;
         sy += spitch;
@@ -198,17 +198,15 @@ yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     for (int y = 0; y < height; ++y) {
         uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
-            //on half precision, color oreder of shader is ABGR
-            // map 0 to A, v to B, u to G, y to R
             d16[4 * x + 0] = 0;
             if (!STACK16) {
-                d16[4 * x + 1] = lut[sv[x]];
+                d16[4 * x + 1] = lut[sy[x]];
                 d16[4 * x + 2] = lut[su[x]];
-                d16[4 * x + 3] = lut[sy[x]];
+                d16[4 * x + 3] = lut[sv[x]];
             } else {
-                d16[4 * x + 1] = lut[(sv[x] << 8) | vlsb[x]];
+                d16[4 * x + 1] = lut[(sy[x] << 8) | ylsb[x]];
                 d16[4 * x + 2] = lut[(su[x] << 8) | ulsb[x]];
-                d16[4 * x + 3] = lut[(sy[x] << 8) | ylsb[x]];
+                d16[4 * x + 3] = lut[(sv[x] << 8) | vlsb[x]];
             }
         }
         if (STACK16) {
@@ -259,21 +257,19 @@ yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
                 u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x)), zero);
                 v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x)), zero);
             }
-            //on half precision, color oreder of shader is ABGR
-            // map 0 to A, v to B, u to G, y to R
-            __m128i ab = _mm_unpacklo_epi32(zero, y);
-            __m128i gr = _mm_unpacklo_epi32(u, v);
-            __m128 abgr0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ab, gr));
-            __m128 abgr1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ab, gr));
-            _mm_store_ps(buff + 4 * x + 0, _mm_mul_ps(abgr0, rcp));
-            _mm_store_ps(buff + 4 * x + 4, _mm_mul_ps(abgr1, rcp));
+            __m128i ar = _mm_unpacklo_epi32(zero, y);
+            __m128i gb = _mm_unpacklo_epi32(u, v);
+            __m128 argb0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ar, gb));
+            __m128 argb1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ar, gb));
+            _mm_store_ps(buff + 4 * x + 0, _mm_mul_ps(argb0, rcp));
+            _mm_store_ps(buff + 4 * x + 4, _mm_mul_ps(argb1, rcp));
 
-            ab = _mm_unpackhi_epi32(zero, y);
-            gr = _mm_unpackhi_epi32(u, v);
-            abgr0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ab, gr));
-            abgr1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ab, gr));
-            _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(abgr0, rcp));
-            _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(abgr1, rcp));
+            ar = _mm_unpackhi_epi32(zero, y);
+            gb = _mm_unpackhi_epi32(u, v);
+            argb0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ar, gb));
+            argb1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ar, gb));
+            _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(argb0, rcp));
+            _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(argb1, rcp));
         }
         convert_float_to_half(d, buff, width * 4);
         d += dpitch;
@@ -302,7 +298,6 @@ rgb_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            // on 8bits, color order of shader is ARGB.
             d[4 * x + 0] = IS_RGB32 ? s[4 * x + 3] : 0;
             d[4 * x + 1] = s[step * x + 2];
             d[4 * x + 2] = s[step * x + 1];
@@ -321,7 +316,6 @@ rgb32_to_shader_1_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
-    // on 8bits, color order of shader is ARGB.
     const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
 
     for (int y = 0; y < height; ++y) {
@@ -346,15 +340,14 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            //on 16bits, color order of shader is ABGR.
             d[8 * x + 0] = 0;
             d[8 * x + 1] = IS_RGB32 ? s[4 * x + 3] : 0;
             d[8 * x + 2] = 0;
-            d[8 * x + 3] = s[step * x + 0];
+            d[8 * x + 3] = s[step * x + 2];
             d[8 * x + 4] = 0;
             d[8 * x + 5] = s[step * x + 1];
             d[8 * x + 6] = 0;
-            d[8 * x + 7] = s[step * x + 2];
+            d[8 * x + 7] = s[step * x + 0];
         }
         d += dpitch;
         s -= spitch;
@@ -370,8 +363,7 @@ rgb32_to_shader_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     uint8_t* d = dstp[0];
 
     const __m128i zero = _mm_setzero_si128();
-    //on 16bits, color order of shader is ABGR.
-    const __m128i order = _mm_setr_epi8(3, 0, 1, 2, 7, 4, 5, 6, 11, 8, 9, 10, 15, 12, 13, 14);
+    const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 4) {
@@ -399,11 +391,10 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     for (int y = 0; y < height; ++y) {
         uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
-            //on half precision, order of shader is ABGR.
             d16[4 * x + 0] = IS_RGB32 ? lut[s[4 * x + 3]] : 0;
-            d16[4 * x + 1] = lut[s[step * x + 0]];
+            d16[4 * x + 1] = lut[s[step * x + 2]];
             d16[4 * x + 2] = lut[s[step * x + 1]];
-            d16[4 * x + 3] = lut[s[step * x + 2]];
+            d16[4 * x + 3] = lut[s[step * x + 0]];
         }
         d += dpitch;
         s -= spitch;
@@ -422,8 +413,7 @@ rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     const __m128i zero = _mm_setzero_si128();
     const __m128 rcp = _mm_set1_ps(1.0f / 255);
-    //on half precision, order of shader is ABGR.
-    const __m128i order = _mm_setr_epi8(3, 0, 1, 2, 7, 4, 5, 6, 11, 8, 9, 10, 15, 12, 13, 14);
+    const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 4) {
