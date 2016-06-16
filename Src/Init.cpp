@@ -43,7 +43,7 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 		stack16,				// lsb / Stack16
 		std::string(""),
 		planar,					// Planar
-		args[4].AsInt(-1),		// 0 for C++ only, 1 for use SSE2 and others for use F16C.
+		args[4].AsInt(-1),		// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C.
 		env);					// env is the link to essential informations, always provide it
 
 }
@@ -87,7 +87,7 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		stack16,			// lsb / Stack16
 		format,				// destination format
 		false,
-		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2 and others for use F16C.
+		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C.
 		env);				// env is the link to essential informations, always provide it
 
 	if (format == "YV12") {

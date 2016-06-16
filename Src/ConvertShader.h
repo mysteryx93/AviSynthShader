@@ -43,7 +43,7 @@ class ConvertShader : public GenericVideoFilter {
     std::vector<uint16_t> lut;
     bool useLut;
 
-    void constructToShader(int precision, bool stack16, bool planar, arch_t arch, IScriptEnvironment* env);
+    void constructToShader(int precision, bool stack16, bool planar, arch_t arch);
     void constructFromShader(int precision, bool stack16, std::string& format, arch_t arch);
     convert_shader_t mainProc;
 
@@ -54,10 +54,10 @@ public:
 };
 
 
-convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16, arch_t arch);
-convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16, arch_t arch);
-convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack16, arch_t arch);
-convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack16, arch_t arch);
+convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16, arch_t& arch);
+convert_shader_t get_to_shader_planar(int precision, int pix_type, bool stack16, arch_t& arch);
+convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack16, arch_t& arch);
+convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack16, arch_t& arch);
 
 
 static __forceinline __m128i loadl(const uint8_t* p)
