@@ -342,7 +342,7 @@ shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 #endif
 
 
-convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack16, arch_t arch)
+convert_shader_t get_from_shader_planar(int precision, int pix_type, bool stack16, arch_t& arch)
 {
     using std::make_tuple;
     constexpr int rgb24 = VideoInfo::CS_BGR24;

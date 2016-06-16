@@ -7,7 +7,7 @@ extern bool has_ssse3() noexcept;
 extern bool has_f16c() noexcept;
 
 
-static arch_t get_arch(int opt)
+static arch_t get_arch(int opt) noexcept
 {
     if (opt == 0 || !has_sse2()) {
         return NO_SIMD;
@@ -18,7 +18,7 @@ static arch_t get_arch(int opt)
 #if !defined(__AVX__)
     return USE_SSSE3;
 #else
-    if (opt == 1 || !has_f16c()) {
+    if (opt == 2 || !has_f16c()) {
         return USE_SSSE3;
     }
     return USE_F16C;
@@ -26,17 +26,8 @@ static arch_t get_arch(int opt)
 }
 
 
-void ConvertShader::constructToShader(int precision, bool stack16, bool planar, arch_t arch, IScriptEnvironment* env)
+void ConvertShader::constructToShader(int precision, bool stack16, bool planar, arch_t arch)
 {
-    if (precision == 3 && arch != USE_F16C) {
-        useLut = true;
-        int maximum = stack16 ? 65536 : 256;
-        lut.resize(maximum);
-        for (int i = 0; i < maximum; ++i) {
-            lut[i] = DirectX::PackedVector::XMConvertFloatToHalf(i * 1.0f / (maximum - 1));
-        }
-    }
-
     viSrc = vi;
 
     vi.pixel_type = planar ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
@@ -56,6 +47,16 @@ void ConvertShader::constructToShader(int precision, bool stack16, bool planar, 
 
     mainProc = planar ? get_to_shader_planar(precision, viSrc.pixel_type, stack16, arch)
         : get_to_shader_packed(precision, viSrc.pixel_type, stack16, arch);
+
+    if (precision == 3 && arch != USE_F16C) {
+        useLut = true;
+        int maximum = stack16 ? 65536 : 256;
+        lut.resize(maximum);
+        for (int i = 0; i < maximum; ++i) {
+            lut[i] = DirectX::PackedVector::XMConvertFloatToHalf(i * 1.0f / (maximum - 1));
+        }
+    }
+
 
 }
 
@@ -79,6 +80,14 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
         vi.width /= 2;
     }
 
+    procWidth = vi.width;
+    procHeight = viSrc.height;
+
+    floatBufferPitch = (viSrc.width * 8 + 63) & ~63; // must be mod64
+
+    mainProc = viSrc.IsRGB() ? get_from_shader_packed(precision, vi.pixel_type, stack16, arch)
+        : get_from_shader_planar(precision, vi.pixel_type, stack16, arch);
+
     if (precision == 3 && arch != USE_F16C) {
         useLut = true;
         int maximum = stack16 ? 65535 : 255;
@@ -88,14 +97,6 @@ void ConvertShader::constructFromShader(int precision, bool stack16, std::string
             lut[i] = static_cast<uint16_t>(t * maximum + 0.5f);
         }
     }
-
-    procWidth = vi.width;
-    procHeight = viSrc.height;
-
-    floatBufferPitch = (viSrc.width * 8 + 63) & ~63; // must be mod64
-
-    mainProc = viSrc.IsRGB() ? get_from_shader_packed(precision, vi.pixel_type, stack16, arch)
-        : get_from_shader_planar(precision, vi.pixel_type, stack16, arch);
 }
 
 
@@ -107,7 +108,7 @@ ConvertShader::ConvertShader(PClip _child, int precision, bool stack16, std::str
     arch_t arch = get_arch(opt);
 
     if (name == "ConvertToShader") {
-        constructToShader(precision, stack16, planar, arch, env);
+        constructToShader(precision, stack16, planar, arch);
     } else {
         constructFromShader(precision, stack16, format, arch);
     }

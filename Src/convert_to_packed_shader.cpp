@@ -453,7 +453,7 @@ rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 #endif
 
 
-convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16, arch_t arch)
+convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16, arch_t& arch)
 {
     using std::make_tuple;
 
