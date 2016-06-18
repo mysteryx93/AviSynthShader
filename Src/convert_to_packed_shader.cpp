@@ -4,10 +4,12 @@
 
 
 /*
-packed shader: color order ARGB
-precision1: all samples are uint8_t
-precision2: all samples are uint16_t
-precision3: all samples are half precision.
+packed shader: color order / sample type
+
+precision1: BGRA / all samples are uint8_t
+precision2: RGBA / all samples are uint16_t(little endian)
+precision3: RGBA / all samples are half precision.
+
 map Y to R, U to G, V to B
 */
 
@@ -16,23 +18,23 @@ static void __stdcall
 yuv_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            d[4 * x + 0] = 0;
-            d[4 * x + 1] = sy[x];
-            d[4 * x + 2] = su[x];
-            d[4 * x + 3] = sv[x];
+            d[4 * x + 0] = sb[x];
+            d[4 * x + 1] = sg[x];
+            d[4 * x + 2] = sr[x];
+            d[4 * x + 3] = 0;
 
         }
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
         d += dpitch;
     }
 }
@@ -42,9 +44,9 @@ static void __stdcall
 yuv_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
 
@@ -52,19 +54,22 @@ yuv_to_shader_1_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 8) {
-            __m128i y = loadl(sy + x);
-            __m128i u = loadl(su + x);
-            __m128i v = loadl(sv + x);
-            __m128i ar = _mm_unpacklo_epi8(zero, y);
-            __m128i gb = _mm_unpacklo_epi8(u, v);
-            __m128i argb0 = _mm_unpacklo_epi16(ar, gb);
-            __m128i argb1 = _mm_unpackhi_epi16(ar, gb);
-            stream(d + 4 * x + 0, argb0);
-            stream(d + 4 * x + 16, argb1);
+            __m128i r = loadl(sr + x);
+            __m128i g = loadl(sg + x);
+            __m128i b = loadl(sb + x);
+
+            __m128i bg = _mm_unpacklo_epi8(b, g);
+            __m128i ra = _mm_unpacklo_epi8(r, zero);
+
+            __m128i bgra0 = _mm_unpacklo_epi16(bg, ra);
+            __m128i bgra1 = _mm_unpackhi_epi16(bg, ra);
+
+            stream(d + 4 * x + 0, bgra0);
+            stream(d + 4 * x + 16, bgra1);
         }
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
         d += dpitch;
     }
 }
@@ -75,46 +80,46 @@ static void __stdcall
 yuv_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
 
-    const uint8_t *ylsb, *ulsb, *vlsb;
+    const uint8_t *rlsb, *glsb, *blsb;
     if (STACK16) {
-        ylsb = sy + height * spitch;
-        ulsb = su + height * spitch;
-        vlsb = sv + height * spitch;
+        rlsb = sr + height * spitch;
+        glsb = sg + height * spitch;
+        blsb = sb + height * spitch;
     }
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            d[8 * x + 0] = d[8 * x + 1] = 0;
             if (!STACK16) {
+                d[8 * x + 0] = 0;
+                d[8 * x + 1] = sr[x];
                 d[8 * x + 2] = 0;
-                d[8 * x + 3] = sy[x];
+                d[8 * x + 3] = sg[x];
                 d[8 * x + 4] = 0;
-                d[8 * x + 5] = su[x];
-                d[8 * x + 6] = 0;
-                d[8 * x + 7] = sv[x];
+                d[8 * x + 5] = sb[x];
             } else {
-                d[8 * x + 2] = ylsb[x];
-                d[8 * x + 3] = sy[x];
-                d[8 * x + 4] = ulsb[x];
-                d[8 * x + 5] = su[x];
-                d[8 * x + 6] = vlsb[x];
-                d[8 * x + 7] = sv[x];
+                d[8 * x + 0] = rlsb[x];
+                d[8 * x + 1] = sr[x];
+                d[8 * x + 2] = glsb[x];
+                d[8 * x + 3] = sg[x];
+                d[8 * x + 4] = blsb[x];
+                d[8 * x + 5] = sb[x];
             }
+            d[8 * x + 6] = d[8 * x + 7] = 0;
         }
         d += dpitch;
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
         if (STACK16) {
-            ylsb += spitch;
-            ulsb += spitch;
-            vlsb += spitch;
+            rlsb += spitch;
+            glsb += spitch;
+            blsb += spitch;
         }
     }
 }
@@ -126,50 +131,50 @@ static void __stdcall
 yuv_to_shader_2_sse2(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
 
-    const uint8_t *ylsb, *ulsb, *vlsb;
+    const uint8_t *rlsb, *glsb, *blsb;
     if (STACK16) {
-        ylsb = sy + height * spitch;
-        ulsb = su + height * spitch;
-        vlsb = sv + height * spitch;
+        rlsb = sr + height * spitch;
+        glsb = sg + height * spitch;
+        blsb = sb + height * spitch;
     }
 
     const __m128i zero = _mm_setzero_si128();
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 8) {
-            __m128i y, u, v;
+            __m128i r, g, b;
             if (!STACK16) {
-                y = _mm_unpacklo_epi8(zero, loadl(sy + x));
-                u = _mm_unpacklo_epi8(zero, loadl(su + x));
-                v = _mm_unpacklo_epi8(zero, loadl(sv + x));
+                r = _mm_unpacklo_epi8(zero, loadl(sr + x));
+                g = _mm_unpacklo_epi8(zero, loadl(sg + x));
+                b = _mm_unpacklo_epi8(zero, loadl(sb + x));
             } else {
-                y = _mm_unpacklo_epi8(loadl(ylsb + x), loadl(sy + x));
-                u = _mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x));
-                v = _mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x));
+                r = _mm_unpacklo_epi8(loadl(rlsb + x), loadl(sr + x));
+                g = _mm_unpacklo_epi8(loadl(glsb + x), loadl(sg + x));
+                b = _mm_unpacklo_epi8(loadl(blsb + x), loadl(sb + x));
             }
-            __m128i ar = _mm_unpacklo_epi16(zero, y);
-            __m128i gb = _mm_unpacklo_epi16(u, v);
-            stream(d + 8 * x + 0, _mm_unpacklo_epi32(ar, gb));
-            stream(d + 8 * x + 16, _mm_unpackhi_epi32(ar, gb));
-            ar = _mm_unpackhi_epi16(zero, y);
-            gb = _mm_unpackhi_epi16(u, v);
-            stream(d + 8 * x + 32, _mm_unpacklo_epi32(ar, gb));
-            stream(d + 8 * x + 48, _mm_unpackhi_epi32(ar, gb));
+            __m128i rg = _mm_unpacklo_epi16(r, g);
+            __m128i ba = _mm_unpacklo_epi16(b, zero);
+            stream(d + 8 * x + 0, _mm_unpacklo_epi32(rg, ba));
+            stream(d + 8 * x + 16, _mm_unpackhi_epi32(rg, ba));
+            rg = _mm_unpackhi_epi16(r, g);
+            ba = _mm_unpackhi_epi16(b, zero);
+            stream(d + 8 * x + 32, _mm_unpacklo_epi32(rg, ba));
+            stream(d + 8 * x + 48, _mm_unpackhi_epi32(rg, ba));
         }
         d += dpitch;
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
         if (STACK16) {
-            ylsb += spitch;
-            ulsb += spitch;
-            vlsb += spitch;
+            rlsb += spitch;
+            glsb += spitch;
+            blsb += spitch;
         }
     }
 }
@@ -180,44 +185,44 @@ static void __stdcall
 yuv_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* _lut) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
 
     const uint16_t* lut = reinterpret_cast<const uint16_t*>(_lut);
 
-    const uint8_t *ylsb, *ulsb, *vlsb;
+    const uint8_t *rlsb, *glsb, *blsb;
     if (STACK16) {
-        ylsb = sy + height * spitch;
-        ulsb = su + height * spitch;
-        vlsb = sv + height * spitch;
+        rlsb = sr + height * spitch;
+        glsb = sg + height * spitch;
+        blsb = sb + height * spitch;
     }
 
     for (int y = 0; y < height; ++y) {
         uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
-            d16[4 * x + 0] = 0;
             if (!STACK16) {
-                d16[4 * x + 1] = lut[sy[x]];
-                d16[4 * x + 2] = lut[su[x]];
-                d16[4 * x + 3] = lut[sv[x]];
+                d16[4 * x + 0] = lut[sr[x]];
+                d16[4 * x + 1] = lut[sg[x]];
+                d16[4 * x + 2] = lut[sb[x]];
             } else {
-                d16[4 * x + 1] = lut[(sy[x] << 8) | ylsb[x]];
-                d16[4 * x + 2] = lut[(su[x] << 8) | ulsb[x]];
-                d16[4 * x + 3] = lut[(sv[x] << 8) | vlsb[x]];
+                d16[4 * x + 0] = lut[(sr[x] << 8) | rlsb[x]];
+                d16[4 * x + 1] = lut[(sg[x] << 8) | glsb[x]];
+                d16[4 * x + 2] = lut[(sb[x] << 8) | blsb[x]];
             }
+            d16[4 * x + 3] = 0;
         }
         if (STACK16) {
-            ylsb += spitch;
-            ulsb += spitch;
-            vlsb += spitch;
+            rlsb += spitch;
+            glsb += spitch;
+            blsb += spitch;
         }
         d += dpitch;
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
     }
 }
 
@@ -228,18 +233,18 @@ static void __stdcall
 yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void* _buff) noexcept
 {
-    const uint8_t* sy = srcp[0];
-    const uint8_t* su = srcp[1];
-    const uint8_t* sv = srcp[2];
+    const uint8_t* sr = srcp[0];
+    const uint8_t* sg = srcp[1];
+    const uint8_t* sb = srcp[2];
 
     uint8_t* d = dstp[0];
     float* buff = reinterpret_cast<float*>(_buff);
 
-    const uint8_t *ylsb, *ulsb, *vlsb;
+    const uint8_t *rlsb, *glsb, *blsb;
     if (STACK16) {
-        ylsb = sy + height * spitch;
-        ulsb = su + height * spitch;
-        vlsb = sv + height * spitch;
+        rlsb = sr + height * spitch;
+        glsb = sg + height * spitch;
+        blsb = sb + height * spitch;
     }
 
     const __m128i zero = _mm_setzero_si128();
@@ -247,39 +252,39 @@ yuv_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 4) {
-            __m128i y, u, v;
+            __m128i r, g, b;
             if (!STACK16) {
-                y = _mm_cvtepu8_epi32(loadl(sy + x));
-                u = _mm_cvtepu8_epi32(loadl(su + x));
-                v = _mm_cvtepu8_epi32(loadl(sv + x));
+                r = _mm_cvtepu8_epi32(loadl(sr + x));
+                g = _mm_cvtepu8_epi32(loadl(sg + x));
+                b = _mm_cvtepu8_epi32(loadl(sb + x));
             } else {
-                y = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(ylsb + x), loadl(sy + x)), zero);
-                u = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(ulsb + x), loadl(su + x)), zero);
-                v = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(vlsb + x), loadl(sv + x)), zero);
+                r = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(rlsb + x), loadl(sr + x)), zero);
+                g = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(glsb + x), loadl(sg + x)), zero);
+                b = _mm_unpacklo_epi16(_mm_unpacklo_epi8(loadl(blsb + x), loadl(sb + x)), zero);
             }
-            __m128i ar = _mm_unpacklo_epi32(zero, y);
-            __m128i gb = _mm_unpacklo_epi32(u, v);
-            __m128 argb0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ar, gb));
-            __m128 argb1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ar, gb));
-            _mm_store_ps(buff + 4 * x + 0, _mm_mul_ps(argb0, rcp));
-            _mm_store_ps(buff + 4 * x + 4, _mm_mul_ps(argb1, rcp));
+            __m128i rg = _mm_unpacklo_epi32(r, g);
+            __m128i ba = _mm_unpacklo_epi32(b, zero);
+            __m128 rgba0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(rg, ba));
+            __m128 rgba1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(rg, ba));
+            _mm_store_ps(buff + 4 * x + 0, _mm_mul_ps(rgba0, rcp));
+            _mm_store_ps(buff + 4 * x + 4, _mm_mul_ps(rgba1, rcp));
 
-            ar = _mm_unpackhi_epi32(zero, y);
-            gb = _mm_unpackhi_epi32(u, v);
-            argb0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(ar, gb));
-            argb1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(ar, gb));
-            _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(argb0, rcp));
-            _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(argb1, rcp));
+            rg = _mm_unpackhi_epi32(r, g);
+            ba = _mm_unpackhi_epi32(b, zero);
+            rgba0 = _mm_cvtepi32_ps(_mm_unpacklo_epi64(rg, ba));
+            rgba1 = _mm_cvtepi32_ps(_mm_unpackhi_epi64(rg, ba));
+            _mm_store_ps(buff + 4 * x +  8, _mm_mul_ps(rgba0, rcp));
+            _mm_store_ps(buff + 4 * x + 12, _mm_mul_ps(rgba1, rcp));
         }
         convert_float_to_half(d, buff, width * 4);
         d += dpitch;
-        sy += spitch;
-        su += spitch;
-        sv += spitch;
+        sr += spitch;
+        sg += spitch;
+        sb += spitch;
         if (STACK16) {
-            ylsb += spitch;
-            ulsb += spitch;
-            vlsb += spitch;
+            rlsb += spitch;
+            glsb += spitch;
+            blsb += spitch;
         }
     }
 }
@@ -291,36 +296,19 @@ static void __stdcall
 rgb_to_shader_1_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
 {
-    constexpr size_t step = IS_RGB32 ? 4 : 3;
-
     const uint8_t* s = srcp[0] + (height - 1) * spitch;
     uint8_t* d = dstp[0];
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            d[4 * x + 0] = IS_RGB32 ? s[4 * x + 3] : 0;
-            d[4 * x + 1] = s[step * x + 2];
-            d[4 * x + 2] = s[step * x + 1];
-            d[4 * x + 3] = s[step * x + 0];
-        }
-        d += dpitch;
-        s -= spitch;
-    }
-}
-
-
-static void __stdcall
-rgb32_to_shader_1_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, void*) noexcept
-{
-    const uint8_t* s = srcp[0] + (height - 1) * spitch;
-    uint8_t* d = dstp[0];
-
-    const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
-
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; x += 4) {
-            stream(d + 4 * x, _mm_shuffle_epi8(load(s + 4 * x), order));
+            if (IS_RGB32) {
+                memcpy(d, s, width * 4); // same as FlipVertical()
+            } else {
+                d[4 * x + 0] = s[3 * x + 0];
+                d[4 * x + 1] = s[3 * x + 1];
+                d[4 * x + 2] = s[3 * x + 2];
+                d[4 * x + 3] = 0;
+            }
         }
         d += dpitch;
         s -= spitch;
@@ -341,13 +329,13 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             d[8 * x + 0] = 0;
-            d[8 * x + 1] = IS_RGB32 ? s[4 * x + 3] : 0;
+            d[8 * x + 1] = s[step * x + 2];
             d[8 * x + 2] = 0;
-            d[8 * x + 3] = s[step * x + 2];
+            d[8 * x + 3] = s[step * x + 1];
             d[8 * x + 4] = 0;
-            d[8 * x + 5] = s[step * x + 1];
+            d[8 * x + 5] = s[step * x + 0];
             d[8 * x + 6] = 0;
-            d[8 * x + 7] = s[step * x + 0];
+            d[8 * x + 7] = IS_RGB32 ? s[4 * x + 3] : 0;
         }
         d += dpitch;
         s -= spitch;
@@ -363,12 +351,11 @@ rgb32_to_shader_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     uint8_t* d = dstp[0];
 
     const __m128i zero = _mm_setzero_si128();
-    const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 4) {
-            __m128i t = load(s + 4 * x);
-            t = _mm_shuffle_epi8(t, order);
+            __m128i t = _mm_shuffle_epi8(load(s + 4 * x), order);
             stream(d + 8 * x, _mm_unpacklo_epi8(zero, t));
             stream(d + 8 * x + 16, _mm_unpackhi_epi8(zero, t));
         }
@@ -391,10 +378,10 @@ rgb_to_shader_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     for (int y = 0; y < height; ++y) {
         uint16_t* d16 = reinterpret_cast<uint16_t*>(d);
         for (int x = 0; x < width; ++x) {
-            d16[4 * x + 0] = IS_RGB32 ? lut[s[4 * x + 3]] : 0;
-            d16[4 * x + 1] = lut[s[step * x + 2]];
-            d16[4 * x + 2] = lut[s[step * x + 1]];
-            d16[4 * x + 3] = lut[s[step * x + 0]];
+            d16[4 * x + 0] = lut[s[step * x + 2]];
+            d16[4 * x + 1] = lut[s[step * x + 1]];
+            d16[4 * x + 2] = lut[s[step * x + 0]];
+            d16[4 * x + 3] = IS_RGB32 ? lut[s[4 * x + 3]] : 0;
         }
         d += dpitch;
         s -= spitch;
@@ -413,7 +400,7 @@ rgb32_to_shader_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
     const __m128i zero = _mm_setzero_si128();
     const __m128 rcp = _mm_set1_ps(1.0f / 255);
-    const __m128i order = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; x += 4) {
@@ -458,7 +445,6 @@ convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16,
 
     func[make_tuple(1, rgb24, false, NO_SIMD)] = rgb_to_shader_1_c<false>;
     func[make_tuple(1, rgb32, false, NO_SIMD)] = rgb_to_shader_1_c<true>;
-    func[make_tuple(1, rgb32, false, USE_SSSE3)] = rgb32_to_shader_1_ssse3;
 
     func[make_tuple(2, yv24, false, NO_SIMD)] = yuv_to_shader_2_c<false>;
     func[make_tuple(2, yv24, true, NO_SIMD)] = yuv_to_shader_2_c<true>;
@@ -488,6 +474,9 @@ convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16,
         arch = NO_SIMD;
     }
     if (pix_type == rgb32 && arch < USE_SSSE3) {
+        arch = NO_SIMD;
+    }
+    if (pix_type == rgb32 && precision == 1) {
         arch = NO_SIMD;
     }
     if (pix_type == yv24 && arch == USE_SSSE3) {

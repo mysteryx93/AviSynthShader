@@ -4,6 +4,17 @@
 #include "ConvertShader.h"
 
 
+/*
+planar shader: sample type
+
+precision1: all samples are uint8_t
+precision2: all samples are uint16_t(little endian)
+precision3: all samples are half precision.
+
+map R to Y, G to U, B to V
+*/
+
+
 template <bool STACK16>
 static void __stdcall
 shader_to_yuv_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
