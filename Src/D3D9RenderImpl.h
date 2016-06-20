@@ -48,7 +48,7 @@ private:
 	static void StaticFunction() {}; // needed by GetDefaultPath
 	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow, bool isMT);
 	HRESULT GetRenderTargetMatrix(int width, int height, RenderTargetMatrix** target);
-	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int planeOut, IScriptEnvironment* env);
+	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, bool isLast, int planeOut, IScriptEnvironment* env);
 	HRESULT CreateSurface(int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface);
 	HRESULT CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);
 	HRESULT PrepareReadTarget(std::vector<InputTexture*>* textureList, int outputIndex, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** dst);

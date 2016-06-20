@@ -145,9 +145,9 @@ void ExecuteShader::GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTe
 			render->mutex_ProcessFrame.lock();
 
 			// Configure pixel shader
-			for (int i = 0; i < 9; i++) {
-				if (cmd.Param[i].Type != ParamType::None) {
-					if (FAILED(render->SetPixelShaderConstant(i, &cmd.Param[i])))
+			for (int j = 0; j < 9; j++) {
+				if (cmd.Param[j].Type != ParamType::None) {
+					if (FAILED(render->SetPixelShaderConstant(j, &cmd.Param[j])))
 						env->ThrowError("ExecuteShader failed to set parameters.");
 				}
 			}

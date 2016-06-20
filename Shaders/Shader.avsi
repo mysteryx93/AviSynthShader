@@ -64,7 +64,7 @@
 # Shaders are written by Shiandow and are available here
 # https://github.com/zachsaw/MPDN_Extensions/
 
-function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut")
+function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarUpscale", bool "PlanarOut")
 {
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
@@ -83,6 +83,7 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	fB = default(fB, fKernel == "SSim" ? .5 : 0)
 	fC = default(fC, fKernel == "SSim" ? 0 : .75)
 	PlanarIn = default(PlanarIn, false) # no performance benefit
+	PlanarUpscale = default(PlanarUpscale, true) # slight performance gain, but slightly different output with Precision=1
 	PlanarOut = default(PlanarOut, true)
 
 	Assert((Passes > 0 && Passes <= 5) ? true : false, "Passes must be between 1 and 5")
@@ -107,7 +108,7 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	SmallHeight = Input.Height / PrecisionInH
 
 	PlanarIn = PlanarIn && Convert
-	PlanarUpscale = false # causes distortion with Precision=1
+	PlanarUpscale = PlanarUpscale && Convert
 
 	# Upscale
 	Original = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarUpscale) : last
@@ -155,7 +156,7 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	fHeight = default(fHeight, 0)
 	fB = default(fB, fKernel == "SSim" ? .5 : 0)
 	fC = default(fC, fKernel == "SSim" ? 0 : .75)
-	PlanarIn = default(PlanarIn, true) # no performance benefit
+	PlanarIn = default(PlanarIn, false) # no performance benefit
 	PlanarOut = default(PlanarOut, true)
 
 	Assert(Passes > 0 && Passes <= 5, "Passes must be between 1 and 5")
@@ -186,6 +187,7 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 
 	PlanarIn = PlanarIn && Convert
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
+
 	Shader(PlanarIn ? "YVToYuv.cso" : "", Output=3)
 	
 	# Upscale with Super-xBR
@@ -207,7 +209,7 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Passes > 2 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 3, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 3 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 4, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 4 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 5, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
-	
+
 	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
@@ -309,8 +311,9 @@ function ResizeShader(clip Input, int "Width", int "Height", float "B", float "C
 	Kernel = default(Kernel, "SSim")
 	B = default(B, Kernel == "SSim" ? .5 : 0)
 	C = default(C, Kernel == "SSim" ? 0 : .75)
-	PlanarIn = default(PlanarIn, Convert)
-	PlanarOut = default(PlanarOut, false)
+	PlanarIn = default(PlanarIn, false)
+	PlanarOut = default(PlanarOut, true)
+	PlanarIn=false
 
 	Assert(Width > 0, "Width must be greater than 0")
 	Assert(Height > 0, "Height must be greater than 0")

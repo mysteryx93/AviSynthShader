@@ -12,8 +12,11 @@ Version 1.5: June 10th 2016
 - ConvertToShader/ConvertFromShader: Added assembly optimizations
 - ConvertToShader/ConvertFromShader: Added opt parameter to specify the optimization path to execute
 - Added PlanarIn and PlanarOut parameters to all shader scripts, mostly useful for performance tweaks
+- Fixed ConvertToShader(2) was generating noise in the 2nd byte
 - Fixed ConvertToShader(2, lsb=true) was causing brightening
+- Fixed ConvertFromShader(2, lsb=true) was corrupting the lsb data
 - ConvertFromShader: Format default value is now YV24 instead of YV12
+- Added dithering before returning 8-bit-depth data
 
 Version 1.4.6: June 6th 2016
 - Minor performance improvements

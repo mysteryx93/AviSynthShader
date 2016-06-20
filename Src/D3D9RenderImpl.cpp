@@ -180,21 +180,21 @@ HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool
 	}
 
 	if (isLast) {
+		Format = GetD3DFormat(m_OutputPrecision, m_PlanarOut);
 		if (m_PlanarOut) {
-			HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
-			Format = GetD3DFormat(m_OutputPrecision, true);
+ 			HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, GetD3DFormat(m_OutputPrecision, false), outTexture->Texture, outTexture->Surface));
 			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceY));
 			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceU));
 			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->SurfaceV));
 		}
 		else {
-			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, GetD3DFormat(m_OutputPrecision, false), outTexture->Memory));
+			HR(m_Pool->AllocatePlainSurface(m_pDevice, width, height, Format, outTexture->Memory));
 		}
-	}
-	else {
+	} else {
 		Format = GetD3DFormat(isInput ? m_ClipPrecision[clipIndex] : shaderPrecision > -1 ? shaderPrecision : m_Precision, false);
 		HR(m_Pool->AllocateTexture(m_pDevice, width, height, true, Format, outTexture->Texture, outTexture->Surface));
 	}
+
 	return S_OK;
 }
 
@@ -202,14 +202,14 @@ HRESULT D3D9RenderImpl::CreateTexture(int clipIndex, int width, int height, bool
 HRESULT D3D9RenderImpl::ProcessFrame(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env)
 {
 	HR(m_pDevice->TestCooperativeLevel());
-	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(m_OutputPrecision, true) : GetD3DFormat(isLast ? m_OutputPrecision : m_Precision, false);
+	D3DFORMAT fmt = planeOut > 0 ? GetD3DFormat(m_OutputPrecision, true) : GetD3DFormat(m_Precision, false);
 	HR(SetRenderTarget(width, height, fmt, env));
-	HR(CreateScene(textureList, cmd, planeOut, env));
+	HR(CreateScene(textureList, cmd, isLast, planeOut, env));
 	HR(CopyFromRenderTarget(textureList, cmd, width, height, isLast, planeOut, env));
 	return S_OK;
 }
 
-HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int planeOut, IScriptEnvironment* env)
+HRESULT D3D9RenderImpl::CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, bool isLast, int planeOut, IScriptEnvironment* env)
 {
 	RenderTargetMatrix* Matrix;
 	SCENE_HR(GetRenderTargetMatrix(m_pCurrentRenderTarget->Width, m_pCurrentRenderTarget->Height, &Matrix), m_pDevice);
@@ -267,14 +267,30 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 		HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 	}
 	else {
-		if (planeOut > 0) {
-			// This gets called recursively from the code below for each plane.
-			IDirect3DSurface9* SurfaceOut = planeOut == 1 ? dst->SurfaceY : planeOut == 2 ? dst->SurfaceU : planeOut == 3 ? dst->SurfaceV : nullptr;
-			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, SurfaceOut));
+		// Appy dither when transfering the last Render Target if output is 8-bit.
+		//bool DitherOut = false;
+		if (planeOut == 0) {
+			if (m_OutputPrecision < 2) {
+				CComPtr<IDirect3DTexture9> DitherTexture;
+				CComPtr<IDirect3DSurface9> DitherSurface;
+				// Create texture with same format as Render Target
+				D3DFORMAT Format = GetD3DFormat(cmd->Precision > -1 ? cmd->Precision : m_Precision, false);
+				m_Pool->AllocateTexture(m_pDevice, width, height, true, Format, DitherTexture, DitherSurface);
+				// Dither can't be applied when copying from Render Target, it must be applied afterwards.
+				HR(D3DXLoadSurfaceFromSurface(DitherSurface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
+				// Apply Ordered Dither (4x4 matrix)
+				HR(D3DXLoadSurfaceFromSurface(m_PlanarOut ? dst->Surface : dst->Memory, nullptr, nullptr, DitherSurface, nullptr, nullptr, D3DX_FILTER_POINT | D3DX_FILTER_DITHER, 0));
+				SafeRelease(DitherTexture);
+				SafeRelease(DitherSurface);
+			}
+			else {
+				// No dithering, copy directly.
+				HR(D3DXLoadSurfaceFromSurface(m_PlanarOut ? dst->Surface : dst->Memory, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
+			}
 		}
-		else if (m_PlanarOut) {
-			HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
 
+		// Separate Y, U and V channels
+		if (m_PlanarOut && planeOut == 0) {
 			CommandStruct PlanarCmd = { 0 };
 			PlanarCmd.Path = "OutputY.cso";
 			PlanarCmd.CommandIndex = cmd->CommandIndex;
@@ -294,9 +310,10 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
 			HR(ProcessFrame(textureList, &PlanarCmd, width, height, true, 3, env));
 			// mutex_ProcessFrame.unlock();
 		}
-		else {
-			// If reading last command, copy it back to CPU directly
-			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, dst->Memory));
+		else if (planeOut > 0) {
+			// This gets called recursively from the code below for each plane.
+			IDirect3DSurface9* SurfaceOut = planeOut == 1 ? dst->SurfaceY : planeOut == 2 ? dst->SurfaceU : planeOut == 3 ? dst->SurfaceV : nullptr;
+			HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, SurfaceOut));
 		}
 	}
 
