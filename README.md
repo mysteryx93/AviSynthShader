@@ -25,23 +25,23 @@ With AviSynth+, all filters run as MT=1 and automatically configure their mode. 
 #### Shader.avsi functions
 
 #### Common Parameter
-MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
-FormatOut: The output format. Default = same as input.
-Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
-ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
-lsb_in, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false
-fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.
-PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.
+MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both  
+FormatOut: The output format. Default = same as input.  
+Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
+ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB  
+lsb_in, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false  
+fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.  
+PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.  
 Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.  
 Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.  
-Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
+Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU  
 
 
 #### SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
 Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 
-Arguments Passes, Str, Soft are the same as SuperRes.
-Arguments XbrStr, XbrSharp are the same as SuperXBR.
+Arguments Passes, Str, Soft are the same as SuperRes.  
+Arguments XbrStr, XbrSharp are the same as SuperXBR.  
 
 
 #### SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
