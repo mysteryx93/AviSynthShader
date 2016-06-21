@@ -138,6 +138,6 @@ PlanarOut: True to transfer data from the GPU back to the CPU as planar data to 
 
 #### Also from Etienne
 
-<a href="https://github.com/mysteryx93/NaturalGroundingPlayer">Natural Grounding Player</a>, provides a nice Media Encoder to upscale videos from SD to HD using AviSynthShader and a whole bunch of stuff  
+<a href="https://github.com/mysteryx93/NaturalGroundingPlayer">Natural Grounding Player</a>, provides a nice Media Encoder to upscale videos from SD to HD using AviSynthShader  
 <a href="https://www.forceoflife.net/">Force of Life Training</a>, getting closer to my real work  
 <a href="https://www.spiritualselftransformation.com/blog/">and some far-out stuff you probably don't want to know about</a>  
