@@ -1,8 +1,10 @@
-# AviSynth Shader v1.5 by <a href="https://www.spiritualselftransformation.com/">Etienne Charland</a>
+# AviSynth Shader v1.5
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
 This plugin allows running HLSL pixel shaders within AviSynth. This gives access to various HLSL filters that haven't been programmed in AviSynth.
+
+by <a href="https://www.spiritualselftransformation.com/">Etienne Charland</a>
 
 This implementation allows running several shaders in a row. Shader() returns a clip containing commands, and each subsequent to Shader() adds a line to that command chain clip. You must call ExecuteShader() to execute the chain of commands. You must also call ConvertToShader() before and ConvertFromShader() at the end.
 
