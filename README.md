@@ -25,6 +25,7 @@ With AviSynth+, all filters run as MT=1 and automatically configure their mode. 
 #### Shader.avsi functions
 
 #### Common Parameter
+
 MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both  
 FormatOut: The output format. Default = same as input.  
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
