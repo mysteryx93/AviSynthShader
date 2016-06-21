@@ -9,7 +9,9 @@
 # SuperRes(2, .42, 0, """nnedi3_rpow2(2, nns=4, cshift="Spline16Resize", threads=2)""")
 # 
 # Supported video formats: Y8, YV12, YV24, RGB24 and RGB32.
-# 
+#
+## Documentation of Shader.dll available here
+# https://github.com/mysteryx93/AviSynthShader 
 #
 ## Common Parameter
 # MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
@@ -20,7 +22,7 @@
 # fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.
 # PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.
 #    Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.
-#    Default: PlanarIn=false, PlanarOut=true
+#    Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.
 # Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
 #
 # 
@@ -315,8 +317,8 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 	Kernel = default(Kernel, "SSim")
 	B = default(B, Kernel == "SSim" ? .5 : 0)
 	C = default(C, Kernel == "SSim" ? 0 : .75)
-	PlanarIn = default(PlanarIn, false)
-	PlanarOut = default(PlanarOut, true)
+	PlanarIn = default(PlanarIn, true)
+	PlanarOut = default(PlanarOut, false)
 	PlanarIn=false
 
 	Assert(Width > 0, "Width must be greater than 0")
