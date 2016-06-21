@@ -32,9 +32,7 @@ Convert: Whether to call ConvertToShader and ConvertFromShader within the shader
 ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB  
 lsb_in, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false  
 fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.  
-PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.  
-Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.  
-Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.  
+PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing. Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames. Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.  
 Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU  
 
 
@@ -140,6 +138,6 @@ PlanarOut: True to transfer data from the GPU back to the CPU as planar data to 
 
 #### Also from Etienne
 
-<a href="https://github.com/mysteryx93/NaturalGroundingPlayer">Natural Grounding Player</a>, provides a nice Media Encoder to upscale videos from SD to HD using AviSynthShader and a whole bunch of stuff
-<a href="https://www.forceoflife.net/">Force of Life Training</a>, getting closer to my real work
-<a href="https://www.spiritualselftransformation.com/blog/">and some far-out stuff you probably don't want to know about</a>
+<a href="https://github.com/mysteryx93/NaturalGroundingPlayer">Natural Grounding Player</a>, provides a nice Media Encoder to upscale videos from SD to HD using AviSynthShader and a whole bunch of stuff  
+<a href="https://www.forceoflife.net/">Force of Life Training</a>, getting closer to my real work  
+<a href="https://www.spiritualselftransformation.com/blog/">and some far-out stuff you probably don't want to know about</a>  
