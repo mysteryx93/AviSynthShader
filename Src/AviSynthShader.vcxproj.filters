@@ -13,6 +13,7 @@
     <ClCompile Include="ConvertShader.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="TextureList.cpp" />
+    <ClCompile Include="Dither.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -47,6 +48,7 @@
     <ClInclude Include="PooledTexture.h" />
     <ClInclude Include="InputTexture.h" />
     <ClInclude Include="TextureList.h" />
+    <ClInclude Include="Dither.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

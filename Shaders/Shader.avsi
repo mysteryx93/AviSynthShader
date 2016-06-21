@@ -1,4 +1,4 @@
-# AviSynthShader v1.5 (June 9th 2016)
+# AviSynthShader v1.5 (June 21th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -10,16 +10,28 @@
 # 
 # Supported video formats: Y8, YV12, YV24, RGB24 and RGB32.
 # 
+#
+## Common Parameter
+# MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
+# FormatOut: The output format. Default = same as input.
+# Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
+# ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
+# lsb_in, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false
+# fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.
+# PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.
+#    Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.
+#    Default: PlanarIn=false, PlanarOut=true
+# Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
+#
 # 
-## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC)
+## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
 # Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 # 
 # Arguments Passes, Str, Soft are the same as SuperRes.
 # Arguments XbrStr, XbrSharp are the same as SuperXBR.
-# Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
 # 
 # 
-## SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fKernel, fWidth, fHeight, fB, fC)
+## SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
 # Enhances upscaling quality.
 # 
 # Arguments:
@@ -27,27 +39,19 @@
 # Str: How agressively we want to run SuperRes, between 0 and 1. Default=1.
 # Soft: How much smoothness we want to add, between 0 and 1. Default=0.
 # Upscale: An upscaling command that must contain offset-correction. Ex: """nnedi3_rpow2(2, cshift="Spline16Resize")"""
-# MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
-# FormatOut: The output format. Default = same as input.
-# Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
-# ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
-# lsb_in, lsb_upscale, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false
-# fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.
+# lsb_upscale: Whether the result of Upscale is to be converted from DitherTools' Stack16 format. Default=false
+# PlanarUpscale: Whether to read the result of Upscale as planar data. Default=true (slight performance gain)
 # 
 # 
-## SuperXBR(Input, Str, Sharp, FormatOut, Convert, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC)
+## SuperXBR(Input, Str, Sharp, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarOut)
 # Doubles the size of the image. Produces a sharp result, but with severe ringing.
 # 
 # Arguments:
 # Str: Value between 0 and 5 specifying the strength. Default=1.
 # Sharp: Value between 0 and 1.5 specifying the weight. Default=1.
-# FormatOut: The output format. Default = same as input.
-# Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
-# lsb_in, lsb_out: Whether the input and output are to be converted to/from DitherTools' Stack16 format. Default=false
-# fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.
 # 
 #
-## ResizeShader(Input, Width, Height, Str, Soft, Kernel, B, C, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out)
+## ResizeShader(Input, Width, Height, Kernel, B, C, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, PlanarIn, PlanarOut)
 # Downscales the image in high quality.
 #
 # Arguments:
@@ -58,7 +62,6 @@
 # Kernel: The resize algorithm to use: SSim or Bicubic (default)
 # B, C: When using SSim, B sets the Strength (0 to 1, default=.5) and C sets whether to use a soft algorithm (0 or 1, default=0)
 # B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75 (useful for downscaling)
-# Other arguments are the same as SuperRes.
 #
 #
 # Shaders are written by Shiandow and are available here
@@ -236,11 +239,12 @@ function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth,
 		Param4=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
 }
 
-function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut")
+function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut")
 {
 	Str = default(Str, 1)
 	Sharp = default(Sharp, 1)
 	Convert = default(Convert, true)
+	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : Input.IsY8() ? false : true)
 	MatrixIn = default(MatrixIn, "709")
 	MatrixOut = default(MatrixOut, "709")
 	FormatOut = default(FormatOut, "")
@@ -261,12 +265,11 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
-	ConvertYuv = convert && !IsRGB()
-	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
+	PrecisionOut = IsY8 ? 0 : Convert && !lsb_out ? 1 : 2
+	sourceFormat = FormatOut != "" ? FormatOut : IsY8 ? "Y8" : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
 	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
 
 	SmallWidth = Input.Width / PrecisionInW
@@ -298,11 +301,12 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
 
-function ResizeShader(clip Input, int "Width", int "Height", float "B", float "C", string "Kernel", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "lsb_in", bool "lsb_out", bool "PlanarIn", bool "PlanarOut")
+function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", float "B", float "C", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", bool "PlanarIn", bool "PlanarOut")
 {
 	Width = default(Width, Input.Width)
 	Height = default(Height, Input.Height)
 	Convert = default(Convert, true)
+	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : Input.IsY8() ? false : true)
 	MatrixIn = default(MatrixIn, "709")
 	MatrixOut = default(MatrixOut, "709")
 	FormatOut = default(FormatOut, "")
@@ -322,13 +326,12 @@ function ResizeShader(clip Input, int "Width", int "Height", float "B", float "C
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
-	ConvertYuv = convert && !IsRGB()
-	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+	PrecisionOut = IsY8 ? 0 : Convert && !lsb_out ? 1 : 2
+	sourceFormat = FormatOut != "" ? FormatOut : IsY8 ? "Y8" : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
+	Assert(sourceFormat != "", chr(10) + "Source must be Y8, YV12, YV24, RGB24 or RGB32" + chr(10))
 
 	InputWidth = Input.Width / PrecisionInW
 	InputHeight = Input.Height / PrecisionInH

@@ -19,7 +19,8 @@ public:
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
-	void GetFrameInternal(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
+	void ProcessCommandChain(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env);
+	void ProcessCommand(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, CommandStruct* cmd, bool init, bool isLast, IScriptEnvironment* env);
 	void AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::vector<InputTexture*>* list, int n, bool init, IScriptEnvironment* env);
 	void CreateInputClip(int index, IScriptEnvironment* env);
 	void CopyInputClip(int index, int n, IScriptEnvironment* env);

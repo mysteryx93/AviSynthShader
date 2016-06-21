@@ -44,7 +44,7 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 	if (_precision < -1 || _precision > 3)
 		env->ThrowError("Shader: Invalid precision");
 
-	if (vi.pixel_type != VideoInfo::CS_Y8) {
+	if (vi.pixel_type != VideoInfo::CS_Y8 || vi.width != sizeof(CommandStruct)) {
 		vi.pixel_type = VideoInfo::CS_Y8;
 		vi.width = sizeof(CommandStruct);
 		vi.height = 1;

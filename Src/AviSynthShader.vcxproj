@@ -196,6 +196,7 @@
     <ClInclude Include="avs\win.h" />
     <ClInclude Include="CommandStruct.h" />
     <ClInclude Include="ConvertShader.h" />
+    <ClInclude Include="Dither.h" />
     <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="InputTexture.h" />
     <ClInclude Include="MemoryPool.h" />
@@ -212,6 +213,7 @@
     <ClCompile Include="convert_to_packed_shader.cpp" />
     <ClCompile Include="convert_to_planar_shader.cpp" />
     <ClCompile Include="cpu_check.cpp" />
+    <ClCompile Include="Dither.cpp" />
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
