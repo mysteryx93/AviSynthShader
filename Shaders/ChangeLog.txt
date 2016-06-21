@@ -6,6 +6,7 @@ Version 1.5: June 21th 2016
 - Shader: Added Precision parameter to specify different output precisions per shader
 - Shader: Now detecting whether to compile file or not based on extension (.hlsl or .cso)
 - Shader: ShaderModel default value is now 'ps_3_0'
+- ExecuteShader: Full support for MT_NICE_FILTER under AviSynth+. When MT is enabled, it will alternate threads between 2 engines for optimal performance. AviSynth 2.6 will use it with MT=2.
 - ExecuteShader: Added PlanarOut parameter to return output as YV24 planar data
 - ExecuteShader: Can now transfer YV24 source clips as planar data
 - ExecuteShader: Precision can now be 0 to process with Y8
