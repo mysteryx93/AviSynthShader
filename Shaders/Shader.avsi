@@ -14,7 +14,7 @@
 # https://github.com/mysteryx93/AviSynthShader 
 #
 ## Common Parameter
-# MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both
+# MatrixIn/MatrixOut: The input and output color matrix (601, 709, Pc601, Pc709). This can be used for color matrix conversion. Default="709" for both
 # FormatOut: The output format. Default = same as input.
 # Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 # ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
@@ -61,9 +61,10 @@
 # Height: The height to resize to.
 # Str: The algorithm strength to apply between 0 and 1. Default=.5
 # Soft: If true, the result will be softer. Default=false
-# Kernel: The resize algorithm to use: SSim or Bicubic (default)
+# Kernel: The resize algorithm to use: SSim, Bicubic or ColorMatrix. ColorMatrix performs matrix conversion without resizing. Default=Bicubic.
 # B, C: When using SSim, B sets the Strength (0 to 1, default=.5) and C sets whether to use a soft algorithm (0 or 1, default=0)
-# B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75 (useful for downscaling)
+# B, C: When using Bicubic, sets the B and C values. Default is B=1/3, C=1/3.
+# When used as a downscaler in other functions, default is fB=0, fC=.75 (useful for downscaling)
 #
 #
 # Shaders are written by Shiandow and are available here

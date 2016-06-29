@@ -1,4 +1,4 @@
-# AviSynth Shader v1.5
+# AviSynth Shader v1.5.1
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -26,7 +26,7 @@ With AviSynth+, all filters run as MT=1 and automatically configure their mode. 
 
 #### Common Parameter
 
-MatrixIn/MatrixOut: The input and output color matrix (601 or 709). This can be used for color matrix conversion. Default="709" for both  
+MatrixIn/MatrixOut: The input and output color matrix (601, 709, Pc601, Pc709). This can be used for color matrix conversion. Default="709" for both  
 FormatOut: The output format. Default = same as input.  
 Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true  
 ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB  
@@ -71,9 +71,10 @@ Width: The width to resize to.
 Height: The height to resize to.  
 Str: The algorithm strength to apply between 0 and 1. Default=.5  
 Soft: If true, the result will be softer. Default=false  
-Kernel: The resize algorithm to use: SSim or Bicubic (default)  
+Kernel: The resize algorithm to use: SSim, Bicubic or ColorMatrix. ColorMatrix performs matrix conversion without resizing. Default=Bicubic.  
 B, C: When using SSim, B sets the Strength (0 to 1, default=.5) and C sets whether to use a soft algorithm (0 or 1, default=0)  
-B, C: When using Bicubic, sets the B and C values. Default is B=0, C=.75 (useful for downscaling)  
+B, C: When using Bicubic, sets the B and C values. Default is B=1/3, C=1/3.  
+When used as a downscaler in other functions, default is fB=0, fC=.75 (useful for downscaling)  
 
 
 Shiandow provides many other HLSL shaders available here that can be integrated into AviSynth.  
@@ -103,7 +104,7 @@ Format: The video format to convert to. Valid formats are YV12, YV24 and RGB32. 
 lsb: Whether to convert to DitherTools' Stack16 format. Only YV12 and YV24 are supported. Default=false  
 Opt: Optimization path. 0 for only C++, 1 for SSE2, 2 for AVX(only used with Precision=3), -1 to auto-detect. Default=-1
 
-#### Shader(Input, Path, EntryPoint, ShaderModel, Param1-Param9, Clip1-Clip9, Output, Width, Height, Precision)
+#### Shader(Input, Path, EntryPoint, ShaderModel, Param1-Param9, Clip1-Clip9, Output, Width, Height, Precision, Defines)
 Runs a HLSL pixel shader on specified clip. You can either run a compiled .cso file or compile a .hlsl file.
 
 Arguments:  
@@ -122,6 +123,7 @@ Default for clip1 is 1, for clip2-clip9 is 0 which means no source clip.
 Output: The clip index where to write the output of this shader, between 1 and 9. Default is 1 which means it will be the output of ExecuteShader. If set to another value, you can use it as the input of another shader. The last shader in the chain must have output=1.  
 Width, Height: The size of the output texture. Default = same as input texture.  
 Precision: While processing precision is set with ExecuteShader, this allows processing certain shaders with a different precision.
+Defines: List of pre-compilation constants to set for HLSL files, separated by ';'. Ex: "Kb=0.114;Kr=0.299;"
 
 #### ExecuteShader(cmd, Clip1-Clip9, Clip1Precision-Clip9Precision, Precision, OutputPrecision, PlanarOut)
 Executes the chain of commands on specified input clips.
@@ -129,9 +131,9 @@ Executes the chain of commands on specified input clips.
 Arguments:  
 cmd: A clip containing the commands returned by calling Shader.  
 Clip1-Clip9: The clips on which to run the shaders.  
-Clip1Precision-Clip9Precision: 1 if input clips is BYTE, 2 if UINT16, 3 if half-float. Default=2 or the value of the previous clip  
-Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision, 3 to execute with half-float precision. Default=2  
-OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=2  
+Clip1Precision-Clip9Precision: 1 if input clips is BYTE, 2 if UINT16, 3 if half-float. Default=1 or the value of the previous clip  
+Precision: 1 to execute with 8-bit precision, 2 to execute with 16-bit precision, 3 to execute with half-float precision. Default=3  
+OutputPrecision: 1 to get an output clip with BYTE, 2 for UINT16, 3 for half-float. Default=1  
 PlanarOut: True to transfer data from the GPU back to the CPU as planar data to reduce memory transfers. Reading back from the GPU is a serious bottleneck and this generally gives a nice performance boost. Default=true
 
 
