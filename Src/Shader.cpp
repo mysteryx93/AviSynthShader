@@ -3,7 +3,7 @@
 
 Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel,
 	const char* _param0, const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8,
-	int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, IScriptEnvironment* env) :
+	int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, const char* _defines, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), path(_path), entryPoint(_entryPoint), shaderModel(_shaderModel),
 	param1(_param0), param2(_param1), param3(_param2), param4(_param3), param5(_param4), param6(_param5), param7(_param6), param8(_param7), param9(_param8) {
 
@@ -71,12 +71,23 @@ Shader::Shader(PClip _child, const char* _path, const char* _entryPoint, const c
 			}
 		}
 	}
+
+	cmd.Defines = ParseDefines(_defines, env);
 }
 
 Shader::~Shader() {
 	for (int i = 0; i < 9; i++) {
 		if (cmd.Param[i].Count > 0)
 			delete cmd.Param[i].Values;
+	}
+	if (cmd.Defines) {
+		int i = 0;
+		while (cmd.Defines[i].Name) {
+			delete[] cmd.Defines[i].Name;
+			delete[] cmd.Defines[i].Definition;
+			++i;
+		}
+		delete[] cmd.Defines;
 	}
 }
 
@@ -143,6 +154,41 @@ bool Shader::ParseParam(ParamStruct* param) {
 
 	// Success
 	return true;
+}
+
+D3DXMACRO* Shader::ParseDefines(const char* defines, IScriptEnvironment* env) {
+	if (!defines || defines[0] == '\0')
+		return NULL;
+
+	const char* ErrorMsg = "Shader: Defines parameter is invalid";
+
+	// Split string on ';'
+	std::vector<std::string> StrPairs = Split(defines, ';');
+	if (StrPairs.empty())
+		env->ThrowError(ErrorMsg);
+
+	D3DXMACRO* Result = new D3DXMACRO[StrPairs.size() + 1];
+
+	int i = 0;
+	for (auto const item: StrPairs) {
+		// Allow terminating ';'
+		if (item.length() == 0)
+			break;
+
+		// Split each pair of key/value on '='
+		std::vector<std::string> StrValue = Split(item, '=');
+		if (StrValue.size() != 2)
+			env->ThrowError(ErrorMsg);
+		
+		// Copy string values
+		Result[i].Name = new char[StrValue[0].length() + 1];
+		strcpy((char*)Result[i].Name, StrValue[0].c_str());
+		Result[i].Definition = new char[StrValue[1].length() + 1];
+		strcpy((char*)Result[i].Definition, StrValue[1].c_str());
+		++i;
+	}
+	*(int*)&Result[i] = NULL;
+	return Result;
 }
 
 std::vector<std::string> &Shader::Split(const std::string &s, char delim, std::vector<std::string> &elems) {

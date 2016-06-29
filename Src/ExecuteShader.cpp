@@ -104,7 +104,7 @@ void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<Inpu
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;
-	bool Dither = m_Precision >= 2 && m_OutputPrecision < 2;
+  bool Dither = m_Precision >= 2 && m_OutputPrecision < 2;
 
 	PVideoFrame src = child->GetFrame(n, env);
 	const byte* srcReader = src->GetReadPtr();
@@ -120,6 +120,7 @@ void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<Inpu
 		if (IsLast && Dither) {
 			CreateDitherCommand(render, textureList, &cmd, cmd.CommandIndex + 1, m_OutputPrecision);
 			ProcessCommand(render, textureList, &cmd, init, true, env);
+      render->ResetSamplerState();
 		}
 	}
 }

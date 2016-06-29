@@ -31,7 +31,8 @@ float2 p1 :  register(c1);
 float4 main(float2 tex : TEXCOORD0) : COLOR {
     float4 c0 = tex2D(s0, tex);
 
-    c0.xyz = RGBtoLab(GammaInv(c0.rgb));
+    c0.rgb = Gamma(c0.rgb);
+    c0.xyz = ConvertToYUV(c0.rgb);
 
     return c0;
 }

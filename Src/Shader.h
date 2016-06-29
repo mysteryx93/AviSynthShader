@@ -14,11 +14,12 @@ class Shader : public GenericVideoFilter {
 public:
 	Shader(PClip _child, const char* _path, const char* _entryPoint, const char* _shaderModel, 
 		const char* _param0, const char* _param1, const char* _param2, const char* _param3, const char* _param4, const char* _param5, const char* _param6, const char* _param7, const char* _param8, 
-		int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, IScriptEnvironment* env);
+		int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, const char* defines, IScriptEnvironment* env);
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:
 	bool ParseParam(ParamStruct* param);
+	D3DXMACRO* ParseDefines(const char* defines, IScriptEnvironment* env);
 	std::vector<std::string> &Split(const std::string &s, char delim, std::vector<std::string> &elems);
 	std::vector<std::string> Split(const std::string &s, char delim);
 

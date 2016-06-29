@@ -38,12 +38,7 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
 	m_OutputPrecision = outputPrecision;
 
 	HR(CreateDevice(&m_pDevice, hDisplayWindow, isMT));
-
-	for (int i = 0; i < 9; i++) {
-		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
-		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
-		HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
-	}
+  ResetSamplerState();
 
 	m_Pool = new MemoryPool();
 
@@ -101,6 +96,15 @@ HRESULT D3D9RenderImpl::GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDi
 	memcpy(params, &presentParams, sizeof(D3DPRESENT_PARAMETERS));
 
 	return S_OK;
+}
+
+HRESULT D3D9RenderImpl::ResetSamplerState() {
+  for (int i = 0; i < 9; i++) {
+    HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
+    HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
+    //HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
+  }
+  return S_OK;
 }
 
 HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env)
@@ -335,7 +339,7 @@ HRESULT D3D9RenderImpl::CopyDitherMatrix(std::vector<InputTexture*>* textureList
 	CopyBuffer(textureList, m_DitherMatrix, &cmd);
 	HR(m_pDevice->SetSamplerState(outputIndex - 1, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP));
 	HR(m_pDevice->SetSamplerState(outputIndex - 1, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP));
-	HR(m_pDevice->SetSamplerState(outputIndex - 1, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP));
+	//HR(m_pDevice->SetSamplerState(outputIndex - 1, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP));
 }
 
 HRESULT D3D9RenderImpl::PrepareReadTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** outDst) {
@@ -373,11 +377,11 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScrip
 	}
 	else {
 		// Compile HLSL shader code
-		if (D3DXCompileShaderFromFile(cmd->Path, nullptr, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable) != S_OK) {
+		if (D3DXCompileShaderFromFile(cmd->Path, cmd->Defines, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable) != S_OK) {
 			// Try in same folder as DLL file.
 			char path[MAX_PATH];
 			GetDefaultPath(path, MAX_PATH, cmd->Path);
-			HR(D3DXCompileShaderFromFile(path, nullptr, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable));
+			HR(D3DXCompileShaderFromFile(path, cmd->Defines, nullptr, cmd->EntryPoint, cmd->ShaderModel, 0, &code, nullptr, &Shader->ConstantTable));
 		}
 		CodeBuffer = (DWORD*)code->GetBufferPointer();
 	}

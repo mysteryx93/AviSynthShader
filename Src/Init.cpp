@@ -143,12 +143,13 @@ AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironmen
 		args[23].AsInt(0),			// width
 		args[24].AsInt(0),			// height
 		args[25].AsInt(-1),			// precision
+		args[26].AsString(""),		// defines
 		env);						// env is the link to essential informations, always provide it
 }
 
 AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	int ParamClipPrecision[9];
-	int CurrentPrecision = 2;
+	int CurrentPrecision = 1;
 	for (int i = 0; i < 9; i++) {
 		CurrentPrecision = args[i + 10].AsInt(CurrentPrecision);
 		ParamClipPrecision[i] = CurrentPrecision;
@@ -168,8 +169,8 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[8].IsClip() ? args[8].AsClip() : nullptr,			// Clip8
 		args[9].IsClip() ? args[9].AsClip() : nullptr,			// Clip9
 		ParamClipPrecision,			// ClipPrecision, args[10-18]
-		args[19].AsInt(2),			// Precision
-		args[20].AsInt(2),			// PrecisionOut
+		args[19].AsInt(3),			// Precision
+		args[20].AsInt(1),			// PrecisionOut
 		args[21].AsBool(false),		// PlanarOut
 		env);
 }
@@ -180,7 +181,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	AVS_linkage = vectors;
 	env->AddFunction("ConvertToShader", "c[Precision]i[lsb]b[planar]b[opt]i", Create_ConvertToShader, 0);
 	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[opt]i", Create_ConvertFromShader, 0);
-	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i[Precision]i", Create_Shader, 0);
+	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i[Precision]i[Defines]s", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i[PlanarOut]b", Create_ExecuteShader, 0);
 
 	if (env->FunctionExists("SetFilterMTMode")) {

@@ -15,16 +15,15 @@
 // License along with this library.
 
 // -- Misc --
-sampler sHMean:	register(s1);
-sampler sMean:	register(s2);
+sampler sMean:	register(s1);
 
-// -- Definitions --
+// -- Variance Calculation
 #define Initialization	float4 mean = GetFrom(sMean, tex);
 #define sqr(x)			((x)*(x))
-#define Get(pos)		GetFrom(s0, pos) + sqr(GetFrom(sHMean, pos) - mean)
+#define Get(pos)		(sqr(GetFrom(s0, pos) - mean))
 
 #define pi acos(-1)
 // #define Kernel(x) exp(-2*x*x) // Gaussian
 #define taps 2
 
-#include "./Scalers/Downscaler.hlsl"
+#include "./SSimDownscaler.hlsl"

@@ -1,7 +1,7 @@
 #pragma parameter XBR_EDGE_STR "Xbr - Edge Strength p0" 1.0 0.0 5.0 0.2
 #pragma parameter XBR_WEIGHT "Xbr - Filter Weight" 1.0 0.00 1.50 0.01
 
-#include "super-xbr-params.inc"
+#include "SuperXbrParams.inc"
 
 /* COMPATIBILITY
 	 - HLSL compilers

@@ -13,7 +13,7 @@ sampler sH:	register(s2);
 #define OutputFormat  float2x4
 #define ExtraArguments float4 mean
 
-#include "./Scalers/Convolver.hlsl"
+#include "./SSimConvolver.hlsl"
 
 #undef ExtraArguments
 #undef OutputFormat
@@ -24,4 +24,4 @@ sampler sH:	register(s2);
 #define Get(pos) 			ScaleH(pos, mean)
 #define PostProcessing(S)	(S[0] == 0) ? 0 : sqrt(1 + S[1] / S[0])
 #define axis 1
-#include "./Scalers/Convolver.hlsl"
+#include "./SSimConvolver.hlsl"

@@ -13,25 +13,18 @@
 // 
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library.
-// 
+
 // -- Misc --
-sampler s0 : register(s0);
-float4 p0 :  register(c0);
-float2 p1 :  register(c1);
+sampler sHMean:	register(s1);
+sampler sMean:	register(s2);
 
-#define width  (p0[0])
-#define height (p0[1])
+// -- Definitions --
+#define Initialization	float4 mean = GetFrom(sMean, tex);
+#define sqr(x)			((x)*(x))
+#define Get(pos)		GetFrom(s0, pos) + sqr(GetFrom(sHMean, pos) - mean)
 
-#define px (p1[0])
-#define py (p1[1])
+#define pi acos(-1)
+// #define Kernel(x) exp(-2*x*x) // Gaussian
+#define taps 2
 
-#include "./ColourProcessing.hlsl"
-
-// -- Main code --
-float4 main(float2 tex : TEXCOORD0) : COLOR {
-    float4 c0 = tex2D(s0, tex);
-
-	c0.rgb = ConvertToYUV(c0.rgb);
-
-    return c0;
-}
+#include "./SSimDownscaler.hlsl"

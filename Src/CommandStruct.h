@@ -25,6 +25,7 @@ struct CommandStruct {
 	const char* EntryPoint;
 	const char* ShaderModel;
 	ParamStruct Param[9];
+	D3DXMACRO* Defines;
 	byte ClipIndex[12];
 	byte OutputIndex;
 	int OutputWidth, OutputHeight;

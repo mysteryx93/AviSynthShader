@@ -38,7 +38,8 @@ public:
 	HRESULT SetDefaults(LPD3DXCONSTANTTABLE table);
 	HRESULT SetPixelShaderConstant(int index, const ParamStruct* param);
 	HRESULT CopyDitherMatrix(std::vector<InputTexture*>* textureList, int outputIndex);
-	static const int maxClips = 9;
+  HRESULT ResetSamplerState();
+  static const int maxClips = 9;
 	ShaderItem m_Shaders[80] = { 0 };
 	std::mutex mutex_ProcessFrame;
 	MemoryPool* m_Pool = nullptr;

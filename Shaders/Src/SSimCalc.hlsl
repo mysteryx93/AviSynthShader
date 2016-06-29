@@ -32,13 +32,13 @@ float strength : register(c3);
 #define EntryPoint ScaleH
 #define Get(pos) float4(lerp(GetM(pos), L, GetR(pos)).xyz, dot(GetR(pos).xyz, GetR(pos).xyz))
 #define axis 0
-#include "./Scalers/Convolver.hlsl"
+#include "./SSimConvolver.hlsl"
 
 // -- Define vertical convolver -- 
 #define EntryPoint Calc
 #define Get(pos) ScaleH(pos, L)
 #define axis 1
-#include "./Scalers/Convolver.hlsl"
+#include "./SSimConvolver.hlsl"
 
 // -- Main code --
 float4 main(float2 tex : TEXCOORD0) : COLOR {

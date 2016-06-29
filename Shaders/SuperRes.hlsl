@@ -58,7 +58,7 @@ float4 args0  : register(c4);
 #define sqr(x) dot(x,x)
 
 // -- Colour space Processing --
-#include "../Common/ColourProcessing.hlsl"
+#include "./ColourProcessing.hlsl"
 
 // -- Input processing --
 //Current high res value
@@ -122,6 +122,9 @@ float4 main(float2 tex : TEXCOORD0) : COLOR{
 
         c0.xyz += softness * soft;
     #endif
+#elif defined(ConvertGamma)
+	// Tweak: Convert back to YUV.
+	c0.xyz = ConvertToYUV(c0.xyz);
 #endif
 
     return c0;
