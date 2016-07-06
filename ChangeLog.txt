@@ -1,3 +1,8 @@
+Version 1.5.2: July 6th 2016
+- All standard shader files are now included within the DLL.
+- If a shader file of the same name is also found in the DLL's folder, that one will be taken first.
+- Recompiled with AviSynth+ r2022's headers. It won't won't work with older AviSynth+ (AviSynth 2.6 is OK)
+
 Version 1.5.1: June 29th 2016
 - Shader: Added Defines parameter to configure HLSL shaders before compilation
 - Restructured the files to compile several HLSL files on-demand with compilation parameters. Reduced the amount of shader files from 41 to 26.

@@ -12,6 +12,7 @@
 #include "MemoryPool.h"
 #include "TextureList.h"
 #include "Dither.h"
+#include "D3D9Include.h"
 
 struct RenderTargetMatrix {
 	int Width, Height;
@@ -46,20 +47,15 @@ public:
 	InputTexture* m_DitherMatrix;
 
 private:
-	unsigned char* ReadBinaryFile(const char* filePath);
 	bool StringEndsWith(const char * str, const char * suffix);
-	void GetDefaultPath(char* outPath, int maxSize, const char* filePath);
-	static void StaticFunction() {}; // needed by GetDefaultPath
 	HRESULT CreateDevice(IDirect3DDevice9Ex** device, HWND hDisplayWindow, bool isMT);
 	HRESULT GetRenderTargetMatrix(int width, int height, RenderTargetMatrix** target);
 	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, bool isLast, int planeOut, IScriptEnvironment* env);
-	HRESULT CreateSurface(int width, int height, bool renderTarget, D3DFORMAT format, IDirect3DTexture9 **texture, IDirect3DSurface9 **surface);
 	HRESULT CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);
 	HRESULT PrepareReadTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** dst);
 	HRESULT SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env);
 	HRESULT ClearRenderTarget();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);
-	HRESULT CopyBufferToAviSynthInternal(IDirect3DSurface9* surface, byte* dst, int dstPitch, int rowSize, int height, IScriptEnvironment* env);
 
 	CComPtr<IDirect3D9Ex>           m_pD3D9;
 	CComPtr<IDirect3DDevice9Ex>     m_pDevice;

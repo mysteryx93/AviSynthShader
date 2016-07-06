@@ -14,6 +14,7 @@
     <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="TextureList.cpp" />
     <ClCompile Include="Dither.cpp" />
+    <ClCompile Include="D3D9Include.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -49,10 +50,100 @@
     <ClInclude Include="InputTexture.h" />
     <ClInclude Include="TextureList.h" />
     <ClInclude Include="Dither.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="D3D9Include.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">
       <UniqueIdentifier>{5861a56f-1801-41cc-ad2d-7d3858f62b7b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{c39feb87-4926-4941-90e7-58e792cd9e45}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Shader.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Bicubic.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Dither.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputV.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputY.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputU.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimCalc.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimCalcR.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscaledVarI.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscaledVarII.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimSinglePassConvolver.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperXbrParams.inc">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\ColourProcessing.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GammaToLinear.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GammaToYuv.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LinearToGamma.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LinearToYuv.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SSimDownscaler.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SSimSoftDownscaler.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SuperRes.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SuperResDownscaleAndDiff.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SuperXbr.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\YuvToGamma.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\YuvToLinear.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\YVToGamma.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\YVToLinear.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\YVToYuv.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

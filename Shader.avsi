@@ -1,4 +1,4 @@
-# AviSynthShader v1.5.1 (June 29th 2016)
+# AviSynthShader v1.5.2 (July 6th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
