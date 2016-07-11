@@ -23,6 +23,7 @@
 # PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.
 #    Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.
 #    Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.
+# Engines: In Avisynth+ with MT_NICE_FILTER, sets the number of DirectX engines that will be shared amongst all threads. Set to 1 if running several shader functions. Default=2. Ignored in AviSynth 2.6 running with MT_MULTI_INSTANCE.
 # Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
 #
 # 
@@ -70,7 +71,7 @@
 # Shaders are written by Shiandow and are available here
 # https://github.com/zachsaw/MPDN_Extensions/
 
-function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarUpscale", bool "PlanarOut")
+function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "Upscale", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_upscale", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarUpscale", bool "PlanarOut", int "Engines")
 {
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
@@ -140,11 +141,11 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Passes > 3 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 4, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 4 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 5, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
-	ExecuteShader(last, Input, Clip3=Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut)
+	ExecuteShader(last, Input, Clip3=Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
-function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut")
+function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float "XbrStr", float "XbrSharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut", int "Engines")
 {
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
@@ -217,7 +218,7 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Passes > 3 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 4, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 4 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 5, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
-	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut)
+	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
@@ -242,7 +243,7 @@ function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth,
 		Param4=string(Str,"%.32f") + "," + string(Soft,"%.32f") + "," + string(Pass) + "," + string(Passes) + "f")
 }
 
-function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut")
+function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", string "fKernel", int "fWidth", int "fHeight", float "fB", float "fC", bool "PlanarIn", bool "PlanarOut", int "Engines")
 {
 	Str = default(Str, 1)
 	Sharp = default(Sharp, 1)
@@ -300,12 +301,12 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 
 	DefinesOut = (RightStr(MatrixOut,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixOut,2)=="PC" ? "LimitedRange=0;" : "")
 	ConvertYuv ? Shader("GammaToYuv.hlsl", Defines=DefinesOut) : last
-	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut)
+	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
 
-function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", float "B", float "C", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", bool "PlanarIn", bool "PlanarOut")
+function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", float "B", float "C", string "MatrixIn", string "MatrixOut", string "FormatOut", bool "Convert", bool "ConvertYuv", bool "lsb_in", bool "lsb_out", bool "PlanarIn", bool "PlanarOut", int "Engines")
 {
 	Width = default(Width, Input.Width)
 	Height = default(Height, Input.Height)
@@ -351,7 +352,7 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 
 	DefinesOut = (RightStr(MatrixOut,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixOut,2)=="PC" ? "LimitedRange=0;" : "")
 	ConvertYuv ? Shader("LinearToYuv.hlsl", Defines=DefinesOut) : Shader("LinearToGamma.hlsl")
-	last.ExecuteShader(Input, Precision=Kernel=="SSim"?3:2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut)
+	last.ExecuteShader(Input, Precision=Kernel=="SSim"?3:2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }

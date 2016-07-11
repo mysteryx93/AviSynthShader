@@ -33,6 +33,7 @@ ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=tru
 lsb_in, lsb_out: Whether the input, result of Upscale and output are to be converted to/from DitherTools' Stack16 format. Default=false  
 fKernel, fWidth, fHeight, fB, fC: Allows downscaling the output before reading back from GPU. See ResizeShader.  
 PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing. Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames. Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.  
+Engines: In Avisynth+ with MT_NICE_FILTER, sets the number of DirectX engines that will be shared amongst all threads. Set to 1 if running several shader functions. Default=2. Ignored in AviSynth 2.6 running with MT_MULTI_INSTANCE.  
 Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU  
 
 

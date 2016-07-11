@@ -269,10 +269,10 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
     CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
     HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
 
-    if (planeOut == 0 && (!isLast || !m_PlanarOut) || planeOut == 3)
-        mutex_ProcessFrame.unlock();
+	if (isLast && (!m_PlanarOut || planeOut == 3))
+		mutex_ProcessCommand.unlock();
 
-    dst->ClipIndex = cmd->OutputIndex;
+	dst->ClipIndex = cmd->OutputIndex;
     if (!isLast) {
         HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
     }
@@ -301,7 +301,6 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
             if FAILED(InitPixelShader(&PlanarCmd, 3, env))
                 env->ThrowError("ExecuteShader: OutputV.cso not found");
             HR(ProcessFrame(textureList, &PlanarCmd, width, height, true, 3, env));
-            // mutex_ProcessFrame.unlock();
         }
         else if (planeOut > 0) {
             // This gets called recursively from the code below for each plane.

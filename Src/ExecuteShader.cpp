@@ -1,12 +1,14 @@
 #include "ExecuteShader.h"
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, IScriptEnvironment* env) :
-	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision), m_PlanarOut(_planarOut) {
+ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, int _engines, IScriptEnvironment* env) :
+	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision), m_PlanarOut(_planarOut), m_enginesCount(_engines) {
 
 	// Validate parameters
 	if (!vi.IsY8())
 		env->ThrowError("ExecuteShader: Source must be a command chain");
+	if (m_enginesCount < 1)
+		env->ThrowError("ExecuteShader: Engines must be greater than 0");
 
 	memcpy(m_ClipPrecision, _clipPrecision, sizeof(int) * 9);
 	m_clips[0] = _clip1;
@@ -33,49 +35,53 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
 	// Runs as MT_NICE_FILTER in AviSynth+ MT, otherwise MT_MULTI_INSTANCE
-	isMT = false;
-	if (env->FunctionExists("SetFilterMTMode")) {
+	if (env->FunctionExists("SetFilterMTMode") && SUPPORT_MT_NICE_FILTER == true) {
 		auto env2 = static_cast<IScriptEnvironment2*>(env);
-		isMT = SUPPORT_MT_NICE_FILTER && env2->GetProperty(AEP_FILTERCHAIN_THREADS) > 1;
+		int ThreadCount = env2->GetProperty(AEP_THREADPOOL_THREADS);
+		if (m_enginesCount > ThreadCount)
+			m_enginesCount = ThreadCount;
 	}
+	else
+		m_enginesCount = 1;
 
-	render1 = new D3D9RenderImpl();
-	render2 = isMT ? new D3D9RenderImpl() : nullptr;
-	if (FAILED(render1->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT, env)))
-		env->ThrowError("ExecuteShader: Initialize failed.");
-	if (isMT && FAILED(render2->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, isMT, env)))
-		env->ThrowError("ExecuteShader: Initialize failed.");
+	D3D9RenderImpl* NewEngine;
+	for (int i = 0; i < m_enginesCount; i++) {
+		NewEngine = new D3D9RenderImpl();
+		if (FAILED(NewEngine->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, true, env)))
+			env->ThrowError("ExecuteShader: Initialize failed.");
+		m_engines.push_back(NewEngine);
+	}
 
 	// vi.width and vi.height must be set during constructor
 	std::vector<InputTexture*> TextureList;
-	AllocateAndCopyInputTextures(render1, &TextureList, 0, true, env);
-	ProcessCommandChain(render1, &TextureList, 0, true, env);
-	if FAILED(ClearTextures(render1->m_Pool, &TextureList))
+	AllocateAndCopyInputTextures(m_engines.front(), &TextureList, 0, true, env);
+	ProcessCommandChain(m_engines.front(), &TextureList, 0, true, env);
+	if FAILED(ClearTextures(m_engines.front()->m_Pool, &TextureList))
 		env->ThrowError("ExecuteShader: ClearTextures failed");
 }
 
 ExecuteShader::~ExecuteShader() {
 	DestroyWindow(dummyHWND);
-	if (render1)
-		delete render1;
-	if (render2)
-		delete render2;
+	for (auto const item : m_engines) {
+		delete item;
+	}
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
+	std::unique_lock<std::mutex> lock(mutex_All);
+
 	// Iterate between both devices. First frame uses render1, second frame uses render2 and so on.
 	// We don't need to lock until within ProcessCommandChain but we need to know which device is being used within GetFrame.
 	D3D9RenderImpl* render;
-	mutex_IterateDevice.lock();
-	if (!isMT || m_IterateDevice == 0) {
-		m_IterateDevice = 1;
-		render = render1;
+	if (m_enginesCount > 1) {
+		mutex_IterateDevice.lock();
+		render = m_engines[m_IterateDevice++];
+		if (m_IterateDevice >= m_enginesCount)
+			m_IterateDevice = 0;
+		mutex_IterateDevice.unlock();
 	}
-	else {
-		m_IterateDevice = 0;
-		render = render2;
-	}
-	mutex_IterateDevice.unlock();
+	else
+		render = m_engines.front();
 
 	std::vector<InputTexture*> TextureList;
 	AllocateAndCopyInputTextures(render, &TextureList, n, false, env);
@@ -101,10 +107,12 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 }
 
 void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
+	render->mutex_ProcessCommand.lock();
+
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;
-  bool Dither = m_Precision >= 2 && m_OutputPrecision < 2;
+	bool Dither = m_Precision >= 2 && m_OutputPrecision < 2;
 
 	PVideoFrame src = child->GetFrame(n, env);
 	const byte* srcReader = src->GetReadPtr();
@@ -120,7 +128,7 @@ void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<Inpu
 		if (IsLast && Dither) {
 			CreateDitherCommand(render, textureList, &cmd, cmd.CommandIndex + 1, m_OutputPrecision);
 			ProcessCommand(render, textureList, &cmd, init, true, env);
-      render->ResetSamplerState();
+			render->ResetSamplerState();
 		}
 	}
 }
@@ -153,9 +161,6 @@ void ExecuteShader::ProcessCommand(D3D9RenderImpl* render, std::vector<InputText
 		// Set Param0 and Param1 default values.
 		bool SetDefault1 = SetDefaultParamValue(&cmd->Param[0], (float)OutputWidth, (float)OutputHeight, 0, 0);
 		bool SetDefault2 = SetDefaultParamValue(&cmd->Param[1], 1.0f / OutputWidth, 1.0f / OutputHeight, 0, 0);
-
-		// This lock will be unlocked within render->CopyFromRenderTarget after it is done processing.
-		render->mutex_ProcessFrame.lock();
 
 		// Configure pixel shader
 		for (int j = 0; j < 9; j++) {
@@ -243,16 +248,16 @@ void ExecuteShader::AllocateAndCopyInputTextures(D3D9RenderImpl* render, std::ve
 }
 
 void ExecuteShader::ConfigureShader(CommandStruct* cmd, IScriptEnvironment* env) {
-	HRESULT Result1 = render1->InitPixelShader(cmd, 0, env);
-	HRESULT Result2 = isMT ? render2->InitPixelShader(cmd, 0, env) : S_OK;
-	if (Result1 != S_OK || Result2 != S_OK) {
-		char* ErrorText = "Shader: Failed to open pixel shader ";
-		char* FullText;
-		size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;
-		FullText = (char*)malloc(TextLength);
-		strcpy_s(FullText, TextLength, ErrorText);
-		strcat_s(FullText, TextLength, cmd->Path);
-		env->ThrowError(FullText);
-		free(FullText);
+	for (auto const item : m_engines) {
+		if FAILED(item->InitPixelShader(cmd, 0, env)) {
+			char* ErrorText = "Shader: Failed to open pixel shader ";
+			char* FullText;
+			size_t TextLength = strlen(ErrorText) + strlen(cmd->Path) + 1;
+			FullText = (char*)malloc(TextLength);
+			strcpy_s(FullText, TextLength, ErrorText);
+			strcat_s(FullText, TextLength, cmd->Path);
+			env->ThrowError(FullText);
+			free(FullText);
+		}
 	}
 }

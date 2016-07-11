@@ -25,8 +25,7 @@ struct ShaderItem {
 	CComPtr<ID3DXConstantTable> ConstantTable;
 };
 
-class D3D9RenderImpl
-{
+class D3D9RenderImpl {
 public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl();
@@ -39,10 +38,10 @@ public:
 	HRESULT SetDefaults(LPD3DXCONSTANTTABLE table);
 	HRESULT SetPixelShaderConstant(int index, const ParamStruct* param);
 	HRESULT CopyDitherMatrix(std::vector<InputTexture*>* textureList, int outputIndex);
-  HRESULT ResetSamplerState();
-  static const int maxClips = 9;
+	HRESULT ResetSamplerState();
+	static const int maxClips = 9;
 	ShaderItem m_Shaders[80] = { 0 };
-	std::mutex mutex_ProcessFrame;
+	std::mutex mutex_ProcessCommand;
 	MemoryPool* m_Pool = nullptr;
 	InputTexture* m_DitherMatrix;
 
