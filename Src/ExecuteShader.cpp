@@ -68,8 +68,6 @@ ExecuteShader::~ExecuteShader() {
 }
 
 PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
-	std::unique_lock<std::mutex> lock(mutex_All);
-
 	// Iterate between both devices. First frame uses render1, second frame uses render2 and so on.
 	// We don't need to lock until within ProcessCommandChain but we need to know which device is being used within GetFrame.
 	D3D9RenderImpl* render;
@@ -107,7 +105,7 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 }
 
 void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
-	render->mutex_ProcessCommand.lock();
+	std::unique_lock<std::mutex> lock(render->mutex_ProcessCommand);
 
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;

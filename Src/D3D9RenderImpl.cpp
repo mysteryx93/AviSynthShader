@@ -269,14 +269,11 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
     CComPtr<IDirect3DSurface9> pReadSurfaceGpu;
     HR(m_pDevice->GetRenderTarget(0, &pReadSurfaceGpu));
 
-	if (isLast && (!m_PlanarOut || planeOut == 3))
-		mutex_ProcessCommand.unlock();
-
 	dst->ClipIndex = cmd->OutputIndex;
     if (!isLast) {
         HR(D3DXLoadSurfaceFromSurface(dst->Surface, nullptr, nullptr, pReadSurfaceGpu, nullptr, nullptr, D3DX_FILTER_NONE, 0));
     }
-    else {
+    else { // IsLast
         if (!m_PlanarOut && planeOut == 0) {
             // If reading last command, copy it back to CPU directly
             HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, dst->Memory));
@@ -308,7 +305,6 @@ HRESULT D3D9RenderImpl::CopyFromRenderTarget(std::vector<InputTexture*>* texture
             HR(m_pDevice->GetRenderTargetData(pReadSurfaceGpu, SurfaceOut));
         }
     }
-
     return S_OK;
 }
 

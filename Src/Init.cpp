@@ -172,7 +172,7 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[19].AsInt(3),			// Precision
 		args[20].AsInt(1),			// PrecisionOut
 		args[21].AsBool(false),		// PlanarOut
-		args[22].AsInt(2),			// Engines count
+		args[22].AsInt(1),			// Engines count
 		env);
 }
 

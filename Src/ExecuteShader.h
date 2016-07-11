@@ -36,6 +36,5 @@ private:
 	int m_enginesCount;
 	int m_IterateDevice = 0;
 	std::mutex mutex_IterateDevice;
-	std::mutex mutex_All;
 	int srcHeight;
 };
