@@ -1,4 +1,4 @@
-# AviSynthShader v1.5.2 (July 6th 2016)
+# AviSynthShader v1.5.3 (July 12th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -23,7 +23,7 @@
 # PlanarIn, PlanarOut: Whether to transfer frame data as 3 individual planes to reduce bandwidth at the expense of extra processing.
 #    Generally, PlanarIn brings no performance benefit while PlanarOut brings a nice performance boost. PlanarIn may bring an advantage with larger frames.
 #    Default for SuperRes and SuperResXBR: PlanarIn=false, PlanarOut=true. Default for SuperXBR: PlanarIn=true, PlanarOut=true. Default for ResizeShader: PlanarIn=true, PlanarOut=false.
-# Engines: In Avisynth+ with MT_NICE_FILTER, sets the number of DirectX engines that will be shared amongst all threads. Set to 1 if running several shader functions. Default=2. Ignored in AviSynth 2.6 running with MT_MULTI_INSTANCE.
+# Engines: In Avisynth+ with MT_NICE_FILTER, sets the number of DirectX engines that will be shared amongst all threads. Set to 2 if running a single shader function for increased performance. Default=1. Ignored in AviSynth 2.6 running with MT_MULTI_INSTANCE.
 # Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
 #
 # 

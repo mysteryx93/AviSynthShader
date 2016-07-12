@@ -1,8 +1,10 @@
-Version 1.5.3: July 11th 2016
+Version 1.5.3: July 12th 2016
 - Fixed: Filter was accidentally being registered as MT_MULTI_INSTANCE on AviSynth+
 - Fixed: Filter did not work with MT_NICE_FILTER
 - Fixed: Filter wasn't creating the second core (back to square one with MT_MULTI_INSTANCE)
 - ExecuteShader: Added Engines parameter to specify the number of cores to run when using MT_NICE_FILTER
+- MT_NICE_FILTER now working as expected
+- Performance boost and lower memory usage
 
 Version 1.5.2: July 6th 2016
 - All standard shader files are now included within the DLL.
