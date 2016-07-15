@@ -30,7 +30,7 @@ public:
 	D3D9RenderImpl();
 	~D3D9RenderImpl();
 
-	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT, IScriptEnvironment* env);
+	HRESULT Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool resourceFiles, bool isMT, IScriptEnvironment* env);
 	HRESULT CreateTexture(int clipIndex, int width, int height, bool isInput, bool IsPlanar, bool isLast, int shaderPrecision, InputTexture* outTexture);
 	HRESULT CopyBuffer(std::vector<InputTexture*>* textureList, InputTexture* src, CommandStruct* cmd);
 	HRESULT ProcessFrame(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);
@@ -66,4 +66,5 @@ private:
 	int m_ClipPrecision[9];
 	int m_OutputPrecision;
 	bool m_PlanarOut;
+	bool m_ResourceFiles;
 };

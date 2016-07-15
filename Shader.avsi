@@ -76,8 +76,8 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Passes = default(Passes, 1)
 	Str = default(Str, 1)
 	Soft = default(Soft, 0)
-	MatrixIn = default(MatrixIn, "709")
-	MatrixOut = default(MatrixOut, "709")
+	MatrixIn = default(MatrixIn, "Rec709")
+	MatrixOut = default(MatrixOut, "Rec709")
 	FormatOut = default(FormatOut, "")
 	Convert = default(Convert, true)
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
@@ -97,8 +97,8 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Assert((Str >= 0 && Str <= 1) ? true : false, "Str must be between 0 and 1")
 	Assert((Soft >= 0 && Soft <= 1) ? true : false, "Soft must be between 0 and 1")
 	Assert(Defined(Upscale), "You must specify Upscale")
-	Assert(MatrixIn == "601" || MatrixIn == "709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be 601, 709, Pc601 or Pc709")
-	Assert(MatrixOut == "601" || MatrixOut == "709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be 601, 709, Pc601 or Pc709")
+	Assert(MatrixIn == "Rec601" || MatrixIn == "Rec709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be Rec601, Rec709, Pc601 or Pc709")
+	Assert(MatrixOut == "Rec601" || MatrixOut == "Rec709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be Rec601, Rec709, Pc601 or Pc709")
 	Assert((!lsb_in && !lsb_upscale && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
@@ -125,9 +125,9 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 
 	Input = convert ? ConvertToShader(PrecisionUpscale, lsb=lsb_upscale, Planar=PlanarIn) : last
 
-	DefinesIn = ConvertYuv ? (RightStr(MatrixIn,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixIn,2)=="PC" ? "LimitedRange=0;" : "") : ""
-	Shader(ConvertYuv ? (PlanarIn ? "YV" : "Yuv") + "ToLinear.hlsl" : "GammaToLinear.hlsl", Defines=DefinesIn)
-	PlanarUpscale ? Shader("YVToYuv.hlsl", Clip1=3, Output=3) : last
+	VariantIn = ConvertYuv ? MatrixIn : ""
+	Shader(ConvertYuv ? (PlanarIn ? "YV" : "Yuv") + "ToLinear" + VariantIn + ".cso" : "GammaToLinear.cso")
+	PlanarUpscale ? Shader("YVToYuv.cso", Clip1=3, Output=3) : last
 
 	# Downscale (optional)
 	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
@@ -141,7 +141,7 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	Passes > 3 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 4, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 4 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 5, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
-	ExecuteShader(last, Input, Clip3=Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
+	ExecuteShader(last, Input, Clip3=Original, Precision=3, Clip1Precision=PrecisionUpscale, Clip2Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines, Resource=true)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
@@ -152,8 +152,8 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Soft = default(Soft, 0)
 	XbrStr = default(XbrStr, 1)
 	XbrSharp = default(XbrSharp, 1)
-	MatrixIn = default(MatrixIn, "709")
-	MatrixOut = default(MatrixOut, "709")
+	MatrixIn = default(MatrixIn, "Rec709")
+	MatrixOut = default(MatrixOut, "Rec709")
 	FormatOut = default(FormatOut, "")
 	Convert = default(Convert, true)
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : true)
@@ -172,8 +172,8 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Assert(Soft >= 0 && Soft <= 1, "Soft must be between 0 and 1")
 	Assert(XbrStr >= 0 && XbrStr <= 5, "XbrStr must be between 0 and 5")
 	Assert(XbrSharp >= 0 && XbrSharp <= 1.5, "XbrSharp must be between 0 and 1.5")
-	Assert(MatrixIn == "601" || MatrixIn == "709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be 601, 709, Pc601 or Pc709")
-	Assert(MatrixOut == "601" || MatrixOut == "709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be 601, 709, Pc601 or Pc709")
+	Assert(MatrixIn == "Rec601" || MatrixIn == "Rec709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be Rec601, Rec709, Pc601 or Pc709")
+	Assert(MatrixOut == "Rec601" || MatrixOut == "Rec709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be Rec601, Rec709, Pc601 or Pc709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in or lsb_out")
 
 	Input
@@ -196,15 +196,14 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	PlanarIn = PlanarIn && Convert
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
 
-	Shader(PlanarIn ? "YVToYuv.hlsl" : "", Output=3)
+	Shader(PlanarIn ? "YVToYuv.cso" : "", Output=3)
 	
 	# Upscale with Super-xBR
-	DefinesIn = (RightStr(MatrixIn,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixIn,2)=="PC" ? "LimitedRange=0;" : "")
-	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToGamma.hlsl", Defines=DefinesIn) : last
-	Shader("SuperXBR.hlsl", Defines="Pass=0", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
-	Shader("SuperXBR.hlsl", Defines="Pass=1", Param2=args_string, Param3=size1_string)
-	Shader("SuperXBR.hlsl", Defines="Pass=2", Param2=args_string, Param3=size1_string)
-	Shader("GammaToLinear.hlsl")
+	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToGamma" + MatrixIn + ".cso") : last
+	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
+	Shader("SuperXBR-pass1.cso", Param2=args_string, Param3=size1_string)
+	Shader("SuperXBR-pass2.cso", Param2=args_string, Param3=size1_string)
+	Shader("GammaToLinear.cso")
 
 	# Downscale (optional)
 	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
@@ -218,25 +217,23 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 	Passes > 3 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 4, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 	Passes > 4 ? SuperResPass(SmallWidth, SmallHeight, fWidth, fHeight, Str, Soft, 5, Passes, ConvertYuv, MatrixIn, MatrixOut) : last
 
-	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
+	ExecuteShader(last, Input, Precision=3, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines, Resource=true)
 	convert ? ConvertFromShader(PrecisionOut, format=sourceFormat, lsb=lsb_out) : last
 }
 
 function SuperResPass(clip cmd, int SmallWidth, int SmallHeight, int LargeWidth, int LargeHeight, float Str, float Soft, int Pass, int Passes, bool ConvertYuv, string MatrixIn, string MatrixOut)
 {
-	ScriptVariantIn = "axis=1;" + (ConvertYuv ? "ConvertGamma=1;" : "") + (RightStr(MatrixIn,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixIn,2)=="PC" ? "LimitedRange=0;" : "")
-	ScriptVariantOut = (Pass==Passes ? "FinalPass=1;" : "") + (Soft==0 ? "SkipSoftening=1;" : "") + (ConvertYuv ? "ConvertGamma=1;" : "") + (RightStr(MatrixOut,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixOut,2)=="PC" ? "LimitedRange=0;" : "")
-
-	cmd.Shader("SSimDownscaler.hlsl", Defines="axis=0", Output=2, \
+	cmd.Shader("SSimDownscalerX.cso", Output=2, \
 		Param2=CreateParamFloat4(LargeWidth, LargeHeight), \
 		Width=SmallWidth, Height=LargeHeight)
 
-	Shader("SuperResDownscaleAndDiff.hlsl", Defines=ScriptVariantIn, \
+	Shader("SuperResDownscaleAndDiff" + (ConvertYuv ? MatrixIn : "") + ".cso", \
 		Clip1=2, Clip2=3, Output=2, \
 		Param2=CreateParamFloat4(SmallWidth, LargeHeight), \
 		Width=SmallWidth, Height=SmallHeight)
 
-	Shader("SuperRes.hlsl", Defines=ScriptVariantOut, \
+	VariantOut = Pass==Passes ? "Final" + (ConvertYuv ? MatrixOut : "") : Soft==0 ? "SkipSoft" : ""
+	Shader("SuperRes" + VariantOut + ".cso", \
 		Clip1=1, Clip2=2, Output=1, \
 		Param2=CreateParamFloat4(SmallWidth, SmallHeight), \
 		Param3=CreateParamFloat4(LargeWidth, LargeHeight), \
@@ -249,8 +246,8 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	Sharp = default(Sharp, 1)
 	Convert = default(Convert, true)
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : Input.IsY8() ? false : true)
-	MatrixIn = default(MatrixIn, "709")
-	MatrixOut = default(MatrixOut, "709")
+	MatrixIn = default(MatrixIn, "Rec709")
+	MatrixOut = default(MatrixOut, "Rec709")
 	FormatOut = default(FormatOut, "")
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
@@ -264,8 +261,8 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 
 	Assert(Str >= 0 && Str <= 5, "Str must be between 0 and 5")
 	Assert(Sharp >= 0 && Sharp <= 1.5, "Sharp must be between 0 and 1.5")
-	Assert(MatrixIn == "601" || MatrixIn == "709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be 601, 709, Pc601 or Pc709")
-	Assert(MatrixOut == "601" || MatrixOut == "709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be 601, 709, Pc601 or Pc709")
+	Assert(MatrixIn == "Rec601" || MatrixIn == "Rec709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be Rec601, Rec709, Pc601 or Pc709")
+	Assert(MatrixOut == "Rec601" || MatrixOut == "Rec709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be Rec601, Rec709, Pc601 or Pc709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
@@ -289,19 +286,16 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
 	Input
 	
-	DefinesIn = (RightStr(MatrixIn,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixIn,2)=="PC" ? "LimitedRange=0;" : "")
-	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToGamma.hlsl", Defines=DefinesIn) : last
-
-	Shader("SuperXBR.hlsl", Defines="Pass=0", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
-	Shader("SuperXBR.hlsl", Defines="Pass=1", Param2=args_string, Param3=size1_string)
-	Shader("SuperXBR.hlsl", Defines="Pass=2", Param2=args_string, Param3=size1_string)
+	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToGamma" + MatrixIn + ".cso") : last
+	Shader("SuperXBR-pass0.cso", Param2=args_string, Param3=size0_string, Width=LargeWidth, Height=LargeHeight)
+	Shader("SuperXBR-pass1.cso", Param2=args_string, Param3=size1_string)
+	Shader("SuperXBR-pass2.cso", Param2=args_string, Param3=size1_string)
 
 	# Final Resize
 	fWidth > 0 || fHeight > 0 ? ResizeInternal(Input, false, LargeWidth, LargeHeight, fKernel, fWidth, fHeight, fB, fC) : last
 
-	DefinesOut = (RightStr(MatrixOut,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixOut,2)=="PC" ? "LimitedRange=0;" : "")
-	ConvertYuv ? Shader("GammaToYuv.hlsl", Defines=DefinesOut) : last
-	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
+	ConvertYuv ? Shader("GammaToYuv" + MatrixOut + ".cso") : last
+	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines, Resource=true)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
@@ -312,8 +306,8 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 	Height = default(Height, Input.Height)
 	Convert = default(Convert, true)
 	ConvertYuv = default(ConvertYuv, Convert ? !Input.IsRGB() : Input.IsY8() ? false : true)
-	MatrixIn = default(MatrixIn, "709")
-	MatrixOut = default(MatrixOut, "709")
+	MatrixIn = default(MatrixIn, "Rec709")
+	MatrixOut = default(MatrixOut, "Rec709")
 	FormatOut = default(FormatOut, "")
 	lsb_in = default(lsb_in, false)
 	lsb_out = default(lsb_out, false)
@@ -326,8 +320,8 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 
 	Assert(Width > 0, "Width must be greater than 0")
 	Assert(Height > 0, "Height must be greater than 0")
-	Assert(MatrixIn == "601" || MatrixIn == "709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be 601, 709, Pc601 or Pc709")
-	Assert(MatrixOut == "601" || MatrixOut == "709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be 601, 709, Pc601 or Pc709")
+	Assert(MatrixIn == "Rec601" || MatrixIn == "Rec709" || MatrixIn == "Pc601" || MatrixIn == "Pc709", "MatrixIn must be Rec601, Rec709, Pc601 or Pc709")
+	Assert(MatrixOut == "Rec601" || MatrixOut == "Rec709" || MatrixOut == "Pc601" || MatrixOut == "Pc709", "MatrixOut must be Rec601, Rec709, Pc601 or Pc709")
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
@@ -345,14 +339,12 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
 	
-	DefinesIn = (RightStr(MatrixIn,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixIn,2)=="PC" ? "LimitedRange=0;" : "")
-	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToLinear.hlsl", Defines=DefinesIn) : last
+	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToLinear" + MatrixIn + ".cso") : last
 
 	ResizeInternal(Input, true, InputWidth, InputHeight, Kernel, Width, Height, B, C)
 
-	DefinesOut = (RightStr(MatrixOut,3)=="601" ? "Kb=0.114;Kr=0.299;" : "") + (LeftStr(MatrixOut,2)=="PC" ? "LimitedRange=0;" : "")
-	ConvertYuv ? Shader("LinearToYuv.hlsl", Defines=DefinesOut) : Shader("LinearToGamma.hlsl")
-	last.ExecuteShader(Input, Precision=Kernel=="SSim"?3:2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines)
+	ConvertYuv ? Shader("LinearToYuv" + MatrixOut + ".cso") : Shader("LinearToGamma.cso")
+	last.ExecuteShader(Input, Precision=Kernel=="SSim"?3:2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines, Resource=true)
 
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
@@ -371,12 +363,12 @@ function ResizeInternal(clip cmd, clip Input, bool SimpleArgs, int InputWidth, i
 	SSim = Kernel=="SSim"
 	Bicubic = Kernel=="Bicubic"
 
-	SSimDownscalerFile = C==1 ? "SSimSoftDownscaler.hlsl" : "SSimDownscaler.hlsl"
-	SSim ? Shader(SSimDownscalerFile, Defines="axis=0", \
+	Soft = C==1 ? "SSimSoft" : "SSim"
+	SSim ? Shader(Soft + "DownscalerX.cso", \
 		Clip1=1, Output=10,\
 		Param2=CreateParamFloat4(InputWidth, InputHeight),\
 		Width=W, Height=InputHeight) : last
-	SSim ? Shader(SSimDownscalerFile, Defines="axis=1", \
+	SSim ? Shader(Soft + "DownscalerY.cso", \
 		Clip1=10, Output=11,\
 		Param2=CreateParamFloat4(W, InputHeight),\
 		Width=W, Height=H) : last

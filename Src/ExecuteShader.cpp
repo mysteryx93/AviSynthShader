@@ -1,7 +1,7 @@
 #include "ExecuteShader.h"
 // http://gamedev.stackexchange.com/questions/13435/loading-and-using-an-hlsl-shader
 
-ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, int _engines, IScriptEnvironment* env) :
+ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, int _engines, bool _resource, IScriptEnvironment* env) :
 	GenericVideoFilter(_child), m_Precision(_precision), m_OutputPrecision(_outputPrecision), m_PlanarOut(_planarOut), m_enginesCount(_engines) {
 
 	// Validate parameters
@@ -47,7 +47,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	D3D9RenderImpl* NewEngine;
 	for (int i = 0; i < m_enginesCount; i++) {
 		NewEngine = new D3D9RenderImpl();
-		if (FAILED(NewEngine->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, true, env)))
+		if (FAILED(NewEngine->Initialize(dummyHWND, m_ClipPrecision, m_Precision, m_OutputPrecision, m_PlanarOut, _resource, true, env)))
 			env->ThrowError("ExecuteShader: Initialize failed.");
 		m_engines.push_back(NewEngine);
 	}

@@ -27,13 +27,14 @@ D3D9RenderImpl::~D3D9RenderImpl(void) {
     }
 }
 
-HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool isMT, IScriptEnvironment* env) {
+HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], int precision, int outputPrecision, bool planarOut, bool resourceFiles, bool isMT, IScriptEnvironment* env) {
     m_PlanarOut = planarOut;
     m_Precision = precision;
     for (int i = 0; i < 9; i++) {
         m_ClipPrecision[i] = clipPrecision[i];
     }
     m_OutputPrecision = outputPrecision;
+	m_ResourceFiles = resourceFiles;
 
     HR(CreateDevice(&m_pDevice, hDisplayWindow, isMT));
     ResetSamplerState();
@@ -365,7 +366,7 @@ HRESULT D3D9RenderImpl::InitPixelShader(CommandStruct* cmd, int planeOut, IScrip
     bool FromResource = false;
 
     D3D9Include Include;
-    ShaderBuf = Include.GetResource(cmd->Path, &ShaderBufLength);
+    ShaderBuf = Include.GetResource(cmd->Path, &ShaderBufLength, m_ResourceFiles);
     if (ShaderBuf == nullptr)
         return E_FAIL;
 

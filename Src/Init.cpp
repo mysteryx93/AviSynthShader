@@ -173,6 +173,7 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		args[20].AsInt(1),			// PrecisionOut
 		args[21].AsBool(false),		// PlanarOut
 		args[22].AsInt(1),			// Engines count
+		args[23].AsBool(false),		// Resource (don't search for file)
 		env);
 }
 
@@ -183,7 +184,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	env->AddFunction("ConvertToShader", "c[Precision]i[lsb]b[planar]b[opt]i", Create_ConvertToShader, 0);
 	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[opt]i", Create_ConvertFromShader, 0);
 	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i[Precision]i[Defines]s", Create_Shader, 0);
-	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i[PlanarOut]b[Engines]i", Create_ExecuteShader, 0);
+	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i[PlanarOut]b[Engines]i[Resource]b", Create_ExecuteShader, 0);
 
 	if (env->FunctionExists("SetFilterMTMode")) {
 		auto env2 = static_cast<IScriptEnvironment2*>(env);

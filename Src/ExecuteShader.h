@@ -14,7 +14,7 @@ const bool SUPPORT_MT_NICE_FILTER = true;
 
 class ExecuteShader : public GenericVideoFilter {
 public:
-	ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, int _engines, IScriptEnvironment* env);
+	ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _clip3, PClip _clip4, PClip _clip5, PClip _clip6, PClip _clip7, PClip _clip8, PClip _clip9, int _clipPrecision[9], int _precision, int _outputPrecision, bool _planarOut, int _engines, bool _resource, IScriptEnvironment* env);
 	~ExecuteShader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 private:

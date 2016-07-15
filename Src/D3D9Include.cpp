@@ -4,7 +4,7 @@
 
 HRESULT D3D9Include::Open(D3DXINCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID * ppData, UINT * pBytes)
 {
-    *ppData = GetResource(pFileName, pBytes);
+    *ppData = GetResource(pFileName, pBytes, false);
     return ppData ? S_OK : E_FAIL;
 }
 
@@ -23,30 +23,33 @@ HRESULT D3D9Include::Close(LPCVOID pData)
     return S_OK;
 }
 
-LPCVOID D3D9Include::GetResource(std::string filePath, UINT* fileLength) {
+LPCVOID D3D9Include::GetResource(std::string filePath, UINT* fileLength, bool resource) {
     CComPtr<ID3DXBuffer> code;
     LPCVOID ShaderBuf = nullptr;
     DWORD* CodeBuffer = nullptr;
 
-    ShaderBuf = ReadBinaryFile(filePath, fileLength);
-    if (!ShaderBuf) {
-        // Try in same folder as DLL file.
-        char path[MAX_PATH];
-        GetDefaultPath(path, MAX_PATH, filePath.c_str());
-        ShaderBuf = ReadBinaryFile(path, fileLength);
-    }
-    if (ShaderBuf) {
-        // Only direct files need to be closed; not resource files.
-        m_OpenedFiles.push_back(ShaderBuf);
-    }
+	if (!resource) {
+		ShaderBuf = ReadBinaryFile(filePath, fileLength);
+		if (!ShaderBuf) {
+			// Try in same folder as DLL file.
+			char path[MAX_PATH];
+			GetDefaultPath(path, MAX_PATH, filePath.c_str());
+			ShaderBuf = ReadBinaryFile(path, fileLength);
+		}
+		if (ShaderBuf) {
+			// Only direct files need to be closed; not resource files.
+			m_OpenedFiles.push_back(ShaderBuf);
+		}
+	}
     if (!ShaderBuf) {
         // Try resource file.
         std::string prefix = "./"; // Remove trailing ./ prefix
         if (filePath.substr(0, prefix.size()) == prefix) {
             filePath = filePath.substr(prefix.size());
         }
-        HMODULE hModule;
-        GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)&StaticFunction, &hModule);
+        static HMODULE hModule;
+		if (hModule == NULL)
+			GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)&StaticFunction, &hModule);
         HRSRC hRes = FindResource(hModule, ("IDR_RCDATA_" + std::string(filePath)).c_str(), RT_RCDATA);
         *fileLength = SizeofResource(hModule, hRes);
         HGLOBAL hResData = LoadResource(hModule, hRes);

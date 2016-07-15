@@ -1,3 +1,10 @@
+Version 1.5.4: July 15th 2016
+- MatrixIn/MatrixOut: Changed 601 to Rec601, 709 to Rec709.
+- Fixed: It wasn't working on Windows 7
+- All HLSL files now pre-compiled and included in DLL
+- Much faster initialization
+- ExecuteShader: Added Resource parameter. When true, it will only open internal resources without searching for a physical file
+
 Version 1.5.3: July 12th 2016
 - Fixed: Filter was accidentally being registered as MT_MULTI_INSTANCE on AviSynth+
 - Fixed: Filter did not work with MT_NICE_FILTER
