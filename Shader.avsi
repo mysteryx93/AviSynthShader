@@ -1,4 +1,4 @@
-# AviSynthShader v1.5.3 (July 12th 2016)
+# AviSynthShader v1.5.4 (July 15th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -14,7 +14,7 @@
 # https://github.com/mysteryx93/AviSynthShader 
 #
 ## Common Parameter
-# MatrixIn/MatrixOut: The input and output color matrix (601, 709, Pc601, Pc709). This can be used for color matrix conversion. Default="709" for both
+# MatrixIn/MatrixOut: The input and output color matrix (Rec601, Rec709, Pc601, Pc709). This can be used for color matrix conversion. Default="Rec709" for both
 # FormatOut: The output format. Default = same as input.
 # Convert: Whether to call ConvertToShader and ConvertFromShader within the shader. Default=true
 # ConvertYuv: Whether do YUV-RGB color conversion. Default=true unless Convert=true and source is RGB
