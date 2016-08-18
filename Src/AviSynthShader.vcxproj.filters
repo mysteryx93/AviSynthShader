@@ -65,61 +65,173 @@
     <ResourceCompile Include="Shader.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\Bicubic.cso" />
-    <None Include="Shaders\Dither.cso" />
-    <None Include="Shaders\GammaToLinear.cso" />
-    <None Include="Shaders\GammaToYuvPc601.cso" />
-    <None Include="Shaders\GammaToYuvPc709.cso" />
-    <None Include="Shaders\GammaToYuvRec601.cso" />
-    <None Include="Shaders\GammaToYuvRec709.cso" />
-    <None Include="Shaders\LinearToGamma.cso" />
-    <None Include="Shaders\LinearToYuvPc601.cso" />
-    <None Include="Shaders\LinearToYuvPc709.cso" />
-    <None Include="Shaders\LinearToYuvRec601.cso" />
-    <None Include="Shaders\LinearToYuvRec709.cso" />
-    <None Include="Shaders\OutputU.cso" />
-    <None Include="Shaders\OutputV.cso" />
-    <None Include="Shaders\OutputY.cso" />
-    <None Include="Shaders\SSimCalc.cso" />
-    <None Include="Shaders\SSimCalcR.cso" />
-    <None Include="Shaders\SSimDownscaledVarI.cso" />
-    <None Include="Shaders\SSimDownscaledVarII.cso" />
-    <None Include="Shaders\SSimDownscalerX.cso" />
-    <None Include="Shaders\SSimDownscalerY.cso" />
-    <None Include="Shaders\SSimSinglePassConvolver.cso" />
-    <None Include="Shaders\SSimSoftDownscalerX.cso" />
-    <None Include="Shaders\SSimSoftDownscalerY.cso" />
-    <None Include="Shaders\SuperRes.cso" />
-    <None Include="Shaders\SuperResDownscaleAndDiff.cso" />
-    <None Include="Shaders\SuperResDownscaleAndDiffPc601.cso" />
-    <None Include="Shaders\SuperResDownscaleAndDiffPc709.cso" />
-    <None Include="Shaders\SuperResDownscaleAndDiffRec601.cso" />
-    <None Include="Shaders\SuperResDownscaleAndDiffRec709.cso" />
-    <None Include="Shaders\SuperResFinal.cso" />
-    <None Include="Shaders\SuperResFinalPc601.cso" />
-    <None Include="Shaders\SuperResFinalPc709.cso" />
-    <None Include="Shaders\SuperResFinalRec601.cso" />
-    <None Include="Shaders\SuperResFinalRec709.cso" />
-    <None Include="Shaders\SuperResSkipSoft.cso" />
-    <None Include="Shaders\SuperXBR-pass0.cso" />
-    <None Include="Shaders\SuperXBR-pass1.cso" />
-    <None Include="Shaders\SuperXBR-pass2.cso" />
-    <None Include="Shaders\YuvToGammaPc601.cso" />
-    <None Include="Shaders\YuvToGammaPc709.cso" />
-    <None Include="Shaders\YuvToGammaRec601.cso" />
-    <None Include="Shaders\YuvToGammaRec709.cso" />
-    <None Include="Shaders\YuvToLinearPc601.cso" />
-    <None Include="Shaders\YuvToLinearPc709.cso" />
-    <None Include="Shaders\YuvToLinearRec601.cso" />
-    <None Include="Shaders\YuvToLinearRec709.cso" />
-    <None Include="Shaders\YVToGammaPc601.cso" />
-    <None Include="Shaders\YVToGammaPc709.cso" />
-    <None Include="Shaders\YVToGammaRec601.cso" />
-    <None Include="Shaders\YVToGammaRec709.cso" />
-    <None Include="Shaders\YVToLinearPc601.cso" />
-    <None Include="Shaders\YVToLinearPc709.cso" />
-    <None Include="Shaders\YVToLinearRec601.cso" />
-    <None Include="Shaders\YVToLinearRec709.cso" />
-    <None Include="Shaders\YVToYuv.cso" />
+    <None Include="Shaders\GammaToLinear.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\GammaToYuvPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\GammaToYuvPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\GammaToYuvRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\GammaToYuvRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Dither.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Bicubic.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LinearToGamma.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LinearToYuvPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LinearToYuvPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LinearToYuvRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LinearToYuvRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputU.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputV.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\OutputY.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimCalc.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimCalcR.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscaledVarI.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscaledVarII.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscalerX.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimDownscalerY.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimSinglePassConvolver.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimSoftDownscalerX.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SSimSoftDownscalerY.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperRes.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResDownscaleAndDiff.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResDownscaleAndDiffPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResDownscaleAndDiffRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResDownscaleAndDiffPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResDownscaleAndDiffRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResFinal.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResFinalPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResFinalPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResFinalRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResFinalRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperResSkipSoft.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperXBR-pass0.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperXBR-pass1.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SuperXBR-pass2.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToGammaPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToGammaPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToGammaRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToGammaRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToLinearPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToLinearPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToLinearRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YuvToLinearRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToGammaPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToGammaPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToGammaRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToGammaRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToLinearPc601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToLinearPc709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToLinearRec601.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToLinearRec709.cso">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\YVToYuv.cso">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
