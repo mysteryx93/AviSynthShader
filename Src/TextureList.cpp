@@ -37,10 +37,10 @@ HRESULT __stdcall ClearTextures(MemoryPool* pool, std::vector<InputTexture*>* te
 
 D3DFORMAT __stdcall GetD3DFormat(int precision, bool planar) {
 	if (precision == 0)
-		return D3DFMT_L8;
+		return D3DFMT_A8;
 	else if (precision == 1) {
 		if (planar)
-			return D3DFMT_L8;
+			return D3DFMT_A8;
 		else
 			return D3DFMT_A8R8G8B8;
 	}

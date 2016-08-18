@@ -1,3 +1,9 @@
+Version 1.5.5: August 18th 2016
+- Updated Avisynth headers
+- Moved lock so that it doesn't cause all other filters to run as MT_SERIALIZED
+- MT mode now set using SetCacheHints instead of using env2
+- Planar format for precision 1 changed from D3DFMT_L8 to D3DFMT_A8 to see if it works better on NVidia cards
+
 Version 1.5.4: July 15th 2016
 - MatrixIn/MatrixOut: Changed 601 to Rec601, 709 to Rec709.
 - Fixed: It wasn't working on Windows 7
