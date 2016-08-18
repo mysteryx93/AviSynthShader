@@ -105,8 +105,6 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 }
 
 void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
-	std::unique_lock<std::mutex> lock(render->mutex_ProcessCommand);
-
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;
 	bool IsLast;
@@ -114,6 +112,8 @@ void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<Inpu
 
 	PVideoFrame src = child->GetFrame(n, env);
 	const byte* srcReader = src->GetReadPtr();
+
+	std::unique_lock<std::mutex> lock(render->mutex_ProcessCommand);
 
 	for (int i = 0; i < srcHeight; i++) {
 		memcpy(&cmd, srcReader, sizeof(CommandStruct));
