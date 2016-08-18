@@ -17,6 +17,7 @@ public:
 		int _clip1, int _clip2, int _clip3, int _clip4, int _clip5, int _clip6, int _clip7, int _clip8, int _clip9, int _output, int _width, int _height, int _precision, const char* defines, IScriptEnvironment* env);
 	~Shader();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+	int __stdcall SetCacheHints(int cachehints, int frame_range);
 private:
 	bool ParseParam(ParamStruct* param);
 	D3DXMACRO* ParseDefines(const char* defines, IScriptEnvironment* env);

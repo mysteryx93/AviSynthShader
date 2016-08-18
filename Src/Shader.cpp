@@ -106,6 +106,10 @@ PVideoFrame __stdcall Shader::GetFrame(int n, IScriptEnvironment* env) {
 	return dst;
 }
 
+int __stdcall Shader::SetCacheHints(int cachehints, int frame_range) {
+	return cachehints == CachePolicyHint::CACHE_GET_MTMODE ? MT_NICE_FILTER : 0;
+}
+
 // The last character is f for float, i for interet or b for boolean. For boolean, the value is 1 or 0.
 // Returns True if parameter was valid, otherwise false.
 bool Shader::ParseParam(ParamStruct* param) {

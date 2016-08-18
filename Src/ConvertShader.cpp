@@ -167,3 +167,7 @@ PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
 
     return dst;
 }
+
+int __stdcall ConvertShader::SetCacheHints(int cachehints, int frame_range) {
+	return cachehints == CachePolicyHint::CACHE_GET_MTMODE ? MT_NICE_FILTER : 0;
+}

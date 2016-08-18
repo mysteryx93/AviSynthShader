@@ -104,6 +104,10 @@ PVideoFrame __stdcall ExecuteShader::GetFrame(int n, IScriptEnvironment* env) {
 	return dst;
 }
 
+int __stdcall ExecuteShader::SetCacheHints(int cachehints, int frame_range) {
+	return cachehints == CachePolicyHint::CACHE_GET_MTMODE ? (SUPPORT_MT_NICE_FILTER ? MT_NICE_FILTER : MT_MULTI_INSTANCE) : 0;
+}
+
 void ExecuteShader::ProcessCommandChain(D3D9RenderImpl* render, std::vector<InputTexture*>* textureList, int n, bool init, IScriptEnvironment* env) {
 	// Each row of input clip contains commands to execute
 	CommandStruct cmd;

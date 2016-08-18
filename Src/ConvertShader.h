@@ -51,6 +51,7 @@ public:
     ConvertShader(PClip _child, int _precision, bool stack16, std::string& format, bool planar, int opt, IScriptEnvironment* env);
     ~ConvertShader();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+	int __stdcall SetCacheHints(int cachehints, int frame_range);
 };
 
 
