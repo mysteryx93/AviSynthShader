@@ -252,69 +252,6 @@ shader_to_yuv_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-#if defined(__AVX__)
-template <bool STACK16>
-static void __stdcall
-shader_to_yuv_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, void* _buff) noexcept
-{
-    const uint8_t* s = srcp[0];
-
-    uint8_t* dr = dstp[0];
-    uint8_t* dg = dstp[1];
-    uint8_t* db = dstp[2];
-
-    float * buff = reinterpret_cast<float*>(_buff);
-
-    uint8_t *lr, *lg, *lb;
-    const __m128 coef = _mm_set1_ps(STACK16 ? 65535.0f : 255.0f);
-    const __m128i mask = _mm_set1_epi16(0x00FF);
-
-    if (STACK16) {
-        lr = dr + height * dpitch;
-        lg = dg + height * dpitch;
-        lb = db + height * dpitch;
-    }
-
-    for (int y = 0; y < height; ++y) {
-        convert_half_to_float(buff, s, width * 4);
-        for (int x = 0; x < width; x += 4) {
-            __m128i s0 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x +  0))); // R0,G0,B0,A0
-            __m128i s1 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x +  4))); // R1,G1,B1,A1
-            __m128i s2 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x +  8))); // R2,G2,B2,A2
-            __m128i s3 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x + 12))); // R3,G3,B3,A3
-            s0 = _mm_or_si128(s0, _mm_slli_epi32(s1, 16)); //R0,R1,G0,G1,B0,B1,A0,A1
-            s1 = _mm_or_si128(s2, _mm_slli_epi32(s3, 16)); //R2,R3,G2,G3,B2,B3,A2,A3
-            s2 = _mm_unpacklo_epi32(s0, s1); // R0,R1,R2,R3,G0,G1,G2,G3
-            s3 = _mm_unpackhi_epi32(s0, s1); // B0,B1,B2,B3,A0,A1,A2,A3
-            if (!STACK16) {
-                s0 = _mm_packus_epi16(s2, s3);
-                *(reinterpret_cast<int32_t*>(dr + x)) = _mm_cvtsi128_si32(s0);
-                *(reinterpret_cast<int32_t*>(dg + x)) = _mm_cvtsi128_si32(_mm_srli_si128(s0, 4));
-                *(reinterpret_cast<int32_t*>(db + x)) = _mm_cvtsi128_si32(_mm_srli_si128(s0, 8));
-            } else {
-                __m128i rgbamsb = _mm_packus_epi16(_mm_srli_epi16(s2, 8), _mm_srli_epi16(s3, 8));
-                __m128i rgbalsb = _mm_packus_epi16(_mm_and_si128(s2, mask), _mm_and_si128(s3, mask));
-                *(reinterpret_cast<int32_t*>(dr + x)) = _mm_cvtsi128_si32(rgbamsb);
-                *(reinterpret_cast<int32_t*>(lr + x)) = _mm_cvtsi128_si32(rgbalsb);
-                *(reinterpret_cast<int32_t*>(dg + x)) = _mm_cvtsi128_si32(_mm_srli_si128(rgbamsb, 4));
-                *(reinterpret_cast<int32_t*>(lg + x)) = _mm_cvtsi128_si32(_mm_srli_si128(rgbalsb, 4));
-                *(reinterpret_cast<int32_t*>(db + x)) = _mm_cvtsi128_si32(_mm_srli_si128(rgbamsb, 8));
-                *(reinterpret_cast<int32_t*>(lb + x)) = _mm_cvtsi128_si32(_mm_srli_si128(rgbalsb, 8));
-            }
-        }
-        s += spitch;
-        dr += dpitch;
-        dg += dpitch;
-        db += dpitch;
-        if (STACK16) {
-            lr += dpitch;
-            lg += dpitch;
-            lb += dpitch;
-        }
-    }
-}
-#endif
 
 
 template <bool IS_RGB32>
@@ -366,6 +303,7 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
+
 static void __stdcall
 shader_to_rgb32_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
     const int spitch, const int width, const int height, void*) noexcept
@@ -389,7 +327,6 @@ shader_to_rgb32_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
         s -= spitch;
     }
 }
-
 
 
 template <bool IS_RGB32>
@@ -420,36 +357,19 @@ shader_to_rgb_3_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-#if defined(__AVX__)
-static void __stdcall
-shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, void* _buff) noexcept
-{
-    const uint8_t* s = srcp[0] + (height - 1) * spitch;
-    uint8_t* d = dstp[0];
-    float* buff = reinterpret_cast<float*>(_buff);
-
-    const __m128 coef = _mm_set1_ps(255.0f);
-    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-    for (int y = 0; y < height; ++y) {
-        convert_half_to_float(buff, s, width * 4);
-        for (int x = 0; x < width; x += 4) {
-            __m128i d0 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x + 0)));
-            __m128i d1 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x + 4)));
-            __m128i d2 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x + 8)));
-            __m128i d3 = _mm_cvtps_epi32(_mm_mul_ps(coef, _mm_load_ps(buff + 4 * x + 12)));
-            d0 = _mm_packus_epi16(_mm_packs_epi32(d0, d1), _mm_packs_epi32(d2, d3));
-            stream(d + 4 * x, _mm_shuffle_epi8(d0, order));
-        }
-        d += dpitch;
-        s -= spitch;
-    }
-}
-#endif
+extern void __stdcall
+packed_shader_to_yuv_3_f16c_stacked(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept;
 
 
+extern void __stdcall
+packed_shader_to_yuv_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept;
 
+
+extern void __stdcall
+packed_shader_to_rgb32_3_f16c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+    const int spitch, const int width, const int height, void* _buff) noexcept;
 
 
 convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack16, arch_t& arch)
@@ -483,11 +403,9 @@ convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack1
     func[make_tuple(3, rgb24, false, NO_SIMD)] = shader_to_rgb_3_c<false>;
     func[make_tuple(3, rgb32, false, NO_SIMD)] = shader_to_rgb_3_c<true>;
 
-#if defined(__AVX__)
-    func[make_tuple(3, yv24, false, USE_F16C)] = shader_to_yuv_3_f16c<false>;
-    func[make_tuple(3, yv24, true, USE_F16C)] = shader_to_yuv_3_f16c<true>;
-    func[make_tuple(3, rgb32, false, USE_F16C)] = shader_to_rgb32_3_f16c;
-#endif
+    func[make_tuple(3, yv24, false, USE_F16C)] = packed_shader_to_yuv_3_f16c;
+    func[make_tuple(3, yv24, true, USE_F16C)] = packed_shader_to_yuv_3_f16c_stacked;
+    func[make_tuple(3, rgb32, false, USE_F16C)] = packed_shader_to_rgb32_3_f16c;
 
     if (precision != 3 && arch == USE_F16C) {
         arch = USE_SSSE3;
