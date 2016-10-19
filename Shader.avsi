@@ -256,7 +256,7 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	fHeight = default(fHeight, 0)
 	fB = default(fB, fKernel == "SSim" ? .5 : 0)
 	fC = default(fC, fKernel == "SSim" ? 0 : .75)
-	PlanarIn = default(PlanarIn, Convert) # Very slight performance gain, slightly lower memory usage
+	PlanarIn = default(PlanarIn, false) # Very slight performance gain, but doesn't work well on NVIDIA cards
 	PlanarOut = default(PlanarOut, true)
 
 	Assert(Str >= 0 && Str <= 5, "Str must be between 0 and 5")
@@ -314,9 +314,8 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 	Kernel = default(Kernel, "Bicubic")
 	B = default(B, Kernel == "SSim" ? .5 : 1./3)
 	C = default(C, Kernel == "SSim" ? 0 : 1./3)
-	PlanarIn = default(PlanarIn, true)
+	PlanarIn = default(PlanarIn, false)
 	PlanarOut = default(PlanarOut, false)
-	PlanarIn=false
 
 	Assert(Width > 0, "Width must be greater than 0")
 	Assert(Height > 0, "Height must be greater than 0")

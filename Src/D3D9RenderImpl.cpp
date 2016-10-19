@@ -45,6 +45,11 @@ HRESULT D3D9RenderImpl::Initialize(HWND hDisplayWindow, int clipPrecision[9], in
     CreateTexture(-1, DITHER_MATRIX_SIZE, DITHER_MATRIX_SIZE, true, false, false, 1, m_DitherMatrix);
     CopyDitherMatrixToSurface(m_DitherMatrix, env);
 
+	// Ensure graphic card supports PlanarOut
+	if (m_PlanarOut) {
+		m_PlanarOut = CheckDeviceFormat(GetD3DFormat(m_OutputPrecision, true), true);
+	}
+
     return S_OK;
 }
 
@@ -104,6 +109,11 @@ HRESULT D3D9RenderImpl::ResetSamplerState() {
         //HR(m_pDevice->SetSamplerState(i, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP));
     }
     return S_OK;
+}
+
+HRESULT D3D9RenderImpl::CheckDeviceFormat(D3DFORMAT format, bool renderTarget) {
+	HRESULT hr = m_pD3D9->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, renderTarget ? D3DUSAGE_RENDERTARGET : D3DUSAGE_DYNAMIC, D3DRTYPE_TEXTURE, format);
+	return SUCCEEDED(hr);
 }
 
 HRESULT D3D9RenderImpl::SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env)

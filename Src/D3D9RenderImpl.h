@@ -52,6 +52,7 @@ private:
 	HRESULT CreateScene(std::vector<InputTexture*>* textureList, CommandStruct* cmd, bool isLast, int planeOut, IScriptEnvironment* env);
 	HRESULT CopyFromRenderTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, bool isLast, int planeOut, IScriptEnvironment* env);
 	HRESULT PrepareReadTarget(std::vector<InputTexture*>* textureList, CommandStruct* cmd, int width, int height, int planeOut, bool isLast, bool isPlanar, InputTexture** dst);
+	HRESULT CheckDeviceFormat(D3DFORMAT format, bool renderTarget);
 	HRESULT SetRenderTarget(int width, int height, D3DFORMAT format, IScriptEnvironment* env);
 	HRESULT ClearRenderTarget();
 	HRESULT GetPresentParams(D3DPRESENT_PARAMETERS* params, HWND hDisplayWindow);

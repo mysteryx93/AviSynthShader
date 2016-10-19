@@ -1,3 +1,8 @@
+Version 1.5.6: October 19th 2016
+- Changed planar format back to D3DFMT_L8
+- PlanarIn default value is now false for all methods
+- Detect whether graphic card supports planar output and gracefully disable PlanarOut if it doesn't
+
 Version 1.5.5: August 18th 2016
 - Updated Avisynth headers
 - Moved lock so that it doesn't cause all other filters to run as MT_SERIALIZED
