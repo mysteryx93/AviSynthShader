@@ -338,7 +338,7 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
 	
-	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToLinear" + MatrixIn + ".cso") : last
+	ConvertYuv ? Shader((PlanarIn ? "YV" : "Yuv") + "ToLinear" + MatrixIn + ".cso") : Shader("GammaToLinear.cso")
 
 	ResizeInternal(Input, true, InputWidth, InputHeight, Kernel, Width, Height, B, C)
 
