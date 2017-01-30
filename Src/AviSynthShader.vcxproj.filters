@@ -15,6 +15,7 @@
     <ClCompile Include="TextureList.cpp" />
     <ClCompile Include="Dither.cpp" />
     <ClCompile Include="D3D9Include.cpp" />
+    <ClCompile Include="convert_f16c.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
