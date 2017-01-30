@@ -8,26 +8,33 @@ const int DefaultConvertYuv = false;
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
 	const VideoInfo& vi = input->GetVideoInfo();
-	if (!vi.IsY8() && !vi.IsYV12() && !vi.IsYV24() && !vi.IsRGB24() && !vi.IsRGB32())
-		env->ThrowError("ConvertToShader: Source must be Y8, YV12, YV24, RGB24 or RGB32");
+	if (vi.BitsPerComponent() != 8 && vi.BitsPerComponent() != 16)
+		env->ThrowError("ConvertToShader: Source must be 8-bit or 16-bit.");
+	if (!vi.IsY() && !vi.Is420() && !vi.Is444() && !vi.IsRGB())
+		env->ThrowError("ConvertToShader: Source must be Y8, Y16, YV12, YUV420P16, YV24, YUV444P16, RGB24, RGB32, RGB48 or RGB64");
 
+	bool HBD = vi.BitsPerComponent() > 8; // High-bit-depth source
 	int precision = args[1].AsInt(2);
 	if (precision < 0 || precision > 3)
 		env->ThrowError("ConvertToShader: Precision must be 0, 1, 2 or 3");
+	if (HBD && precision != 2)
+		env->ThrowError("ConvertToShader: Precision must be 2 for high-bit-depth clips");
 
 	bool stack16 = args[2].AsBool(false);
+	if (stack16 && HBD)
+		env->ThrowError("ConvertToShader: Can't use both lsb and high-bit-depth sources!");
 	if (stack16 && precision == 1)
 		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 	if (stack16 && vi.IsRGB())
 		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
 
 	if (precision == 0) {
-		if (!vi.IsY8())
-			input = env->Invoke("ConvertToY8", input).AsClip();
+		if (!vi.IsY())
+			input = env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", input).AsClip();
 		return input;
 	}
 
-	if (vi.IsY8() || vi.IsYV12()) {
+	if (vi.IsY() || vi.Is420()) {
 		if (stack16) {
 			if (!env->FunctionExists("Dither_resize16nr"))
 				env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
@@ -35,13 +42,14 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 			const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
 			input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 5), nargs).AsClip();
 		} else
-			input = env->Invoke("ConvertToYV24", input).AsClip();
+			input = env->Invoke(HBD ? "ConvertToYUV444" : "ConvertToYV24", input).AsClip();
 	}
 
 	bool planar = args[3].AsBool(false);
-	if (precision == 1 && planar && vi.IsYUV()) {
+	if (!HBD && precision == 1 && planar && vi.IsYUV())
 		return input;
-	}
+	else if (HBD && precision == 2 && planar && vi.IsYUV())
+		return input;
 
 	return new ConvertShader(
 		input,					// source clip
@@ -67,27 +75,30 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 
 	auto format = std::string(args[2].AsString("YV24"));
 	std::transform(format.begin(), format.end(), format.begin(), toupper); // convert lower to UPPER
-	if (precision > 0 && format != "YV12" && format != "YV24" && format != "RGB24" && format != "RGB32")
-		env->ThrowError("ConvertFromShader: Destination format must be YV12, YV24, RGB24 or RGB32");
+	bool HBD = (format == "Y16" || format == "YUV420P16" || format == "YUV444P16" || format == "RGB48" || format == "RGB64");
+	if (precision > 0 && format != "YV12" && format != "YV24" && format != "RGB24" && format != "RGB32" && !HBD)
+		env->ThrowError("ConvertFromShader: Destination format must be YV12, YUV42016P, YV24, YUV444P16, RGB24, RGB32, RGB48 or RGB64");
 
 	bool stack16 = args[3].AsBool(false);
 	if (stack16 && precision == 1)
 		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
+	if (stack16 && HBD)
+		env->ThrowError("ConvertFromShader: Can't use both lsb and high-bit-depth sources!");
 	if (stack16 && (format == "YV12" || format == "Y8") && !env->FunctionExists("Dither_resize16nr")) {
 		env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
 	}
 
-	if ((precision == 0 || precision == 1) && (vi.IsY8() || vi.IsYV24()) && (format == "Y8" || format == "YV12" || format == "YV24")) {
-		if (format == "YV12")
-			input = env->Invoke("ConvertToYV12", input).AsClip();
-		if (format == "Y8" && !vi.IsY8())
-			input = env->Invoke("ConvertToY8", input).AsClip();
-		if (format == "YV24" && !vi.IsYV24())
-			input = env->Invoke("ConvertToYV24", input).AsClip();
+	if ((precision == 0 || precision == 1) && (vi.IsY() || vi.Is444()) && (format == "Y8" || format == "YUV420" || format == "YUV444")) {
+		if (format == "YV12" || format == "YUV420")
+			input = env->Invoke(HBD ? "ConvertToYUV420" : "ConvertToYV12", input).AsClip();
+		if ((format == "Y8" || format == "Y16") && !vi.IsY())
+			input = env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", input).AsClip();
+		if ((format == "YV24" || format == "YUV444") && !vi.Is444())
+			input = env->Invoke(HBD ? "ConvertToYUV444" : "ConvertToYV24", input).AsClip();
 		return input;
 	}
 
-	bool rgb_dst = (format == "RGB24" || format == "RGB32");
+	bool rgb_dst = (format == "RGB24" || format == "RGB32" || format == "RGB48" || format == "RGB64");
 	if (stack16 && rgb_dst)
 		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
 
@@ -100,16 +111,16 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C.
 		env);				// env is the link to essential informations, always provide it
 
-	if (format == "YV12" || format == "Y8") {
+	if (format == "YV12" || format == "YUV420" || format == "Y8" || format == "Y16") {
 		if (stack16) {
 			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", format.c_str(), true };
 			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks" };
 			return env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs);
 		}
-		else if (format == "YV12")
-			return env->Invoke("ConvertToYV12", Result);
-		else if (format == "Y8")
-			return env->Invoke("ConvertToYV8", Result);
+		else if (format == "YV12" || format == "YUV420")
+			return env->Invoke(HBD ? "ConvertToYUV420" : "ConvertToYV12", Result);
+		else if (format == "Y8" || format == "Y16")
+			return env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", Result);
 	}
 
 	return Result;
