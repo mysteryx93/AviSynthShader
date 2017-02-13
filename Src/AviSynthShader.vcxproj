@@ -203,6 +203,7 @@
     <ClInclude Include="ExecuteShader.h" />
     <ClInclude Include="InputTexture.h" />
     <ClInclude Include="MemoryPool.h" />
+    <ClInclude Include="PixelFormatParser.h" />
     <ClInclude Include="PooledTexture.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Shader.h" />
@@ -212,6 +213,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ConvertShader.cpp" />
+    <ClCompile Include="ConvertStacked.hpp" />
     <ClCompile Include="convert_f16c.cpp">
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -229,6 +231,7 @@
     <ClCompile Include="ExecuteShader.cpp" />
     <ClCompile Include="Init.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
+    <ClCompile Include="PixelFormatParser.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="D3D9RenderImpl.cpp" />
     <ClCompile Include="TextureList.cpp" />

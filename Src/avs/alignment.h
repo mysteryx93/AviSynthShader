@@ -52,7 +52,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstdint>
-#include <avs/config.h>
+#include "avs/config.h"
 
 #if defined(MSVC)
     // needed for VS2013, otherwise C++11 'alignas' works

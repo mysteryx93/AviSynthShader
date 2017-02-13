@@ -16,6 +16,8 @@
     <ClCompile Include="Dither.cpp" />
     <ClCompile Include="D3D9Include.cpp" />
     <ClCompile Include="convert_f16c.cpp" />
+    <ClCompile Include="PixelFormatParser.cpp" />
+    <ClCompile Include="ConvertStacked.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="avisynth.h" />
@@ -53,6 +55,7 @@
     <ClInclude Include="Dither.h" />
     <ClInclude Include="D3D9Include.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="PixelFormatParser.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">

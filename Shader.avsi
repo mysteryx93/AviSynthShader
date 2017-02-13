@@ -1,4 +1,4 @@
-# AviSynthShader v1.5.5 (August 18th 2016)
+# AviSynthShader v1.6 (February 13th 2016)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -8,7 +8,7 @@
 # Ex: NNEDI3+SuperRes
 # SuperRes(2, .42, 0, """nnedi3_rpow2(2, nns=4, cshift="Spline16Resize", threads=2)""")
 # 
-# Supported video formats: Y8, YV12, YV24, RGB24 and RGB32.
+# Supported video formats: With Avisynth+, all 8-16 bit YUV, YUVA, RGB and RGBP formats are supported. With Avisynth 2.6, use YV12, YV24, RGB24, RGB32 or stack16.
 #
 ## Documentation of Shader.dll available here
 # https://github.com/mysteryx93/AviSynthShader 
@@ -103,13 +103,12 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 
 	Input
 
-	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	sourceFormat = FormatOut != "" ? FormatOut : PixelType()
+	PrecisionIn = lsb_in || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
 	PrecisionUpscale = lsb_upscale || !Convert ? 2 : 1
-	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+	PrecisionOut = IsY8 ? 0 : lsb_out || !Convert || Shader_GetBitDepth(sourceFormat) > 8 ? 2 : 1
 
 	SmallWidth = Input.Width / PrecisionInW
 	SmallHeight = Input.Height / PrecisionInH
@@ -178,12 +177,11 @@ function SuperResXBR(clip Input, int "Passes", float "Str", float "Soft", float 
 
 	Input
 
-	PrecisionIn = lsb_in || !Convert ? 2 : 1
+	sourceFormat = FormatOut != "" ? FormatOut : PixelType()
+	PrecisionIn = lsb_in || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionOut = Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+	PrecisionOut = IsY8 ? 0 : lsb_out || !Convert || Shader_GetBitDepth(sourceFormat) > 8 ? 2 : 1
 
 	SmallWidth = Input.Width / PrecisionInW
 	SmallHeight = Input.Height / PrecisionInH
@@ -266,12 +264,12 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
-	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert ? 2 : 1
+
+	sourceFormat = FormatOut != "" ? FormatOut : PixelType()
+	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionOut = IsY8 ? 0 : Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsY8 ? "Y8" : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be YV12, YV24, RGB24 or RGB32" + chr(10))
+	PrecisionOut = IsY8 ? 0 : lsb_out || !Convert || Shader_GetBitDepth(sourceFormat) > 8 ? 2 : 1
 
 	SmallWidth = Input.Width / PrecisionInW
 	SmallHeight = Input.Height / PrecisionInH
@@ -282,7 +280,6 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 	size1_string = CreateParamFloat4(LargeWidth, LargeHeight)
 
 	PlanarIn = PlanarIn && Convert
-
 	Input = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarIn) : last
 	Input
 	
@@ -296,7 +293,7 @@ function SuperXBR(clip Input, float "Str", float "Sharp", string "MatrixIn", str
 
 	ConvertYuv ? Shader("GammaToYuv" + MatrixOut + ".cso") : last
 	last.ExecuteShader(Input, Precision=2, Clip1Precision=PrecisionIn, OutputPrecision=PrecisionOut, PlanarOut=PlanarOut, Engines=Engines, Resource=true)
-
+	
 	convert ? ConvertFromShader(PrecisionOut, Format=sourceFormat, lsb=lsb_out) : last
 }
 
@@ -324,12 +321,12 @@ function ResizeShader(clip Input, int "Width", int "Height", string "Kernel", fl
 	Assert((!lsb_in && !lsb_out) || Convert, "Convert must be True to use lsb_in, lsb_upscale or lsb_out")
 
 	Input
-	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert ? 2 : 1
+
+	sourceFormat = FormatOut != "" ? FormatOut : PixelType()
+	PrecisionIn = IsY8 ? 0 : lsb_in || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionOut = IsY8 ? 0 : Convert && !lsb_out ? 1 : 2
-	sourceFormat = FormatOut != "" ? FormatOut : IsY8 ? "Y8" : IsYV12 ? "YV12" : IsYV24 ? "YV24" : IsRGB24 ? "RGB24" : IsRGB32 ? "RGB32" : ""
-	Assert(sourceFormat != "", chr(10) + "Source must be Y8, YV12, YV24, RGB24 or RGB32" + chr(10))
+	PrecisionOut = IsY8 ? 0 : lsb_out || !Convert || Shader_GetBitDepth(sourceFormat) > 8 ? 2 : 1
 
 	InputWidth = Input.Width / PrecisionInW
 	InputHeight = Input.Height / PrecisionInH

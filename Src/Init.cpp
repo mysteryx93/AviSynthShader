@@ -2,71 +2,136 @@
 #include "ConvertShader.h"
 #include "Shader.h"
 #include "ExecuteShader.h"
+#include "PixelFormatParser.h"
+#include "ConvertStacked.hpp"
 
 const int DefaultConvertYuv = false;
+static PixelFormatParser pixelFormatParser;
 
 AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	const VideoInfo& vi = input->GetVideoInfo();
-	if (vi.BitsPerComponent() != 8 && vi.BitsPerComponent() != 16)
-		env->ThrowError("ConvertToShader: Source must be 8-bit or 16-bit.");
-	if (!vi.IsY() && !vi.Is420() && !vi.Is444() && !vi.IsRGB())
-		env->ThrowError("ConvertToShader: Source must be Y8, Y16, YV12, YUV420P16, YV24, YUV444P16, RGB24, RGB32, RGB48 or RGB64");
+	bool planar = args[3].AsBool(false);
 
-	bool HBD = vi.BitsPerComponent() > 8; // High-bit-depth source
+	const VideoInfo& vi = input->GetVideoInfo();
+	if (!vi.IsY() && !vi.Is420() && !vi.Is422() && !vi.Is444() && !vi.IsRGB())
+		env->ThrowError("ConvertToShader: Source format is not supported.");
+
+	bool stack16 = args[2].AsBool(false);
+	bool HBD = vi.BitsPerComponent() > 8 || stack16; // High-bit-depth source
 	int precision = args[1].AsInt(2);
 	if (precision < 0 || precision > 3)
 		env->ThrowError("ConvertToShader: Precision must be 0, 1, 2 or 3");
-	if (HBD && precision != 2)
-		env->ThrowError("ConvertToShader: Precision must be 2 for high-bit-depth clips");
-
-	bool stack16 = args[2].AsBool(false);
-	if (stack16 && HBD)
+	if (stack16 && vi.BitsPerComponent() > 8)
 		env->ThrowError("ConvertToShader: Can't use both lsb and high-bit-depth sources!");
 	if (stack16 && precision == 1)
 		env->ThrowError("ConvertToShader: When using lsb, don't set precision=1!");
 	if (stack16 && vi.IsRGB())
 		env->ThrowError("ConvertToShader: Conversion from Stack16 only supports YV12 and YV24");
+	if (HBD && precision < 2)
+		env->ThrowError("ConvertToShader: Precision must be 2 when using high-bit-depth video");
 
 	if (precision == 0) {
-		if (!vi.IsY())
-			input = env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", input).AsClip();
+		if (!vi.IsY8())
+			input = env->Invoke("ConvertToY8", input).AsClip();
 		return input;
 	}
 
-	if (vi.IsY() || vi.Is420()) {
-		if (stack16) {
-			if (!env->FunctionExists("Dither_resize16nr"))
-				env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
-			AVSValue sargs[5] = { input, vi.width, vi.height / 2, "Spline36", "YV24" };
-			const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
-			input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 5), nargs).AsClip();
-		} else
-			input = env->Invoke(HBD ? "ConvertToYUV444" : "ConvertToYV24", input).AsClip();
+	int Opt = args[4].AsInt(-1);
+	bool isPlusMt = env->FunctionExists("SetFilterMTMode");
+	if (!isPlusMt || Opt > -1) {
+		// This code is designed for Avisynth 2.6
+		if (precision == 1 && planar && vi.IsYUV()) {
+			if (!vi.IsYV24()) {
+				AVSValue sargs[2] = { input, "Spline36" };
+				const char *nargs[2] = { 0, "chromaresample" };
+				input = env->Invoke("ConvertToYV24", AVSValue(sargs, 2), nargs).AsClip();
+			}
+		}
+		else {
+			if (vi.IsY8() || vi.IsYV12()) {
+				if (stack16) {
+					if (!env->FunctionExists("Dither_resize16nr"))
+						env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
+					AVSValue sargs[5] = { input, vi.width, vi.height / 2, "Spline36", "YV24" };
+					const char *nargs[5] = { 0, 0, 0, "kernel", "csp" };
+					input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 5), nargs).AsClip();
+				}
+				else {
+					AVSValue sargs[2] = { input, "Spline36" };
+					const char *nargs[2] = { 0, "chromaresample" };
+					input = env->Invoke("ConvertToYV24", AVSValue(sargs, 2), nargs).AsClip();
+				}
+			}
+
+			input = new ConvertShader(
+				input,					// source clip
+				precision,				// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+				stack16,				// lsb / Stack16
+				std::string(""),
+				planar,					// Planar
+				Opt,					// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C. -1 to use Avisynth+ functions.
+				env);					// env is the link to essential informations, always provide it
+		}
 	}
-
-	bool planar = args[3].AsBool(false);
-	if (!HBD && precision == 1 && planar && vi.IsYUV())
-		return input;
-	else if (HBD && precision == 2 && planar && vi.IsYUV())
-		return input;
-
-	return new ConvertShader(
-		input,					// source clip
-		precision,				// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		stack16,				// lsb / Stack16
-		std::string(""),
-		planar,					// Planar
-		args[4].AsInt(-1),		// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C.
-		env);					// env is the link to essential informations, always provide it
-
+	else {
+		if (stack16)
+			input = env->Invoke("ConvertFromStacked", input).AsClip();
+		// With Avisynth+, we'll rely purely on a chain of built-in functions.
+		if (vi.IsYUV() || vi.IsYUVA()) {
+			if (vi.Is420() || vi.Is422()) {
+				AVSValue sargs[2] = { input, "Spline36" };
+				const char *nargs[2] = { 0, "chromaresample" };
+				input = env->Invoke("ConvertToYUV444", AVSValue(sargs, 2), nargs).AsClip();
+			}
+			if (!planar) {
+				if (vi.NumComponents() == 3)
+					input = env->Invoke("AddAlphaPlane", input).AsClip();
+				// Cast YUVA as RGBA.
+				std::string shuffleFormat = std::string("RGBAP") + (precision > 1 ? "16" : "8");
+				AVSValue sargs[4] = { input, precision == 1 ? "RGBA" : "BGRA", "YUVA", shuffleFormat.c_str() };
+				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
+				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
+				// CombinePlanes causes FlipVertical.
+				input = env->Invoke(precision > 1 ? "ConvertToRGB64" : "ConvertToRGB32", input).AsClip();
+				input = env->Invoke("FlipVertical", input).AsClip();
+			}
+		}
+		else {
+			if (planar) {
+				if (vi.NumComponents() == 4)
+					input = env->Invoke("RemoveAlphaPlane", input).AsClip();
+				// Cast YUVA as RGBA.
+				if (!vi.IsPlanarRGB())
+					input = env->Invoke("ConvertToPlanarRGB", input).AsClip();
+				std::string shuffleFormat = std::string("YUV444P") + (vi.BitsPerComponent() == 32 ? "S" : std::to_string(vi.BitsPerComponent()));
+				AVSValue sargs[4] = { input, "YUV", precision == 1 ? "RGB" : "BGR", shuffleFormat.c_str() };
+				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
+				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
+				// CombinePlanes causes FlipVertical.
+			} else if (vi.IsPlanarRGB())
+				input = env->Invoke(HBD ? "ConvertToRGB64" : "ConvertToRGB32", input).AsClip();
+			else if (vi.NumComponents() == 3)
+				input = env->Invoke("AddAlphaPlane", input).AsClip();
+			if (!planar)
+				input = env->Invoke("FlipVertical", input).AsClip();
+		}
+		if (precision > 1) {
+			if (!HBD) {
+				AVSValue sargs[2] = { input, 16 };
+				const char *nargs[2] = { 0, 0 };
+				input = env->Invoke("ConvertBits", AVSValue(sargs, 2), nargs).AsClip();
+			}
+			input = env->Invoke("Shader_ConvertToDoubleWidth", input).AsClip();
+		}
+	}
+	return input;
 }
 
 AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScriptEnvironment* env) {
 	PClip input = args[0].AsClip();
-	const VideoInfo& vi = input->GetVideoInfo();
+	const VideoInfo& viSrc = input->GetVideoInfo();
 
-	if (!vi.IsRGB32() && !vi.IsYV24() && !vi.IsY8())
+	if (!viSrc.IsRGB32() && !viSrc.IsYV24() && !viSrc.IsY8())
 		env->ThrowError("ConvertFromShader: Source must be RGB32, Planar YV24 or Y8");
 
 	int precision = args[1].AsInt(2);
@@ -75,55 +140,119 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 
 	auto format = std::string(args[2].AsString("YV24"));
 	std::transform(format.begin(), format.end(), format.begin(), toupper); // convert lower to UPPER
-	bool HBD = (format == "Y16" || format == "YUV420P16" || format == "YUV444P16" || format == "RGB48" || format == "RGB64");
-	if (precision > 0 && format != "YV12" && format != "YV24" && format != "RGB24" && format != "RGB32" && !HBD)
-		env->ThrowError("ConvertFromShader: Destination format must be YV12, YUV42016P, YV24, YUV444P16, RGB24, RGB32, RGB48 or RGB64");
+	VideoInfo viDst = pixelFormatParser.GetVideoInfo(std::string(format));
+	bool HBD = viDst.BitsPerComponent() > 8;
+	//if (viDst.pixel_type == 0 || (precision > 0 && format != "YV12" && format != "YV24" && format != "RGB24" && format != "RGB32" && !HBD))
+	//	env->ThrowError("ConvertFromShader: Destination format is not supported");
 
 	bool stack16 = args[3].AsBool(false);
 	if (stack16 && precision == 1)
 		env->ThrowError("ConvertFromShader: When using lsb, don't set precision=1!");
 	if (stack16 && HBD)
 		env->ThrowError("ConvertFromShader: Can't use both lsb and high-bit-depth sources!");
-	if (stack16 && (format == "YV12" || format == "Y8") && !env->FunctionExists("Dither_resize16nr")) {
+	if (stack16 && (viDst.IsYV12() || viDst.IsY8()) && !env->FunctionExists("Dither_resize16nr")) 
 		env->ThrowError("ConvertFromShader: Dither_resize16nr is missing.");
-	}
-
-	if ((precision == 0 || precision == 1) && (vi.IsY() || vi.Is444()) && (format == "Y8" || format == "YUV420" || format == "YUV444")) {
-		if (format == "YV12" || format == "YUV420")
-			input = env->Invoke(HBD ? "ConvertToYUV420" : "ConvertToYV12", input).AsClip();
-		if ((format == "Y8" || format == "Y16") && !vi.IsY())
-			input = env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", input).AsClip();
-		if ((format == "YV24" || format == "YUV444") && !vi.Is444())
-			input = env->Invoke(HBD ? "ConvertToYUV444" : "ConvertToYV24", input).AsClip();
-		return input;
-	}
-
-	bool rgb_dst = (format == "RGB24" || format == "RGB32" || format == "RGB48" || format == "RGB64");
-	if (stack16 && rgb_dst)
+	if (stack16 && !viDst.IsYV12() && !viDst.IsYV24())
 		env->ThrowError("ConvertFromShader: Conversion to Stack16 only supports YV12 and YV24");
+	if (HBD && precision < 2)
+		env->ThrowError("ConvertFromShader: Precision must be 2 when using high-bit-depth");
 
-	ConvertShader* Result = new ConvertShader(
-		input,				// source clip
-		precision,			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
-		stack16,			// lsb / Stack16
-		format,				// destination format
-		false,
-		args[4].AsInt(-1),	// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C.
-		env);				// env is the link to essential informations, always provide it
-
-	if (format == "YV12" || format == "YUV420" || format == "Y8" || format == "Y16") {
-		if (stack16) {
-			AVSValue sargs[6] = { Result, Result->GetVideoInfo().width, Result->GetVideoInfo().height / 2, "Spline36", format.c_str(), true };
-			const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks" };
-			return env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs);
+	int Opt = args[4].AsInt(-1);
+	bool isPlusMt = env->FunctionExists("SetFilterMTMode");
+	if (!isPlusMt || Opt > -1) {
+		// This code is designed for Avisynth 2.6
+		if ((precision == 0 || precision == 1) && (viSrc.IsY() || viSrc.IsYV24()) && (viDst.IsY8() || viDst.IsYV12() || viDst.IsYV16() || viDst.IsYV24())) {
+			if (viDst.IsY8() && !viSrc.IsY())
+				input = env->Invoke("ConvertToY8", input).AsClip();
+			if (viDst.IsYV12())
+				input = env->Invoke("ConvertToYV12", input).AsClip();
+			if (viDst.IsYV16())
+				input = env->Invoke("ConvertToYV24", input).AsClip();
+			if (viDst.IsYV24() && !viSrc.IsYV24())
+				input = env->Invoke("ConvertToYV24", input).AsClip();
 		}
-		else if (format == "YV12" || format == "YUV420")
-			return env->Invoke(HBD ? "ConvertToYUV420" : "ConvertToYV12", Result);
-		else if (format == "Y8" || format == "Y16")
-			return env->Invoke(HBD ? "ConvertToY" : "ConvertToY8", Result);
-	}
+		else {
+			input = new ConvertShader(
+				input,				// source clip
+				precision,			// precision, 1 for RGB32, 2 for UINT16 and 3 for half-float data.
+				stack16,			// lsb / Stack16
+				format,				// destination format
+				false,
+				Opt,				// 0 for C++ only, 1 for use SSE2, 2 for use SSSE3 and others for use F16C. -1 to use Avisynth+ functions.
+				env);				// env is the link to essential informations, always provide it
 
-	return Result;
+			if (viDst.IsY8() || viDst.IsYV12() || viDst.IsYV16()) {
+				if (stack16) {
+					AVSValue sargs[6] = { input, input->GetVideoInfo().width, input->GetVideoInfo().height / 2, "Spline36", format.c_str(), true };
+					const char *nargs[6] = { 0, 0, 0, "kernel", "csp", "invks" };
+					input = env->Invoke("Dither_resize16nr", AVSValue(sargs, 6), nargs).AsClip();
+				}
+				else if (viDst.IsYV12())
+					input = env->Invoke("ConvertToYV12", input).AsClip();
+				else if (viDst.IsY8())
+					input = env->Invoke("ConvertToY8", input).AsClip();
+			}
+		}
+	}
+	else {
+		// With Avisynth+, we'll rely purely on a chain of built-in functions.
+		if (precision > 1)
+			input = env->Invoke("Shader_ConvertFromDoubleWidth", input).AsClip();
+
+		if (viSrc.IsYUV()) {
+			// Planar output.
+			if (viDst.IsRGB()) {
+				// Cast YUV as RGB.
+				std::string shuffleFormat = std::string("RGBP") + (precision == 1 ? "8" : precision == 4 ? "S" : "16");
+				AVSValue sargs[4] = { input, precision == 1 ? "RGB" : "BGR", "YUV", shuffleFormat.c_str() };
+				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
+				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
+				input = env->Invoke(viDst.IsRGB24() ? "ConvertToRGB24" : viDst.IsRGB32() ? "ConvertToRGB32" : viDst.IsRGB48() ? "ConvertToRGB48" : viDst.IsRGB64() ? "ConvertToRGB64" : "", input).AsClip();
+				// CombinePlanes causes FlipVertical.
+			}
+		}
+		else {
+			// Stacked output
+			if (!viDst.IsRGB()) {
+				// Cast RGB as YUV.
+				if (!viSrc.IsPlanarRGB())
+					input = env->Invoke("ConvertToPlanarRGBA", input).AsClip();
+				std::string shuffleFormat = std::string("YUVA444P") + (precision == 1 ? "8" : precision == 4 ? "S" : "16");
+				AVSValue sargs[4] = { input, "YUVA", precision == 1 ? "RGBA" : "BGRA", shuffleFormat.c_str() };
+				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
+				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
+				// CombinePlanes causes FlipVertical.
+			}
+			input = env->Invoke("FlipVertical", input).AsClip();
+		}
+
+		if (viDst.NumComponents() == 3)
+			input = env->Invoke("RemoveAlphaPlane", input).AsClip();
+		if (viDst.Is420() || viDst.Is422()) {
+			AVSValue sargs[2] = { input, "Spline36" };
+			const char *nargs[2] = { 0, "chromaresample" };
+			input = env->Invoke(viDst.Is422() ? "ConvertToYUV422" : "ConvertToYUV420", AVSValue(sargs, 2), nargs).AsClip();
+		}
+
+		if (precision > 1 && viDst.BitsPerComponent() < 16 && !stack16) {
+			if (viDst.BitsPerComponent() == 8) {
+				// Dither
+				AVSValue sargs[3] = { input, viDst.BitsPerComponent(), -1 };
+				const char *nargs[3] = { 0, 0, "dither" };
+				input = env->Invoke("ConvertBits", AVSValue(sargs, 3), nargs).AsClip();
+			}
+			else {
+				// 10-14bit: don't dither. "dither=-1" can't be used due to a bug.
+				AVSValue sargs[2] = { input, viDst.BitsPerComponent() };
+				const char *nargs[2] = { 0, 0 };
+				input = env->Invoke("ConvertBits", AVSValue(sargs, 2), nargs).AsClip();
+			}
+		}
+
+		if (stack16)
+			input = env->Invoke("ConvertToStacked", input).AsClip();
+	}
+	return input;
 }
 
 AVSValue __cdecl Create_Shader(AVSValue args, void* user_data, IScriptEnvironment* env) {
@@ -188,6 +317,21 @@ AVSValue __cdecl Create_ExecuteShader(AVSValue args, void* user_data, IScriptEnv
 		env);
 }
 
+AVSValue __cdecl Create_GetBitDepth(AVSValue args, void* user_data, IScriptEnvironment* env) {
+	VideoInfo vi;
+	AVSValue Format = args[1].AsString("");
+	if (Format.AsString() == "")
+		vi = args[0].AsClip()->GetVideoInfo();
+	else {
+		int pixelFormat = pixelFormatParser.GetPixelFormatAsInt(std::string(Format.AsString()));
+		if (pixelFormat != 0)
+			vi = pixelFormatParser.GetVideoInfo(pixelFormat);
+		else
+			env->ThrowError("Shader_GetBitDepth: Specified format is invalid");
+	}
+	return AVSValue(vi.BitsPerComponent());
+}
+
 const AVS_Linkage *AVS_linkage = 0;
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
@@ -196,5 +340,11 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	env->AddFunction("ConvertFromShader", "c[Precision]i[Format]s[lsb]b[opt]i", Create_ConvertFromShader, 0);
 	env->AddFunction("Shader", "c[Path]s[EntryPoint]s[ShaderModel]s[Param0]s[Param1]s[Param2]s[Param3]s[Param4]s[Param5]s[Param6]s[Param7]s[Param8]s[Clip1]i[Clip2]i[Clip3]i[Clip4]i[Clip5]i[Clip6]i[Clip7]i[Clip8]i[Clip9]i[Output]i[Width]i[Height]i[Precision]i[Defines]s", Create_Shader, 0);
 	env->AddFunction("ExecuteShader", "c[Clip1]c[Clip2]c[Clip3]c[Clip4]c[Clip5]c[Clip6]c[Clip7]c[Clip8]c[Clip9]c[Clip1Precision]i[Clip2Precision]i[Clip3Precision]i[Clip4Precision]i[Clip5Precision]i[Clip6Precision]i[Clip7Precision]i[Clip8Precision]i[Clip9Precision]i[Precision]i[OutputPrecision]i[PlanarOut]b[Engines]i[Resource]b", Create_ExecuteShader, 0);
+	env->AddFunction("Shader_GetBitDepth", "c[format]s", Create_GetBitDepth, 0);
+
+	env->AddFunction("Shader_ConvertFromStacked", "c[bits]i", ConvertFromStacked::Create, 0);
+	env->AddFunction("Shader_ConvertToStacked", "c", ConvertToStacked::Create, 0);
+	env->AddFunction("Shader_ConvertFromDoubleWidth", "c[bits]i", ConvertFromDoubleWidth::Create, 0);
+	env->AddFunction("Shader_ConvertToDoubleWidth", "c", ConvertToDoubleWidth::Create, 0);
 	return "Shader plugin";
 }
