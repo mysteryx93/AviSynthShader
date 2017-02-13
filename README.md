@@ -1,4 +1,4 @@
-# AviSynth Shader v1.5.6
+# AviSynth Shader v1.6
 
 <a href="https://github.com/mysteryx93/AviSynthShader/releases">Download here >></a>
 
@@ -86,7 +86,7 @@ https://github.com/zachsaw/MPDN_Extensions/tree/master/Extensions/RenderScripts
 #### Shader.dll functions
 
 #### ConvertToShader(Input, Precision, lsb, Planar, Opt)
-Converts a YV12, YV24 or RGB32 clip into a wider frame containing UINT16 or half-float data. Clips must be converted in such a way before running any shader.
+Converts a clip into a wider frame containing UINT16 or half-float data. Clips must be converted in such a way before running any shader.
 
 16-bit-per-channel half-float data isn't natively supported by AviSynth. It is stored in a RGB32 container with a Width that is twice larger. When using Clip.Width, you must divine by 2 to get the accurate width.
 
@@ -94,16 +94,19 @@ Arguments:
 Precision: 0 to convert to Y8, 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=1  
 lsb: Whether to convert from DitherTools' Stack16 format. Only YV12 and YV24 are supported. Default=false  
 Planar: True to convert into YV24 planar data to reduce memory transers. If you assign such a clip to Clip1, the shader will receive the 3 planes as Clip1, Clip2 and Clip3. Default=false  
-Opt: Optimization path. 0 for only C++, 1 for SSE2, 2 for AVX(only used with Precision=3), -1 to auto-detect. Default=-1
+Opt: Optimization path. In Avisynth 2.6, 0 for only C++, 1 for SSE2, 2 for AVX(only used with Precision=3), -1 to auto-detect. 
+	In Avisynth+, -1 to use the Avisynth+ code path, other values to use legacy code paths. Default=-1
+     
 
 #### ConvertFromShader(Input, Precision, Format, lsb)
-Convert a half-float clip into a standard YV12, YV24 or RGB32 clip.
+Convert a half-float clip into a standard clip.
 
 Arguments:  
 Precision: 0 to convert int Y8, 1 to convert into BYTE, 2 to convert into UINT16, 3 to convert into half-float. Default=1  
 Format: The video format to convert to. Valid formats are YV12, YV24 and RGB32. Default=YV12.  
 lsb: Whether to convert to DitherTools' Stack16 format. Only YV12 and YV24 are supported. Default=false  
-Opt: Optimization path. 0 for only C++, 1 for SSE2, 2 for AVX(only used with Precision=3), -1 to auto-detect. Default=-1
+Opt: Optimization path. In Avisynth 2.6, 0 for only C++, 1 for SSE2, 2 for AVX(only used with Precision=3), -1 to auto-detect. 
+	In Avisynth+, -1 to use the Avisynth+ code path, other values to use legacy code paths. Default=-1
 
 #### Shader(Input, Path, EntryPoint, ShaderModel, Param1-Param9, Clip1-Clip9, Output, Width, Height, Precision, Defines)
 Runs a HLSL pixel shader on specified clip. You can either run a compiled .cso file or compile a .hlsl file.
