@@ -76,6 +76,12 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 	else {
 		if (stack16)
 			input = env->Invoke("ConvertFromStacked", input).AsClip();
+		else if (precision > 1 && vi.BitsPerComponent() < 16) {
+			AVSValue sargs[2] = { input, 16 };
+			const char *nargs[2] = { 0, 0 };
+			input = env->Invoke("ConvertBits", AVSValue(sargs, 2), nargs).AsClip();
+		}
+
 		// With Avisynth+, we'll rely purely on a chain of built-in functions.
 		if (vi.IsYUV() || vi.IsYUVA()) {
 			if (vi.Is420() || vi.Is422()) {
@@ -87,7 +93,7 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 				if (vi.NumComponents() == 3)
 					input = env->Invoke("AddAlphaPlane", input).AsClip();
 				// Cast YUVA as RGBA.
-				std::string shuffleFormat = std::string("RGBAP") + (precision > 1 ? "16" : "8");
+				std::string shuffleFormat = std::string("RGBAP") + (precision == 1 ? "8" : precision == 4 ? "S" : "16");
 				AVSValue sargs[4] = { input, precision == 1 ? "RGBA" : "BGRA", "YUVA", shuffleFormat.c_str() };
 				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
 				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
@@ -103,7 +109,7 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 				// Cast YUVA as RGBA.
 				if (!vi.IsPlanarRGB())
 					input = env->Invoke("ConvertToPlanarRGB", input).AsClip();
-				std::string shuffleFormat = std::string("YUV444P") + (vi.BitsPerComponent() == 32 ? "S" : std::to_string(vi.BitsPerComponent()));
+				std::string shuffleFormat = std::string("YUV444P") + (precision == 1 ? "8" : precision == 4 ? "S" : "16");
 				AVSValue sargs[4] = { input, "YUV", precision == 1 ? "RGB" : "BGR", shuffleFormat.c_str() };
 				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
 				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
@@ -115,14 +121,8 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 			if (!planar)
 				input = env->Invoke("FlipVertical", input).AsClip();
 		}
-		if (precision > 1) {
-			if (!HBD) {
-				AVSValue sargs[2] = { input, 16 };
-				const char *nargs[2] = { 0, 0 };
-				input = env->Invoke("ConvertBits", AVSValue(sargs, 2), nargs).AsClip();
-			}
+		if (precision > 1)
 			input = env->Invoke("Shader_ConvertToDoubleWidth", input).AsClip();
-		}
 	}
 	return input;
 }
@@ -207,8 +207,9 @@ AVSValue __cdecl Create_ConvertFromShader(AVSValue args, void* user_data, IScrip
 				AVSValue sargs[4] = { input, precision == 1 ? "RGB" : "BGR", "YUV", shuffleFormat.c_str() };
 				const char *nargs[4] = { 0, "planes", "source_planes", "pixel_type" };
 				input = env->Invoke("CombinePlanes", AVSValue(sargs, 4), nargs).AsClip();
-				input = env->Invoke(viDst.IsRGB24() ? "ConvertToRGB24" : viDst.IsRGB32() ? "ConvertToRGB32" : viDst.IsRGB48() ? "ConvertToRGB48" : viDst.IsRGB64() ? "ConvertToRGB64" : "", input).AsClip();
 				// CombinePlanes causes FlipVertical.
+				if (!viDst.IsPlanarRGB() && !viDst.IsPlanarRGBA())
+					input = env->Invoke(viDst.IsRGB24() ? "ConvertToRGB24" : viDst.IsRGB32() ? "ConvertToRGB32" : viDst.IsRGB48() ? "ConvertToRGB48" : viDst.IsRGB64() ? "ConvertToRGB64" : "", input).AsClip();
 			}
 		}
 		else {
