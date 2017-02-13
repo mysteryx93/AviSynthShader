@@ -1,3 +1,10 @@
+Version 1.6: February 13th 2017
+- Added support for all new Avisynth+ clip formats
+- Added support for native high-bit-depth clip formats
+- ConvertToShader and ConvertFromShader now use native Avisynth+ functions for conversion, which results in better performance in several cases
+- AviSynth 2.6 is still supported. ConvertToShader and ConvertFromShader have 2 code paths. Set Opt=2 to use the legacy code path. Opt=-1 will use Avisynth+ functions.
+- Updated SSIM downscaler: more advanced XYZ processing
+
 Version 1.5.6: October 19th 2016
 - Changed planar format back to D3DFMT_L8
 - PlanarIn default value is now false for all methods
