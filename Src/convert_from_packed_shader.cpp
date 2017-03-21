@@ -304,29 +304,29 @@ shader_to_rgb_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 
 
 
-static void __stdcall
-shader_to_rgb32_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, void*) noexcept
-{
-    const uint8_t* s = srcp[0] + (height - 1) * spitch;
-    uint8_t* d = dstp[0];
-
-    const __m128i mask = _mm_set1_epi16(0x00FF);
-    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; x += 4) {
-            __m128i d0 = load(s + 8 * x);
-            __m128i d1 = load(s + 8 * x + 16);
-            d0 = _mm_adds_epu8(_mm_srli_epi16(d0, 8), _mm_srli_epi16(_mm_and_si128(d0, mask), 7));
-            d1 = _mm_adds_epu8(_mm_srli_epi16(d1, 8), _mm_srli_epi16(_mm_and_si128(d1, mask), 7));
-            d0 = _mm_shuffle_epi8(_mm_packus_epi16(d0, d1), order);
-            stream(d + 4 * x, d0);
-        }
-        d += dpitch;
-        s -= spitch;
-    }
-}
+//static void __stdcall
+//shader_to_rgb32_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+//    const int spitch, const int width, const int height, void*) noexcept
+//{
+//    const uint8_t* s = srcp[0] + (height - 1) * spitch;
+//    uint8_t* d = dstp[0];
+//
+//    const __m128i mask = _mm_set1_epi16(0x00FF);
+//    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
+//
+//    for (int y = 0; y < height; ++y) {
+//        for (int x = 0; x < width; x += 4) {
+//            __m128i d0 = load(s + 8 * x);
+//            __m128i d1 = load(s + 8 * x + 16);
+//            d0 = _mm_adds_epu8(_mm_srli_epi16(d0, 8), _mm_srli_epi16(_mm_and_si128(d0, mask), 7));
+//            d1 = _mm_adds_epu8(_mm_srli_epi16(d1, 8), _mm_srli_epi16(_mm_and_si128(d1, mask), 7));
+//            d0 = _mm_shuffle_epi8(_mm_packus_epi16(d0, d1), order);
+//            stream(d + 4 * x, d0);
+//        }
+//        d += dpitch;
+//        s -= spitch;
+//    }
+//}
 
 
 template <bool IS_RGB32>
@@ -395,7 +395,7 @@ convert_shader_t get_from_shader_packed(int precision, int pix_type, bool stack1
 
     func[make_tuple(2, rgb24, false, NO_SIMD)] = shader_to_rgb_2_c<false>;
     func[make_tuple(2, rgb32, false, NO_SIMD)] = shader_to_rgb_2_c<true>;
-    func[make_tuple(2, rgb32, false, USE_SSSE3)] = shader_to_rgb32_2_ssse3;
+    //func[make_tuple(2, rgb32, false, USE_SSSE3)] = shader_to_rgb32_2_ssse3;
 
     func[make_tuple(3, yv24, false, NO_SIMD)] = shader_to_yuv_3_c<false>;
     func[make_tuple(3, yv24, true, NO_SIMD)] = shader_to_yuv_3_c<true>;

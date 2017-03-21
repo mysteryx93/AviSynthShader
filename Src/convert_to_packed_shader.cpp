@@ -283,26 +283,26 @@ rgb_to_shader_2_c(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
 }
 
 
-static void __stdcall
-rgb32_to_shader_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
-    const int spitch, const int width, const int height, void*) noexcept
-{
-    const uint8_t* s = srcp[0] + (height - 1) * spitch;
-    uint8_t* d = dstp[0];
-
-    const __m128i zero = _mm_setzero_si128();
-    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
-
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; x += 4) {
-            __m128i t = _mm_shuffle_epi8(load(s + 4 * x), order);
-            stream(d + 8 * x, _mm_unpacklo_epi8(zero, t));
-            stream(d + 8 * x + 16, _mm_unpackhi_epi8(zero, t));
-        }
-        d += dpitch;
-        s -= spitch;
-    }
-}
+//static void __stdcall
+//rgb32_to_shader_2_ssse3(uint8_t** dstp, const uint8_t** srcp, const int dpitch,
+//    const int spitch, const int width, const int height, void*) noexcept
+//{
+//    const uint8_t* s = srcp[0] + (height - 1) * spitch;
+//    uint8_t* d = dstp[0];
+//
+//    const __m128i zero = _mm_setzero_si128();
+//    const __m128i order = _mm_setr_epi8(2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15);
+//
+//    for (int y = 0; y < height; ++y) {
+//        for (int x = 0; x < width; x += 4) {
+//            __m128i t = _mm_shuffle_epi8(load(s + 4 * x), order);
+//            stream(d + 8 * x, _mm_unpacklo_epi8(zero, t));
+//            stream(d + 8 * x + 16, _mm_unpackhi_epi8(zero, t));
+//        }
+//        d += dpitch;
+//        s -= spitch;
+//    }
+//}
 
 
 template <bool IS_RGB32>
@@ -368,7 +368,7 @@ convert_shader_t get_to_shader_packed(int precision, int pix_type, bool stack16,
 
     func[make_tuple(2, rgb24, false, NO_SIMD)] = rgb_to_shader_2_c<false>;
     func[make_tuple(2, rgb32, false, NO_SIMD)] = rgb_to_shader_2_c<true>;
-    func[make_tuple(2, rgb32, false, USE_SSSE3)] = rgb32_to_shader_2_ssse3;
+    //func[make_tuple(2, rgb32, false, USE_SSSE3)] = rgb32_to_shader_2_ssse3;
 
     func[make_tuple(3, yv24, false, NO_SIMD)] = yuv_to_shader_3_c<false>;
     func[make_tuple(3, yv24, true, NO_SIMD)] = yuv_to_shader_3_c<true>;
