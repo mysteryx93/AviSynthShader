@@ -1,3 +1,6 @@
+Version 1.6.2: August 9th 2017
+- Added Factor parameter to SuperXBR and SuperResXBR to upscale by a factor of 2, 4, 8 or 16 in one call
+
 Version 1.6.1: March 21st 2017
 - Fixed color shift with RGB32 input and RGB48 output
 - Compiled with Visual Studio 2017
