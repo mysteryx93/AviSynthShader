@@ -27,11 +27,11 @@
 # Arguments fKernel, fWidth, fHeight, fB, fC are the same as ResizeShader and allows downscaling the output before reading back from GPU
 #
 # 
-## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
+## SuperResXBR(Input, Passes, Str, Soft, XbrStr, XbrSharp, Factor, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
 # Enhances upscaling quality, combining Super-xBR and SuperRes to run in the same command chain, reducing memory transfers and increasing performance.
 # 
 # Arguments Passes, Str, Soft are the same as SuperRes.
-# Arguments XbrStr, XbrSharp are the same as SuperXBR.
+# Arguments XbrStr, XbrSharp, Factor are the same as SuperXBR.
 # 
 # 
 ## SuperRes(Input, Passes, Str, Soft, Upscale, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_upscale, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarUpscale, PlanarOut)
@@ -46,12 +46,13 @@
 # PlanarUpscale: Whether to read the result of Upscale as planar data. Default=true (slight performance gain)
 # 
 # 
-## SuperXBR(Input, Str, Sharp, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarOut)
+## SuperXBR(Input, Str, Sharp, Factor, MatrixIn, MatrixOut, FormatOut, Convert, lsb_in, lsb_out, fKernel, fWidth, fHeight, fB, fC, PlanarIn, PlanarOut)
 # Doubles the size of the image. Produces a sharp result, but with severe ringing.
 # 
 # Arguments:
 # Str: Value between 0 and 5 specifying the strength. Default=1.
 # Sharp: Value between 0 and 1.5 specifying the weight. Default=1.
+# Factor: Upscales the image by a factor of 2, 4, 8 or 16 in one call. Default=2.
 # 
 #
 ## ResizeShader(Input, Width, Height, Kernel, B, C, MatrixIn, MatrixOut, FormatOut, Convert, ConvertYuv, lsb_in, lsb_out, PlanarIn, PlanarOut)
