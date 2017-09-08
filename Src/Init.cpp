@@ -13,7 +13,8 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 	bool planar = args[3].AsBool(false);
 
 	const VideoInfo& vi = input->GetVideoInfo();
-	if (!vi.IsY() && !vi.Is420() && !vi.Is422() && !vi.Is444() && !vi.IsRGB())
+	if (!vi.IsY() && !vi.Is420() && !vi.Is422() && !vi.Is444() && !vi.IsRGB() && 
+		!vi.IsY8() && !vi.IsYV12() && !vi.IsYV16() && !vi.IsYV24()) // Iv420() returns false in Avisynth 2.6
 		env->ThrowError("ConvertToShader: Source format is not supported.");
 
 	bool stack16 = args[2].AsBool(false);
@@ -47,7 +48,7 @@ AVSValue __cdecl Create_ConvertToShader(AVSValue args, void* user_data, IScriptE
 				input = env->Invoke("ConvertToYV24", AVSValue(sargs, 2), nargs).AsClip();
 			}
 		} else {
-			if (vi.IsY8() || vi.IsYV12()) {
+			if (vi.IsY8() || vi.IsYV12() || vi.IsYV16()) {
 				if (stack16) {
 					if (!env->FunctionExists("Dither_resize16nr"))
 						env->ThrowError("ConvertToShader: Dither_resize16nr is missing.");
