@@ -1,3 +1,6 @@
+Version 1.6.4: September 20th 2017
+- Fixed SuperRes when using high-bit-depth upscale
+
 Version 1.6.3: September 8th 2017
 - Fixed compatibility regression with Avisynth 2.6
 - Now converts properly from YV16 format with Avisynth 2.6

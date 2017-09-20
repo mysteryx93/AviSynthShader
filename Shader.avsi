@@ -1,4 +1,4 @@
-# AviSynthShader v1.6.2 (August 9th 2017)
+# AviSynthShader v1.6.4 (September 20th 2017)
 # by Etienne Charland
 # 
 # Provides a bridge between AviSynth and HLSL pixel shaders for high bit depth processing on the GPU.
@@ -108,7 +108,6 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	PrecisionIn = lsb_in || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	PrecisionInW = lsb_in || Convert ? 1 : 2
 	PrecisionInH = lsb_in ? 2 : 1
-	PrecisionUpscale = lsb_upscale || !Convert ? 2 : 1
 	PrecisionOut = IsY8 ? 0 : lsb_out || !Convert || Shader_GetBitDepth(sourceFormat) > 8 ? 2 : 1
 
 	SmallWidth = Input.Width / PrecisionInW
@@ -120,6 +119,7 @@ function SuperRes(clip Input, int "Passes", float "Str", float "Soft", string "U
 	# Upscale
 	Original = convert ? ConvertToShader(PrecisionIn, lsb=lsb_in, Planar=PlanarUpscale) : last
 	Eval(Upscale)
+	PrecisionUpscale = lsb_upscale || !Convert || Shader_GetBitDepth() > 8 ? 2 : 1
 	LargeWidth = Width
 	LargeHeight = lsb_upscale ? Height / 2 : Height
 
