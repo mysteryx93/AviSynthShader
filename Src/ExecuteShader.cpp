@@ -30,10 +30,6 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 	// Initialize
 	dummyHWND = CreateWindowA("STATIC", "dummy", 0, 0, 0, 100, 100, nullptr, nullptr, nullptr, nullptr);
 
-	// We must change pixel type here for the next filter to recognize it properly during its initialization
-	srcHeight = vi.height;
-	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
-
 	// Runs as MT_NICE_FILTER in AviSynth+ MT, otherwise MT_MULTI_INSTANCE
 	if (env->FunctionExists("SetFilterMTMode") && SUPPORT_MT_NICE_FILTER == true) {
 		auto env2 = static_cast<IScriptEnvironment2*>(env);
@@ -51,6 +47,10 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 			env->ThrowError("ExecuteShader: Initialize failed.");
 		m_engines.push_back(NewEngine);
 	}
+
+	// We must change pixel type here for the next filter to recognize it properly during its initialization
+	srcHeight = vi.height;
+	vi.pixel_type = m_PlanarOut ? VideoInfo::CS_YV24 : VideoInfo::CS_BGR32;
 
 	// vi.width and vi.height must be set during constructor
 	std::vector<InputTexture*> TextureList;

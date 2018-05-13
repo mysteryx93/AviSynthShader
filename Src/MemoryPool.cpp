@@ -29,13 +29,9 @@ HRESULT MemoryPool::AllocateInternal(CComPtr<IDirect3DDevice9Ex> device, bool gp
 	m_mutex.unlock();
 
 	// If not found, create it
-	if (gpuTexture) {
-		HR(device->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, D3DPOOL_DEFAULT, &texture, nullptr));
-		HR(texture->GetSurfaceLevel(0, &surface));
-	}
-	else {
-		HR(device->CreateOffscreenPlainSurface(width, height, format, D3DPOOL_SYSTEMMEM, &surface, NULL));
-	}
+	// Note: CreateOffscreenPlainSurface fails for L8 format on NVidia cards but CreateTexture works.
+	HR(device->CreateTexture(width, height, 1, renderTarget ? D3DUSAGE_RENDERTARGET : NULL, format, gpuTexture ? D3DPOOL_DEFAULT : D3DPOOL_SYSTEMMEM, &texture, nullptr));
+	HR(texture->GetSurfaceLevel(0, &surface));
 
 	// Add to memory pool.
 	PooledTexture* NewObj = new PooledTexture();
