@@ -153,7 +153,7 @@ PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
 
     void* b = useLut ? reinterpret_cast<void*>(lut.data()) : buff;
     if (isPlusMt) { // if avs+MT, allocate buffer at every GetFrame() via buffer pool.
-        b = static_cast<IScriptEnvironment2*>(env)->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
+        env->Allocate(floatBufferPitch, 32, AVS_POOLED_ALLOC);
         if (!b) {
             env->ThrowError("%s Failed to allocate temporal buffer.", name.c_str());
         }
@@ -162,7 +162,7 @@ PVideoFrame __stdcall ConvertShader::GetFrame(int n, IScriptEnvironment* env) {
     mainProc(dstp, srcp, dst->GetPitch(), src->GetPitch(), procWidth, procHeight, b);
 
     if (isPlusMt) {
-        static_cast<IScriptEnvironment2*>(env)->Free(b);
+        env->Free(b);
     }
 
     return dst;

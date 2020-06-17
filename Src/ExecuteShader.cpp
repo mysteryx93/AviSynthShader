@@ -32,8 +32,7 @@ ExecuteShader::ExecuteShader(PClip _child, PClip _clip1, PClip _clip2, PClip _cl
 
 	// Runs as MT_NICE_FILTER in AviSynth+ MT, otherwise MT_MULTI_INSTANCE
 	if (env->FunctionExists("SetFilterMTMode") && SUPPORT_MT_NICE_FILTER == true) {
-		auto env2 = static_cast<IScriptEnvironment2*>(env);
-		int ThreadCount = env2->GetProperty(AEP_THREADPOOL_THREADS);
+		int ThreadCount = env->GetEnvProperty(AEP_THREADPOOL_THREADS);
 		if (m_enginesCount > ThreadCount)
 			m_enginesCount = ThreadCount;
 	}

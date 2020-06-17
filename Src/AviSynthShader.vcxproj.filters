@@ -56,6 +56,9 @@
     <ClInclude Include="D3D9Include.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="PixelFormatParser.h" />
+    <ClInclude Include="posix.h">
+      <Filter>avs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="avs">
