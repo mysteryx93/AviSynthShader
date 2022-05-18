@@ -37,11 +37,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef __cplusplus
-#include <cstddef>
-#include <cstdarg>
+  #include <cstddef>
+  #include <cstdarg>
 #else
-#include <stddef.h>
-#include <stdarg.h>
+  #include <stddef.h>
+  #include <stdarg.h>
 #endif
 
 // Raster types used by VirtualDub & Avisynth

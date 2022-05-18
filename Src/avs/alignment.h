@@ -56,31 +56,31 @@
 
 #if defined(MSVC) && _MSC_VER<1400
     // needed for VS2013, otherwise C++11 'alignas' works
-#define avs_alignas(x) __declspec(align(x))
+    #define avs_alignas(x) __declspec(align(x))
 #else
     // assumes C++11 support
-#define avs_alignas(x) alignas(x)
+    #define avs_alignas(x) alignas(x)
 #endif
 
 template<typename T>
 static bool IsPtrAligned(T* ptr, size_t align)
 {
-    assert(IS_POWER2(align));
-    return (bool)IS_PTR_ALIGNED(ptr, align);
+  assert(IS_POWER2(align));
+  return (bool)IS_PTR_ALIGNED(ptr, align);
 }
 
 template<typename T>
 static T AlignNumber(T n, T align)
 {
-    assert(IS_POWER2(align));
-    return ALIGN_NUMBER(n, align);
+  assert(IS_POWER2(align));
+  return ALIGN_NUMBER(n, align);
 }
 
 template<typename T>
 static T* AlignPointer(T* ptr, size_t align)
 {
-    assert(IS_POWER2(align));
-    return (T*)ALIGN_POINTER(ptr, align);
+  assert(IS_POWER2(align));
+  return (T*)ALIGN_POINTER(ptr, align);
 }
 
 extern "C"
@@ -95,29 +95,29 @@ extern "C"
 // the returned buffer must be freed using "avs_free".
 inline void* avs_malloc(size_t nbytes, size_t align)
 {
-    if (!IS_POWER2(align))
-        return NULL;
+  if (!IS_POWER2(align))
+    return NULL;
 
-    size_t offset = sizeof(void*) + align - 1;
+  size_t offset = sizeof(void*) + align - 1;
 
-    void* orig = malloc(nbytes + offset);
-    if (orig == NULL)
-        return NULL;
+  void *orig = malloc(nbytes + offset);
+  if (orig == NULL)
+   return NULL;
 
-    void** aligned = (void**)(((uintptr_t)orig + (uintptr_t)offset) & (~(uintptr_t)(align - 1)));
-    aligned[-1] = orig;
-    return aligned;
+  void **aligned = (void**)(((uintptr_t)orig + (uintptr_t)offset) & (~(uintptr_t)(align-1)));
+  aligned[-1] = orig;
+  return aligned;
 }
 
 // Buffers allocated using "avs_malloc" must be freed
 // using "avs_free" instead of "free".
-inline void avs_free(void* ptr)
+inline void avs_free(void *ptr)
 {
-    // Mirroring free()'s semantic requires us to accept NULLs
-    if (ptr == NULL)
-        return;
+  // Mirroring free()'s semantic requires us to accept NULLs
+  if (ptr == NULL)
+    return;
 
-    free(((void**)ptr)[-1]);
+  free(((void**)ptr)[-1]);
 }
 
 #ifdef __cplusplus
